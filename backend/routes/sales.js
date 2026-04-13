@@ -222,6 +222,7 @@ router.post("/save", async (req, res) => {
           .input("PaymentType", 1)
           .input("Paymode", paymodePosition)
           .input("Amount", totalAmount || 0)
+          .input("ReferenceNumber", sql.VarChar(100), null)
           .input("Remarks", paymentMethod || "")
           .input("BusinessUnitId", businessUnitId)
           .input("CreatedBy", cashierId || "ADMIN")
