@@ -90,7 +90,7 @@ export default function SummaryScreen() {
   const fetchCancelReasons = async () => {
     try {
       setLoadingReasons(true);
-      const res = await fetch(`${API_URL}/api/cancel-reasons`);
+      const res = await fetch(`${API_URL}/api/admin/cancel-reasons`);
       const data = await res.json();
       setCancelReasons(Array.isArray(data) ? data : []);
     } catch (err) {

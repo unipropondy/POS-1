@@ -35,7 +35,7 @@ router.get("/transactions", async (req, res) => {
       .input("Start", sql.DateTime, startDate || new Date(new Date().setDate(new Date().getDate() - 30)))
       .input("End", sql.DateTime, endDate || new Date())
       .query(`
-        SELECT sh.SettlementID, sh.LastSettlementDate, sh.BillNo, sh.TotalAmount, sts.PayMode
+        SELECT sh.SettlementID, sh.LastSettlementDate, sh.BillNo, sh.SysAmount AS TotalAmount, sts.PayMode
         FROM SettlementHeader sh
         LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
         WHERE sh.LastSettlementDate BETWEEN @Start AND @End
@@ -165,9 +165,12 @@ router.post("/save", async (req, res) => {
         .input("OrderType", orderType || "DINE-IN")
         .input("TableNo", tableNo || null)
         .input("Section", section || null)
-        .input("MemberId", memberId || null).query(`
-          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderId, OrderType, TableNo, Section, MemberId)
-          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderId, @OrderType, @TableNo, @Section, @MemberId)
+        .input("MemberId", memberId || null)
+        .input("CashierID", cashierId || null)
+        .input("SysAmount", totalAmount || 0)
+        .input("ManualAmount", totalAmount || 0).query(`
+          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderId, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount)
+          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderId, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount)
         `);
 
       // 2. Insert into SettlementTotalSales

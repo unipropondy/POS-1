@@ -115,7 +115,7 @@ export default function PaymentScreen() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/payment-methods`);
+      const res = await fetch(`${API_URL}/api/sales/payment-methods`);
       if (!res.ok) throw new Error("Failed to load");
       const data: any[] = await res.json();
       const mapped: PaymentMethod[] = data.map((d) => ({
@@ -161,7 +161,7 @@ export default function PaymentScreen() {
   const fetchPaymentDetail = async (payMode: string, fallback?: PaymentMethod) => {
     setLoadingDetail(true);
     try {
-      const res = await fetch(`${API_URL}/api/payment-detail/${encodeURIComponent(payMode)}`);
+      const res = await fetch(`${API_URL}/api/sales/payment-detail/${encodeURIComponent(payMode)}`);
       if (!res.ok) throw new Error("Not found");
       const d = await res.json();
       setSelectedDetail({
