@@ -197,8 +197,8 @@ export default function SalesReport() {
     }
 
     const filtered = dateScopedSales.filter((s) => {
-       const modeMatch = activePaymentModes.includes(s.PayMode);
-       const typeMatch = activeOrderTypes.length === 2 || (s.OrderType ? activeOrderTypes.includes(s.OrderType) : activeOrderTypes.includes("DINE-IN"));
+       const modeMatch = activePaymentModes.includes(s.PayMode?.trim());
+       const typeMatch = activeOrderTypes.length === 2 || (s.OrderType ? activeOrderTypes.includes(s.OrderType?.trim()) : activeOrderTypes.includes("DINE-IN"));
        return modeMatch && typeMatch;
     });
 

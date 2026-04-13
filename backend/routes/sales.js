@@ -15,7 +15,7 @@ router.get("/all", async (req, res) => {
     const result = await pool.request().query(`
       SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, sh.OrderId, sh.OrderType,
       sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, 
-      ISNULL(sts.PayMode, 'CASH') as PayMode,
+      LTRIM(RTRIM(ISNULL(sts.PayMode, 'CASH'))) as PayMode,
       ISNULL(NULLIF(sts.SysAmount, 0), ISNULL(sh.SysAmount, 0)) as SysAmount,
       ISNULL(NULLIF(sts.ManualAmount, 0), ISNULL(sh.ManualAmount, 0)) as ManualAmount,
       ISNULL(sts.ReceiptCount, 0) as ReceiptCount
@@ -170,9 +170,11 @@ router.post("/save", async (req, res) => {
         .input("MemberId", memberId || null)
         .input("CashierID", cashierId || null)
         .input("SysAmount", totalAmount || 0)
-        .input("ManualAmount", totalAmount || 0).query(`
-          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderId, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount)
-          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderId, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount)
+        .input("ManualAmount", totalAmount || 0)
+        .input("CreatedBy", cashierId || "ADMIN")
+        .input("CreatedOn", new Date()).query(`
+          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderId, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount, CreatedBy, CreatedOn)
+          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderId, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
         `);
 
       // 2. Insert into SettlementTotalSales
@@ -220,12 +222,15 @@ router.post("/save", async (req, res) => {
           .input("PaymentType", 1)
           .input("Paymode", paymodePosition)
           .input("Amount", totalAmount || 0)
-          .input("ReferenceNumber", "")
           .input("Remarks", paymentMethod || "")
           .input("BusinessUnitId", businessUnitId)
+          .input("CreatedBy", cashierId || "ADMIN")
+          .input("CreatedOn", new Date())
+          .input("ModifiedBy", cashierId || "ADMIN")
+          .input("ModifiedOn", new Date())
           .query(`
-            INSERT INTO [dbo].[PaymentDetailCur] (PaymentId, RestaurantBillId, BilledFor, PaymentCollectedOn, PaymentType, Paymode, Amount, ReferenceNumber, Remarks, BusinessUnitId)
-            VALUES (@PaymentId, @RestaurantBillId, @BilledFor, @PaymentCollectedOn, @PaymentType, @Paymode, @Amount, @ReferenceNumber, @Remarks, @BusinessUnitId)
+            INSERT INTO [dbo].[PaymentDetailCur] (PaymentId, RestaurantBillId, BilledFor, PaymentCollectedOn, PaymentType, Paymode, Amount, ReferenceNumber, Remarks, BusinessUnitId, CreatedBy, CreatedOn, ModifiedBy, ModifiedOn)
+            VALUES (@PaymentId, @RestaurantBillId, @BilledFor, @PaymentCollectedOn, @PaymentType, @Paymode, @Amount, @ReferenceNumber, @Remarks, @BusinessUnitId, @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn)
           `);
       } catch (pdcErr) {
         console.warn("⚠️ [SAVE SALE] PaymentDetailCur insert skipped:", pdcErr.message);
