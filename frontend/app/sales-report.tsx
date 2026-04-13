@@ -175,8 +175,7 @@ export default function SalesReport() {
     if (selectedFilter === "DAILY") {
       dateScopedSales = sales.filter(s => {
         if (!s.SettlementDate) return false;
-        const saleDate = s.SettlementDate.split("T")[0];
-        return saleDate === selectedDate;
+        return String(s.SettlementDate).startsWith(selectedDate);
       });
     } else if (selectedFilter === "WEEKLY") {
       const selectedDateObj = new Date(selectedDate);

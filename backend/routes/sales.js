@@ -14,8 +14,10 @@ router.get("/all", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, sh.OrderId, sh.OrderType,
-      sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, ISNULL(sts.PayMode, 'CASH') as PayMode,
-      ISNULL(sts.SysAmount, 0) as SysAmount, ISNULL(sts.ManualAmount, 0) as ManualAmount,
+      sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, 
+      ISNULL(sts.PayMode, 'CASH') as PayMode,
+      ISNULL(NULLIF(sts.SysAmount, 0), ISNULL(sh.SysAmount, 0)) as SysAmount,
+      ISNULL(NULLIF(sts.ManualAmount, 0), ISNULL(sh.ManualAmount, 0)) as ManualAmount,
       ISNULL(sts.ReceiptCount, 0) as ReceiptCount
       FROM SettlementHeader sh
       LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
