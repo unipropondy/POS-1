@@ -8,6 +8,101 @@ const generateRandomBillId = () => {
     return Math.random().toString(16).slice(2, 10).toUpperCase();
 };
 
+const normalizeReportPayModeSql = (columnName = "sts.PayMode") => `
+  CASE
+    WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, 'CASH')))) IN ('CAS', 'CASH') THEN 'CASH'
+    WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) IN ('CARD', 'VISA', 'MASTER', 'MASTERCARD', 'AMEX', 'DINERS') THEN 'CARD'
+    WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) IN ('PAYNOW', 'GRAB', 'FOODPANDA') THEN 'PAYNOW'
+    WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) = 'NETS' THEN 'NETS'
+    ELSE UPPER(LTRIM(RTRIM(ISNULL(${columnName}, 'CASH'))))
+  END
+`;
+
+const getReportDateRange = (req) => {
+  const { startDate, endDate } = req.query;
+  const start = startDate ? new Date(`${startDate} 00:00:00`) : new Date(new Date().setHours(0, 0, 0, 0));
+  const end = endDate ? new Date(`${endDate} 23:59:59`) : new Date(new Date().setHours(23, 59, 59, 999));
+  return { start, end };
+};
+
+const getFilterDateRange = (filter = "daily") => {
+  const now = new Date();
+  const start = new Date(now);
+  const end = new Date(now);
+
+  end.setHours(23, 59, 59, 999);
+
+  switch (String(filter).toLowerCase()) {
+    case "weekly":
+      start.setDate(now.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case "monthly":
+      start.setFullYear(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case "yearly":
+      start.setFullYear(now.getFullYear(), 0, 1);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case "daily":
+    default:
+      start.setHours(0, 0, 0, 0);
+      break;
+  }
+
+  return { start, end };
+};
+
+const parseCsv = (value) => String(value || "")
+  .split(",")
+  .map((v) => v.trim().toUpperCase())
+  .filter(Boolean);
+
+const normalizePayMode = (paymentMethod = "CASH") => {
+  const raw = String(paymentMethod || "CASH").toUpperCase().trim();
+  if (["CAS", "CASH"].includes(raw)) return "CASH";
+  if (["CARD", "VISA", "MASTER", "MASTERCARD", "AMEX", "DINERS"].includes(raw)) return "CARD";
+  if (["PAYNOW", "GRAB", "FOODPANDA"].includes(raw)) return "PAYNOW";
+  return raw;
+};
+
+const toGuidOrNull = (value) => {
+  const text = String(value || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)
+    ? text
+    : null;
+};
+
+const validateSalePayload = ({ totalAmount, paymentMethod, items }) => {
+  if (!paymentMethod || !String(paymentMethod).trim()) {
+    return "Payment mode is required";
+  }
+
+  const numericTotal = Number(totalAmount);
+  if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
+    return "Total amount must be greater than zero";
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return "At least one sale item is required";
+  }
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i] || {};
+    const dishId = item.dishId || item.id;
+    const dishName = item.dish_name || item.name;
+    const qty = Number(item.qty);
+    const price = Number(item.price);
+
+    if (!dishId && !dishName) return `Item ${i + 1} is missing dish information`;
+    if (!Number.isFinite(qty) || qty <= 0) return `Item ${i + 1} has invalid quantity`;
+    if (!Number.isFinite(price) || price < 0) return `Item ${i + 1} has invalid price`;
+  }
+
+  return null;
+};
+
 /* ================= SALES LIST & SUMMARY ================= */
 router.get("/all", async (req, res) => {
   try {
@@ -15,12 +110,13 @@ router.get("/all", async (req, res) => {
     const result = await pool.request().query(`
       SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, sh.OrderId, sh.OrderType,
       sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, 
-      LTRIM(RTRIM(ISNULL(sts.PayMode, 'CASH'))) as PayMode,
+      ${normalizeReportPayModeSql("sts.PayMode")} as PayMode,
       ISNULL(NULLIF(sts.SysAmount, 0), ISNULL(sh.SysAmount, 0)) as SysAmount,
       ISNULL(NULLIF(sts.ManualAmount, 0), ISNULL(sh.ManualAmount, 0)) as ManualAmount,
       ISNULL(sts.ReceiptCount, 0) as ReceiptCount
       FROM SettlementHeader sh
       LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
+      WHERE ISNULL(sh.IsCancelled, 0) = 0
       ORDER BY sh.LastSettlementDate DESC
     `);
     res.json(result.recordset);
@@ -41,6 +137,7 @@ router.get("/transactions", async (req, res) => {
         FROM SettlementHeader sh
         LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
         WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+        AND ISNULL(sh.IsCancelled, 0) = 0
         ORDER BY sh.LastSettlementDate DESC
       `);
     res.json(result.recordset);
@@ -62,6 +159,7 @@ router.get("/range", async (req, res) => {
         FROM SettlementHeader sh
         INNER JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
         WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+        AND ISNULL(sh.IsCancelled, 0) = 0
       `);
     res.json(result.recordset[0]);
   } catch (err) {
@@ -81,6 +179,209 @@ router.get("/detail/:id", async (req, res) => {
   }
 });
 
+router.get("/category-report", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { start, end } = getReportDateRange(req);
+    const payModes = parseCsv(req.query.paymentModes);
+    const orderTypes = parseCsv(req.query.orderTypes);
+    const applyPayModeFilter = payModes.length > 0 && payModes.length < 4;
+    const applyOrderTypeFilter = orderTypes.length > 0 && orderTypes.length < 2;
+
+    const result = await pool.request()
+      .input("Start", sql.DateTime, start)
+      .input("End", sql.DateTime, end)
+      .input("ApplyPayModeFilter", sql.Bit, applyPayModeFilter)
+      .input("ApplyOrderTypeFilter", sql.Bit, applyOrderTypeFilter)
+      .input("PaymentModes", sql.VarChar(200), payModes.join(","))
+      .input("OrderTypes", sql.VarChar(200), orderTypes.join(","))
+      .query(`
+        WITH AppItemRows AS (
+          SELECT
+            ISNULL(cm.CategoryName, 'Unmapped') AS CategoryName,
+            COALESCE(sid.CategoryId, dg.CategoryId) AS CategoryId,
+            CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3)) AS Sold,
+            CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2)) AS SalesAmount,
+            ${normalizeReportPayModeSql("sts.PayMode")} AS PayMode,
+            UPPER(LTRIM(RTRIM(ISNULL(sh.OrderType, 'DINE-IN')))) AS OrderType
+          FROM SettlementItemDetail sid
+          INNER JOIN SettlementHeader sh ON sid.SettlementID = sh.SettlementID
+          LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
+          LEFT JOIN DishMaster dm ON (sid.DishId IS NOT NULL AND sid.DishId = dm.DishId)
+             OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(dm.Name))))
+          LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, dm.DishGroupId) = dg.DishGroupId
+          LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
+          WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+            AND ISNULL(sh.IsCancelled, 0) = 0
+        ),
+        AppReport AS (
+          SELECT CategoryName, CategoryId, SUM(Sold) AS Sold, SUM(SalesAmount) AS SalesAmount
+          FROM AppItemRows
+          WHERE (@ApplyPayModeFilter = 0 OR CHARINDEX(',' + PayMode + ',', ',' + @PaymentModes + ',') > 0)
+            AND (@ApplyOrderTypeFilter = 0 OR CHARINDEX(',' + OrderType + ',', ',' + @OrderTypes + ',') > 0)
+          GROUP BY CategoryName, CategoryId
+        ),
+        LegacyReport AS (
+          SELECT
+            MAX(categoryname) AS CategoryName,
+            CategoryId,
+            SUM(ISNULL(Sold, 0)) AS Sold,
+            SUM(ISNULL(Revenue, ItemSales)) AS SalesAmount
+          FROM vw_categorysalesreport
+          WHERE InvoiceDate BETWEEN @Start AND @End
+          GROUP BY CategoryId
+        )
+        SELECT CategoryName, CategoryId, SUM(Sold) AS Sold, SUM(SalesAmount) AS SalesAmount
+        FROM (
+          SELECT * FROM LegacyReport
+          UNION ALL
+          SELECT * FROM AppReport
+        ) ReportRows
+        GROUP BY CategoryName, CategoryId
+        ORDER BY SalesAmount DESC, Sold DESC, CategoryName ASC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/dish-report", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { start, end } = getReportDateRange(req);
+    const payModes = parseCsv(req.query.paymentModes);
+    const orderTypes = parseCsv(req.query.orderTypes);
+    const applyPayModeFilter = payModes.length > 0 && payModes.length < 4;
+    const applyOrderTypeFilter = orderTypes.length > 0 && orderTypes.length < 2;
+
+    const result = await pool.request()
+      .input("Start", sql.DateTime, start)
+      .input("End", sql.DateTime, end)
+      .input("ApplyPayModeFilter", sql.Bit, applyPayModeFilter)
+      .input("ApplyOrderTypeFilter", sql.Bit, applyOrderTypeFilter)
+      .input("PaymentModes", sql.VarChar(200), payModes.join(","))
+      .input("OrderTypes", sql.VarChar(200), orderTypes.join(","))
+      .query(`
+        WITH AppItemRows AS (
+          SELECT
+            ISNULL(dm.Name, sid.DishName) AS DishName,
+            dm.DishId,
+            ISNULL(cm.CategoryName, 'Unmapped') AS CategoryName,
+            COALESCE(sid.CategoryId, dg.CategoryId) AS CategoryId,
+            CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3)) AS Sold,
+            CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2)) AS SalesAmount,
+            ${normalizeReportPayModeSql("sts.PayMode")} AS PayMode,
+            UPPER(LTRIM(RTRIM(ISNULL(sh.OrderType, 'DINE-IN')))) AS OrderType
+          FROM SettlementItemDetail sid
+          INNER JOIN SettlementHeader sh ON sid.SettlementID = sh.SettlementID
+          LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
+          LEFT JOIN DishMaster dm ON (sid.DishId IS NOT NULL AND sid.DishId = dm.DishId)
+             OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(dm.Name))))
+          LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, dm.DishGroupId) = dg.DishGroupId
+          LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
+          WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+            AND ISNULL(sh.IsCancelled, 0) = 0
+        ),
+        AppReport AS (
+          SELECT DishName, DishId, CategoryName, CategoryId, SUM(Sold) AS Sold, SUM(SalesAmount) AS SalesAmount
+          FROM AppItemRows
+          WHERE (@ApplyPayModeFilter = 0 OR CHARINDEX(',' + PayMode + ',', ',' + @PaymentModes + ',') > 0)
+            AND (@ApplyOrderTypeFilter = 0 OR CHARINDEX(',' + OrderType + ',', ',' + @OrderTypes + ',') > 0)
+          GROUP BY DishName, DishId, CategoryName, CategoryId
+        ),
+        LegacyReport AS (
+          SELECT
+            MAX(Dishname) AS DishName,
+            DishId,
+            MAX(CategoryName) AS CategoryName,
+            CategoryId,
+            SUM(ISNULL(Sold, 0)) AS Sold,
+            SUM(ISNULL(Revenue, ItemSales)) AS SalesAmount
+          FROM vw_Dishsalesreport
+          WHERE InvoiceDate BETWEEN @Start AND @End
+          GROUP BY DishId, CategoryId
+        )
+        SELECT DishName, DishId, CategoryName, CategoryId, SUM(Sold) AS Sold, SUM(SalesAmount) AS SalesAmount
+        FROM (
+          SELECT * FROM LegacyReport
+          UNION ALL
+          SELECT * FROM AppReport
+        ) ReportRows
+        GROUP BY DishName, DishId, CategoryName, CategoryId
+        ORDER BY SalesAmount DESC, Sold DESC, DishName ASC
+      `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/category", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { start, end } = getFilterDateRange(req.query.filter);
+
+    const result = await pool.request()
+      .input("Start", sql.DateTime, start)
+      .input("End", sql.DateTime, end)
+      .query(`
+        SELECT
+          ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
+          SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQuantitySold,
+          SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalSalesAmount
+        FROM SettlementHeader sh
+        INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
+        LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
+          OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(d.Name))))
+        LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, d.DishGroupId) = dg.DishGroupId
+        LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
+        WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+          AND ISNULL(sh.IsCancelled, 0) = 0
+          AND ISNULL(sid.Qty, 0) > 0
+        GROUP BY ISNULL(cm.CategoryName, 'Unmapped')
+        ORDER BY totalSalesAmount DESC, totalQuantitySold DESC, categoryName ASC
+      `);
+
+    res.json(result.recordset || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/dish", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { start, end } = getFilterDateRange(req.query.filter);
+
+    const result = await pool.request()
+      .input("Start", sql.DateTime, start)
+      .input("End", sql.DateTime, end)
+      .query(`
+        SELECT
+          ISNULL(d.Name, sid.DishName) AS dishName,
+          ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
+          SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS quantitySold,
+          SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalSalesAmount
+        FROM SettlementHeader sh
+        INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
+        LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
+          OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(d.Name))))
+        LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, d.DishGroupId) = dg.DishGroupId
+        LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
+        WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+          AND ISNULL(sh.IsCancelled, 0) = 0
+          AND ISNULL(sid.Qty, 0) > 0
+        GROUP BY ISNULL(d.Name, sid.DishName), ISNULL(cm.CategoryName, 'Unmapped')
+        ORDER BY totalSalesAmount DESC, quantitySold DESC, dishName ASC
+      `);
+
+    res.json(result.recordset || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/daily/:date", async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -91,16 +392,22 @@ router.get("/daily/:date", async (req, res) => {
     const result = await pool.request()
       .input("StartOfDay", sql.DateTime, startOfDay)
       .input("EndOfDay", sql.DateTime, endOfDay).query(`
-        SELECT COUNT(DISTINCT sh.SettlementID) as TotalTransactions, ISNULL(SUM(sts.SysAmount), 0) as TotalSales,
-        ISNULL(SUM(CASE WHEN sts.PayMode = 'CASH' THEN sts.SysAmount ELSE 0 END), 0) as CashSales,
-        ISNULL(SUM(CASE WHEN sts.PayMode = 'NETS' THEN sts.SysAmount ELSE 0 END), 0) as NETS_Sales,
-        ISNULL(SUM(CASE WHEN sts.PayMode = 'PAYNOW' THEN sts.SysAmount ELSE 0 END), 0) as PayNow_Sales,
-        ISNULL(SUM(CASE WHEN sts.PayMode = 'CARD' THEN sts.SysAmount ELSE 0 END), 0) as CardSales,
-        ISNULL(SUM(CASE WHEN sts.PayMode = 'CREDIT' THEN sts.SysAmount ELSE 0 END), 0) as MemberSales,
-        ISNULL(SUM(sts.ReceiptCount), 0) as TotalItems
-        FROM SettlementHeader sh
-        INNER JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
-        WHERE sh.LastSettlementDate BETWEEN @StartOfDay AND @EndOfDay
+        WITH NormalizedSales AS (
+          SELECT sh.SettlementID, sts.SysAmount, ISNULL(sts.ReceiptCount, 0) AS ReceiptCount,
+          ${normalizeReportPayModeSql("sts.PayMode")} AS PayMode
+          FROM SettlementHeader sh
+          INNER JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
+          WHERE sh.LastSettlementDate BETWEEN @StartOfDay AND @EndOfDay
+            AND ISNULL(sh.IsCancelled, 0) = 0
+        )
+        SELECT COUNT(DISTINCT SettlementID) as TotalTransactions, ISNULL(SUM(SysAmount), 0) as TotalSales,
+        ISNULL(SUM(CASE WHEN PayMode = 'CASH' THEN SysAmount ELSE 0 END), 0) as CashSales,
+        ISNULL(SUM(CASE WHEN PayMode = 'NETS' THEN SysAmount ELSE 0 END), 0) as NETS_Sales,
+        ISNULL(SUM(CASE WHEN PayMode = 'PAYNOW' THEN SysAmount ELSE 0 END), 0) as PayNow_Sales,
+        ISNULL(SUM(CASE WHEN PayMode = 'CARD' THEN SysAmount ELSE 0 END), 0) as CardSales,
+        ISNULL(SUM(CASE WHEN PayMode = 'CREDIT' THEN SysAmount ELSE 0 END), 0) as MemberSales,
+        ISNULL(SUM(ReceiptCount), 0) as TotalItems
+        FROM NormalizedSales
       `);
     res.json(result.recordset[0] || {});
   } catch (err) {
@@ -146,10 +453,24 @@ router.post("/save", async (req, res) => {
       return res.status(400).json({ error: "Invalid Order ID format. Expected: YYYYMMDD-NNNN" });
     }
 
+    const validationError = validateSalePayload({ totalAmount, paymentMethod, items });
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
     try {
+      const duplicate = await transaction.request()
+        .input("OrderId", orderId)
+        .query("SELECT TOP 1 SettlementID FROM SettlementHeader WHERE OrderId = @OrderId AND ISNULL(IsCancelled, 0) = 0");
+
+      if (duplicate.recordset.length > 0) {
+        await transaction.rollback();
+        return res.status(409).json({ error: "This order has already been settled" });
+      }
+
       const settlementIdResult = await transaction.request().query(`SELECT NEWID() AS id`);
       const settlementId = settlementIdResult.recordset[0].id;
       const billNo = generateRandomBillId();
@@ -178,13 +499,18 @@ router.post("/save", async (req, res) => {
         `);
 
       // 2. Insert into SettlementTotalSales
+      const normalizedPayMode = normalizePayMode(paymentMethod);
+      const receiptCount = Array.isArray(items)
+        ? items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
+        : 0;
+
       await transaction.request()
         .input("SettlementID", settlementId)
-        .input("PayMode", (paymentMethod || "CASH").toUpperCase())
+        .input("PayMode", normalizedPayMode)
         .input("SysAmount", totalAmount || 0)
         .input("ManualAmount", totalAmount || 0)
         .input("AmountDiff", 0)
-        .input("ReceiptCount", items ? items.length : 0).query(`
+        .input("ReceiptCount", receiptCount).query(`
           INSERT INTO SettlementTotalSales (SettlementID, PayMode, SysAmount, ManualAmount, AmountDiff, ReceiptCount)
           VALUES (@SettlementID, @PayMode, @SysAmount, @ManualAmount, @AmountDiff, @ReceiptCount)
         `);
@@ -192,13 +518,29 @@ router.post("/save", async (req, res) => {
       // 3. Insert individual dishes
       if (items && Array.isArray(items)) {
         for (const item of items) {
+          const dishId = toGuidOrNull(item.dishId || item.id);
+          const dishMeta = await transaction.request()
+            .input("DishId", sql.UniqueIdentifier, dishId)
+            .input("DishName", sql.NVarChar(255), item.dish_name || item.name || "")
+            .query(`
+              SELECT TOP 1 d.DishId, d.DishGroupId, dg.CategoryId
+              FROM DishMaster d
+              LEFT JOIN DishGroupMaster dg ON d.DishGroupId = dg.DishGroupId
+              WHERE (@DishId IS NOT NULL AND d.DishId = @DishId)
+                 OR (@DishId IS NULL AND LTRIM(RTRIM(LOWER(d.Name))) = LTRIM(RTRIM(LOWER(@DishName))))
+            `);
+          const meta = dishMeta.recordset[0] || {};
           await transaction.request()
             .input("SettlementID", settlementId)
+            .input("DishId", meta.DishId || dishId)
+            .input("DishGroupId", meta.DishGroupId || null)
+            .input("CategoryId", meta.CategoryId || null)
             .input("DishName", item.dish_name || item.name || "Unknown")
             .input("Qty", item.qty || 1)
-            .input("Price", item.price || 0).query(`
-              INSERT INTO SettlementItemDetail (SettlementID, DishName, Qty, Price)
-              VALUES (@SettlementID, @DishName, @Qty, @Price)
+            .input("Price", item.price || 0)
+            .input("OrderDateTime", new Date()).query(`
+              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, CategoryId, DishName, Qty, Price, OrderDateTime)
+              VALUES (@SettlementID, @DishId, @DishGroupId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime)
             `);
         }
       }

@@ -31,6 +31,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/sales", salesRoutes);
+app.use("/api/reports", salesRoutes);
 app.use("/api/members", memberRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin", adminRoutes);

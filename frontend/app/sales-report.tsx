@@ -20,20 +20,19 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
-import { useToast } from "../components/Toast";
 
 type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+type DetailReportType = "CATEGORY" | "DISH";
 
 export default function SalesReport() {
   const router = useRouter();
-  const { showToast } = useToast();
   const { width: SCREEN_W } = useWindowDimensions();
   const [sales, setSales] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const todayDate = new Date().toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("DAILY");
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
@@ -42,8 +41,10 @@ export default function SalesReport() {
   const [activePaymentModes, setActivePaymentModes] = useState<string[]>(["CASH", "CARD", "NETS", "PAYNOW"]);
   const [activeOrderTypes, setActiveOrderTypes] = useState<string[]>(["DINE-IN", "TAKEAWAY"]);
   const [sortOrder, setSortOrder] = useState<"NEWEST" | "HIGHEST">("NEWEST");
-
-  const isTablet = SCREEN_W >= 768;
+  const [detailReportType, setDetailReportType] = useState<DetailReportType>("CATEGORY");
+  const [categoryReport, setCategoryReport] = useState<any[]>([]);
+  const [dishReport, setDishReport] = useState<any[]>([]);
+  const [loadingReport, setLoadingReport] = useState(false);
 
   useEffect(() => {
     const loadState = async () => {
@@ -78,12 +79,50 @@ export default function SalesReport() {
   const fetchData = async () => {
     try {
       if (sales.length === 0) setLoading(true);
-      await Promise.all([fetchSales(), fetchSummary()]);
+      await Promise.all([fetchSales(), fetchSummary(), fetchDetailReports()]);
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchDetailReports = async () => {
+    try {
+      setLoadingReport(true);
+      const reportFilter = selectedFilter.toLowerCase();
+      const params = new URLSearchParams({
+        filter: reportFilter,
+      });
+
+      const [categoryResponse, dishResponse] = await Promise.all([
+        fetch(`${API_URL}/api/reports/category?${params.toString()}`),
+        fetch(`${API_URL}/api/reports/dish?${params.toString()}`),
+      ]);
+
+      const [categoryData, dishData] = await Promise.all([
+        categoryResponse.json(),
+        dishResponse.json(),
+      ]);
+
+      setCategoryReport(Array.isArray(categoryData) ? categoryData.map((row) => ({
+        CategoryName: row.categoryName,
+        Sold: row.totalQuantitySold,
+        SalesAmount: row.totalSalesAmount,
+      })) : []);
+      setDishReport(Array.isArray(dishData) ? dishData.map((row) => ({
+        DishName: row.dishName,
+        CategoryName: row.categoryName,
+        Sold: row.quantitySold,
+        SalesAmount: row.totalSalesAmount,
+      })) : []);
+    } catch (error) {
+      console.error("Detail report fetch error:", error);
+      setCategoryReport([]);
+      setDishReport([]);
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -188,6 +227,15 @@ export default function SalesReport() {
       const selectedDateObj = new Date(selectedDate);
       const firstDay = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), 1);
       const lastDay = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth() + 1, 0);
+      dateScopedSales = sales.filter(s => {
+        if (!s.SettlementDate) return false;
+        const saleDate = new Date(s.SettlementDate);
+        return saleDate >= firstDay && saleDate <= lastDay;
+      });
+    } else if (selectedFilter === "YEARLY") {
+      const selectedDateObj = new Date(selectedDate);
+      const firstDay = new Date(selectedDateObj.getFullYear(), 0, 1);
+      const lastDay = new Date(selectedDateObj.getFullYear(), 11, 31, 23, 59, 59);
       dateScopedSales = sales.filter(s => {
         if (!s.SettlementDate) return false;
         const saleDate = new Date(s.SettlementDate);
@@ -309,6 +357,62 @@ export default function SalesReport() {
     </View>
   );
 
+  const renderDetailReport = () => {
+    const rows = detailReportType === "CATEGORY" ? categoryReport : dishReport;
+    const isDishReport = detailReportType === "DISH";
+
+    return (
+      <View style={styles.detailReportCard}>
+        <View style={styles.detailReportHeader}>
+          <View>
+            <Text style={styles.cardTitle}>{isDishReport ? "DISH SALES REPORT" : "CATEGORY SALES REPORT"}</Text>
+            <Text style={styles.reportSubText}>{rows.length} rows for the selected period</Text>
+          </View>
+          <Ionicons name={isDishReport ? "restaurant-outline" : "albums-outline"} size={18} color={Theme.primary} />
+        </View>
+
+        {loadingReport ? (
+          <View style={styles.reportLoading}>
+            <ActivityIndicator color={Theme.primary} />
+            <Text style={styles.reportSubText}>Loading report...</Text>
+          </View>
+        ) : rows.length === 0 ? (
+          <View style={styles.emptyReport}>
+            <Ionicons name="document-text-outline" size={32} color={Theme.textMuted} />
+            <Text style={styles.emptyChartText}>No report data</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.reportTable}>
+              <View style={styles.reportTableHeader}>
+                <Text style={[styles.reportCell, isDishReport ? styles.dishNameCell : styles.categoryNameCell]}>
+                  {isDishReport ? "Dish" : "Category"}
+                </Text>
+                {isDishReport && <Text style={[styles.reportCell, styles.categoryNameCell]}>Category</Text>}
+                <Text style={[styles.reportCell, styles.qtyCell]}>Qty</Text>
+                <Text style={[styles.reportCell, styles.amountCell]}>Sales</Text>
+              </View>
+              {rows.slice(0, 50).map((row, idx) => (
+                <View key={`${detailReportType}-${row.DishId || row.CategoryId || idx}`} style={[styles.reportTableRow, idx % 2 === 0 && styles.reportTableRowAlt]}>
+                  <Text numberOfLines={1} style={[styles.reportCell, styles.reportCellText, isDishReport ? styles.dishNameCell : styles.categoryNameCell]}>
+                    {isDishReport ? row.DishName : row.CategoryName}
+                  </Text>
+                  {isDishReport && (
+                    <Text numberOfLines={1} style={[styles.reportCell, styles.reportCellText, styles.categoryNameCell]}>
+                      {row.CategoryName || "Unmapped"}
+                    </Text>
+                  )}
+                  <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell]}>{Number(row.Sold || 0).toFixed(0)}</Text>
+                  <Text style={[styles.reportCell, styles.reportCellText, styles.amountCell]}>{formatCurrency(Number(row.SalesAmount || 0))}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+      </View>
+    );
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: Theme.bgMain }}>
       <StatusBar barStyle="dark-content" />
@@ -390,6 +494,25 @@ export default function SalesReport() {
               {renderMetricTile("Total Orders", filteredMetrics.TotalTransactions, "receipt-outline", Theme.warning)}
               {renderMetricTile("Items Sold", filteredMetrics.TotalItems, "fast-food-outline", "#ec4899")}
             </View>
+
+            <View style={styles.reportSwitchRow}>
+              <TouchableOpacity
+                onPress={() => setDetailReportType("CATEGORY")}
+                style={[styles.reportSwitchBtn, detailReportType === "CATEGORY" && styles.activeReportSwitchBtn]}
+              >
+                <Ionicons name="albums-outline" size={16} color={detailReportType === "CATEGORY" ? "#fff" : Theme.primary} />
+                <Text style={[styles.reportSwitchText, detailReportType === "CATEGORY" && styles.activeReportSwitchText]}>Category Sales Report</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setDetailReportType("DISH")}
+                style={[styles.reportSwitchBtn, detailReportType === "DISH" && styles.activeReportSwitchBtn]}
+              >
+                <Ionicons name="restaurant-outline" size={16} color={detailReportType === "DISH" ? "#fff" : Theme.primary} />
+                <Text style={[styles.reportSwitchText, detailReportType === "DISH" && styles.activeReportSwitchText]}>Dish Sales Report</Text>
+              </TouchableOpacity>
+            </View>
+
+            {renderDetailReport()}
 
             {/* Charts Section */}
             <View style={styles.chartsContainer}>
@@ -669,6 +792,48 @@ const styles = StyleSheet.create({
   tileHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   tileLabel: { color: Theme.textSecondary, fontFamily: Fonts.bold, fontSize: 11, textTransform: "uppercase" },
   tileValue: { fontFamily: Fonts.black, fontSize: 22 },
+  reportSwitchRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 16 },
+  reportSwitchBtn: {
+    flex: 1,
+    minWidth: 220,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: Theme.bgCard,
+    borderWidth: 1,
+    borderColor: Theme.primaryBorder,
+    ...Theme.shadowSm,
+  },
+  activeReportSwitchBtn: { backgroundColor: Theme.primary, borderColor: Theme.primary },
+  reportSwitchText: { color: Theme.primary, fontFamily: Fonts.black, fontSize: 13 },
+  activeReportSwitchText: { color: "#fff" },
+  detailReportCard: {
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 24,
+    backgroundColor: Theme.bgCard,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    ...Theme.shadowMd,
+  },
+  detailReportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 },
+  reportSubText: { color: Theme.textMuted, fontFamily: Fonts.semiBold, fontSize: 12, marginTop: 4 },
+  reportLoading: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
+  emptyReport: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
+  reportTable: { minWidth: 620, borderWidth: 1, borderColor: Theme.border, borderRadius: 12, overflow: "hidden" },
+  reportTableHeader: { flexDirection: "row", backgroundColor: Theme.bgMuted, borderBottomWidth: 1, borderBottomColor: Theme.border },
+  reportTableRow: { flexDirection: "row", alignItems: "center", backgroundColor: Theme.bgCard, borderBottomWidth: 1, borderBottomColor: Theme.border },
+  reportTableRowAlt: { backgroundColor: Theme.bgMain },
+  reportCell: { paddingHorizontal: 12, paddingVertical: 11, color: Theme.textMuted, fontFamily: Fonts.black, fontSize: 11, textTransform: "uppercase" },
+  reportCellText: { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 13, textTransform: "none" },
+  dishNameCell: { width: 230 },
+  categoryNameCell: { width: 220 },
+  qtyCell: { width: 80, textAlign: "right" },
+  amountCell: { width: 110, textAlign: "right" },
   chartsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
   chartCard: {
     flex: 1, padding: 20, borderRadius: 20,

@@ -11,11 +11,27 @@ async function initDB(pool) {
                 CREATE TABLE [dbo].[SettlementItemDetail](
                     [ID] [int] IDENTITY(1,1) NOT NULL,
                     [SettlementID] [uniqueidentifier] NULL,
+                    [DishId] [uniqueidentifier] NULL,
+                    [DishGroupId] [uniqueidentifier] NULL,
+                    [CategoryId] [uniqueidentifier] NULL,
                     [DishName] [nvarchar](255) NULL,
                     [Qty] [int] NULL,
-                    [Price] [decimal](18, 2) NULL
+                    [Price] [decimal](18, 2) NULL,
+                    [OrderDateTime] [datetime] NULL
                 ) ON [PRIMARY]
             END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'DishId')
+            ALTER TABLE [dbo].[SettlementItemDetail] ADD DishId UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'DishGroupId')
+            ALTER TABLE [dbo].[SettlementItemDetail] ADD DishGroupId UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'CategoryId')
+            ALTER TABLE [dbo].[SettlementItemDetail] ADD CategoryId UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'OrderDateTime')
+            ALTER TABLE [dbo].[SettlementItemDetail] ADD OrderDateTime DATETIME NULL;
         `);
 
         // 2. Table: MemberMaster
