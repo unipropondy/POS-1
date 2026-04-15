@@ -12,6 +12,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../constants/theme";
 import { Fonts } from "../constants/Fonts";
 
+const formatSection = (sec: string) => {
+  if (!sec) return "";
+  if (sec === "TAKEAWAY") return "Takeaway";
+  return sec.replace("_", "-").replace("SECTION", "Section");
+};
+
 export default function PaymentSuccess() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -48,8 +54,8 @@ export default function PaymentSuccess() {
 
           <Text style={styles.sub}>
             {orderType === "DINE_IN"
-              ? `Table ${tableNo} • ${section}`
-              : `Takeaway • ${section}`}
+              ? `Table ${tableNo} • ${formatSection(section)}`
+              : `Takeaway • ${formatSection(section)}`}
           </Text>
 
           <View style={styles.divider} />

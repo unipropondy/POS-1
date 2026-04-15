@@ -32,10 +32,16 @@ type TableType = {
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
 const SECTION_LABELS: Record<string, string> = {
-  SECTION_1: "Section 1",
-  SECTION_2: "Section 2",
-  SECTION_3: "Section 3",
+  SECTION_1: "Section-1",
+  SECTION_2: "Section-2",
+  SECTION_3: "Section-3",
   TAKEAWAY: "Takeaway",
+};
+
+const formatSection = (sec: string) => {
+  if (!sec) return "";
+  if (sec === "TAKEAWAY") return "Takeaway";
+  return sec.replace("_", "-").replace("SECTION", "Section");
 };
 
 // --- MOBILE SOLID COLORS ---

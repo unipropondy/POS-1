@@ -62,6 +62,15 @@ type CartState = {
   updateCartItemModifiers: (lineItemId: string, modifiers: Modifier[]) => void;
   updateCartItemTakeaway: (lineItemId: string, isTakeaway: boolean) => void;
   updateCartItemDiscount: (lineItemId: string, discount: number) => void;
+  updateCartItemFull: (
+    lineItemId: string,
+    updates: {
+      qty?: number;
+      note?: string;
+      discount?: number;
+      isTakeaway?: boolean;
+    },
+  ) => void;
 };
 
 /* ================= STORE ================= */
@@ -384,6 +393,23 @@ export const useCartStore = create<CartState>((set, get) => ({
       },
     });
   },
+
+  updateCartItemFull: (lineItemId, updates) => {
+    const { carts, currentContextId } = get();
+    if (!currentContextId) return;
+
+    const currentCart = carts[currentContextId] || [];
+    const updatedCart = currentCart.map((item) =>
+      item.lineItemId === lineItemId ? { ...item, ...updates } : item,
+    );
+
+    set({
+      carts: {
+        ...carts,
+        [currentContextId]: updatedCart,
+      },
+    });
+  },
 }));
 
 /* ================= HELPERS ================= */
@@ -427,3 +453,12 @@ export const setCartItemsGlobal = (contextId: string, items: CartItem[]) =>
 
 export const subscribeCart = (listener: () => void) =>
   useCartStore.subscribe(listener);
+export const updateCartItemFullGlobal = (
+  lineItemId: string,
+  updates: {
+    qty?: number;
+    note?: string;
+    discount?: number;
+    isTakeaway?: boolean;
+  },
+) => useCartStore.getState().updateCartItemFull(lineItemId, updates);

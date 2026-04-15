@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   DimensionValue,
   FlatList,
   LayoutAnimation,
@@ -18,11 +19,15 @@ import {
 } from "react-native";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
-import { useToast } from "./Toast";
 import EditDishModal from "./EditDishModal";
+import { useToast } from "./Toast";
 
 import { OrderItem, useActiveOrdersStore } from "../stores/activeOrdersStore";
-import { CartItem, useCartStore } from "../stores/cartStore";
+import {
+  CartItem,
+  clearCart as clearCartStandalone,
+  useCartStore,
+} from "../stores/cartStore";
 import { holdOrder } from "../stores/heldOrdersStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { getNextOrderId } from "../stores/orderIdStore";
@@ -34,6 +39,15 @@ if (
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const formatSectionGlobal = (sec: string) => {
+  if (!sec) return "";
+  const s = sec.toUpperCase();
+  if (s.startsWith("SECTION_")) {
+    return s.replace("SECTION_", "Section-");
+  }
+  return s;
+};
 
 interface CartSidebarProps {
   width?: DimensionValue;
@@ -59,7 +73,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     (state) => state.removeFromCartGlobal,
   );
   const addToCartGlobal = useCartStore((state) => state.addToCartGlobal);
-  const clearCart = useCartStore((state) => state.clearCart);
   const updateCartItemQty = useCartStore((state) => state.updateCartItemQty);
 
   const cart = useMemo(() => {
@@ -116,19 +129,35 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   }, [activeOrder, cart]);
 
   const subtotal = useMemo(() => {
-    return displayItems.reduce(
-      (sum, item) => {
-        const isVoided = "status" in item && item.status === "VOIDED";
-        if (isVoided) return sum;
-        return sum + (item.price || 0) * item.qty;
-      },
-      0,
-    );
+    return displayItems.reduce((sum, item) => {
+      const isVoided = "status" in item && item.status === "VOIDED";
+      if (isVoided) return sum;
+      const baseTotal = (item.price || 0) * item.qty;
+      const discountVal = (item.discount || 0) / 100;
+      return sum + baseTotal * (1 - discountVal);
+    }, 0);
   }, [displayItems]);
 
-  const taxRate = 0; // Tax removed as per user request
+  const taxRate = 0; // Tax removed
   const taxAmount = subtotal * taxRate;
   const payableAmount = subtotal + taxAmount;
+
+  const handleClearCart = () => {
+    if (cart.length === 0) return;
+    Alert.alert(
+      "Clear Cart",
+      "Are you sure you want to remove all unsent items?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: () => clearCartStandalone(),
+        },
+      ],
+      { cancelable: true },
+    );
+  };
 
   if (!orderContext) {
     return (
@@ -192,7 +221,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       );
       router.replace(`/(tabs)/category?section=TAKEAWAY`);
     }
-    clearCart();
+    clearCartStandalone();
     showToast({
       type: "success",
       message: "Order Sent",
@@ -235,26 +264,58 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           </View>
 
           <View style={styles.itemInfo}>
-            <View style={styles.itemMainRow}>
-              <Text
-                style={[
-                  styles.itemName,
-                  (isSent || isVoided) && styles.textMuted,
-                  isVoided && styles.strikeThrough,
-                ]}
-                numberOfLines={1}
+            <View
+              style={[
+                styles.itemMainRow,
+                isPhone && {
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 4,
+                },
+              ]}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  flex: 1,
+                }}
               >
-                {item.name}
-              </Text>
-              {item.isTakeaway && (
-                <View style={styles.twBadge}>
-                  <Text style={styles.twBadgeText}>TW</Text>
-                </View>
-              )}
+                <Text
+                  style={[
+                    styles.itemName,
+                    (isSent || isVoided) && styles.textMuted,
+                    isVoided && styles.strikeThrough,
+                    isPhone && { fontSize: 14 },
+                  ]}
+                  numberOfLines={isPhone ? 2 : 1}
+                >
+                  {item.name}
+                </Text>
+                {item.isTakeaway && (
+                  <View style={styles.twBadge}>
+                    <Text style={styles.twBadgeText}>TW</Text>
+                  </View>
+                )}
+              </View>
+
               <View
                 style={[
                   styles.statusTag,
-                  { backgroundColor: isSent ? "#22C55E25" : "#3B82F625" },
+                  {
+                    backgroundColor: isVoided
+                      ? Theme.danger + "10"
+                      : isSent
+                        ? "#22C55E15"
+                        : "#3B82F615",
+                    borderColor: isVoided
+                      ? Theme.danger + "30"
+                      : isSent
+                        ? "#22C55E30"
+                        : "#3B82F630",
+                    marginTop: isPhone ? 2 : 0,
+                  },
                 ]}
               >
                 <Text
@@ -264,20 +325,20 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       color: isVoided
                         ? Theme.danger
                         : isSent
-                        ? "#15803D"
-                        : "#1D4ED8",
+                          ? "#15803D"
+                          : "#1D4ED8",
                     },
                   ]}
                 >
-                  {isVoided ? "❌ VOIDED" : isSent ? "✅ SENT" : "🔵 NEW"}
+                  {isVoided ? "VOIDED" : isSent ? "SENT" : "NEW"}
                 </Text>
               </View>
             </View>
 
-            {/* MODIFIERS LIST - VERTICAL STACK */}
-            {item.modifiers && item.modifiers.length > 0 && (
-              <View style={styles.modifierListSmall}>
-                {item.modifiers.map((m: any, idx: number) => (
+            {/* MODIFIERS & NOTES LIST - VERTICAL STACK */}
+            <View style={styles.modifierListSmall}>
+              {item.modifiers && item.modifiers.length > 0 &&
+                item.modifiers.map((m: any, idx: number) => (
                   <Text
                     key={`${m.ModifierId}-${idx}`}
                     style={styles.modifierTextSmall}
@@ -285,38 +346,80 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     • {m.ModifierName}
                     {m.Price > 0 ? ` (+$${m.Price.toFixed(2)})` : ""}
                   </Text>
-                ))}
-              </View>
-            )}
+                ))
+              }
+              
+              {(item.note || item.notes) ? (
+                <Text style={styles.modifierTextSmall}>
+                  note: {item.note || item.notes}
+                </Text>
+              ) : null}
+            </View>
 
             {/* INLINE QTY CONTROL ON MAIN ROW */}
-            <View style={styles.inlineControls}>
+            <View
+              style={[
+                styles.inlineControls,
+                isPhone && { marginTop: 12, alignItems: "flex-end" },
+              ]}
+            >
               {isSent || isVoided ? (
-                <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
+                <View style={styles.sentLabel}>
+                  <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
+                </View>
               ) : (
-                <View style={styles.qtyControlSmall}>
+                <View
+                  style={[
+                    styles.qtyControlSmall,
+                    isPhone && {
+                      backgroundColor: Theme.bgCard,
+                      borderWidth: 1,
+                      borderColor: Theme.border,
+                    },
+                  ]}
+                >
                   <TouchableOpacity
-                    style={styles.qtyBtnSmall}
+                    style={[
+                      styles.qtyBtnSmall,
+                      isPhone && { width: 32, height: 32 },
+                    ]}
                     onPress={(e) => {
                       e.stopPropagation();
-                      updateCartItemQty(item.lineItemId, item.qty - 1);
+                      updateCartItemQty(
+                        item.lineItemId,
+                        Math.max(0, item.qty - 1),
+                      );
                     }}
                   >
                     <Ionicons
                       name="remove"
-                      size={14}
-                      color={Theme.textPrimary}
+                      size={isPhone ? 20 : 18}
+                      color={Theme.primary}
                     />
                   </TouchableOpacity>
-                  <Text style={styles.qtyTextSmall}>{item.qty}</Text>
+                  <Text
+                    style={[
+                      styles.qtyTextSmall,
+                      isPhone && { paddingHorizontal: 12, fontSize: 14 },
+                    ]}
+                  >
+                    {item.qty}
+                  </Text>
                   <TouchableOpacity
-                    style={styles.qtyBtnSmall}
+                    style={[
+                      styles.qtyBtnSmall,
+                      isPhone && { width: 32, height: 32 },
+                    ]}
                     onPress={(e) => {
                       e.stopPropagation();
                       updateCartItemQty(item.lineItemId, item.qty + 1);
                     }}
                   >
-                    <Ionicons name="add" size={14} color={Theme.textPrimary} />
+                    <Ionicons
+                      name="add"
+                      size={isPhone ? 20 : 18}
+                      color={Theme.primary}
+                    />
                   </TouchableOpacity>
                 </View>
               )}
@@ -340,11 +443,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       setShowCancelModal(true);
                     }}
                   >
-                    <Ionicons
-                      name="trash-outline"
-                      size={18}
-                      color={Theme.danger}
-                    />
+                    <Ionicons name="trash" size={20} color={Theme.danger} />
                   </TouchableOpacity>
                 ) : !isSent && !isVoided ? (
                   <TouchableOpacity
@@ -359,8 +458,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     }}
                   >
                     <Ionicons
-                      name="close-circle-outline"
-                      size={18}
+                      name="trash-outline"
+                      size={20}
                       color={Theme.textMuted}
                     />
                   </TouchableOpacity>
@@ -383,9 +482,27 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           <Text style={styles.tableIdentityText}>
             {orderContext.orderType === "TAKEAWAY"
               ? `TAKEAWAY #${orderContext.takeawayNo}`
-              : `${orderContext.section} - T${orderContext.tableNo}`}
+              : `${formatSectionGlobal(orderContext.section || "")} - T${orderContext.tableNo}`}
           </Text>
         </View>
+
+        {cart.length > 0 && (
+          <TouchableOpacity
+            style={[
+              styles.clearBtn,
+              isPhone && {
+                paddingHorizontal: 10,
+                width: 44,
+                justifyContent: "center",
+              },
+            ]}
+            onPress={handleClearCart}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={20} color={Theme.danger} />
+            {!isPhone && <Text style={styles.clearBtnText}>Clear Cart</Text>}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ITEMS LIST */}
@@ -421,7 +538,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     "HOLD",
                   );
                   holdOrder(targetOrderId, cart, orderContext);
-                  clearCart();
+                  clearCartStandalone();
                   router.replace(
                     `/(tabs)/category?section=${orderContext.section}`,
                   );
@@ -503,7 +620,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                         subtitle: "Sent items updated",
                       });
                     } else {
-                      clearCart();
+                      clearCartStandalone();
                       setCancelPassword("");
                       setShowCancelModal(false);
                     }
@@ -521,7 +638,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           </View>
         </View>
       </Modal>
-      
+
       {/* EDIT DISH MODAL */}
       <EditDishModal
         visible={isEditModalVisible}
@@ -560,8 +677,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
+    zIndex: 10,
   },
-  tableIdentity: { flex: 1 },
+  tableIdentity: {},
   tableIdentityText: {
     fontSize: 16,
     fontFamily: Fonts.extraBold,
@@ -579,11 +697,14 @@ const styles = StyleSheet.create({
   },
   listContent: { paddingBottom: 20 },
   itemContainer: {
-    marginBottom: 8,
-    borderRadius: 12,
-    backgroundColor: Theme.bgCard,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: Theme.border,
+    borderRadius: 16,
+    backgroundColor: "#fff",
     overflow: "hidden",
     flexDirection: "row",
+    ...Theme.shadowSm,
   },
   itemExpanded: {
     backgroundColor: Theme.bgMuted + "50",
@@ -620,8 +741,17 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary,
     flex: 1,
   },
-  statusTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  statusTagText: { fontSize: 8, fontFamily: Fonts.extraBold },
+  statusTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusTagText: {
+    fontSize: 9,
+    fontFamily: Fonts.black,
+    textTransform: "uppercase",
+  },
   modifierListSmall: { marginTop: 4, paddingLeft: 10, gap: 2, marginBottom: 2 },
   modifierTextSmall: {
     fontSize: 10,
@@ -815,5 +945,28 @@ const styles = StyleSheet.create({
   },
   strikeThrough: {
     textDecorationLine: "line-through",
+    marginBottom: -2,
+  },
+  clearBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.danger + "10",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Theme.danger + "20",
+  },
+  clearBtnText: {
+    color: Theme.danger,
+    fontFamily: Fonts.bold,
+    fontSize: 12,
+  },
+  sentLabel: {
+    backgroundColor: Theme.bgMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
 });

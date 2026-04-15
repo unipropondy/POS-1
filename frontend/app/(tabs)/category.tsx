@@ -38,6 +38,13 @@ const SOLID_LIGHT_BLUE  = '#F0F9FF';
 const SOLID_LIGHT_AMBER = '#FFFBEB';
 const SOLID_LIGHT_VIOLET = '#F5F3FF';
 
+const formatSectionGlobal = (sec: string) => {
+  if (!sec) return "";
+  if (sec === "TAKEAWAY") return "Takeaway";
+  // Convert SECTION_1 -> Section-1 or "Section 1" -> Section-1
+  return sec.replace("_", "-").replace("SECTION", "Section").replace(" ", "-");
+};
+
 // --- MEMOIZED TABLE COMPONENT ---
 const TableItemComponent = React.memo(({ 
   item, 
@@ -193,9 +200,9 @@ type TableItem = {
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
 
 const SECTION_LABELS: Record<string, string> = {
-  SECTION_1: "Section 1",
-  SECTION_2: "Section 2",
-  SECTION_3: "Section 3",
+  SECTION_1: "Section-1",
+  SECTION_2: "Section-2",
+  SECTION_3: "Section-3",
   TAKEAWAY: "Takeaway",
 };
 
@@ -550,7 +557,7 @@ export default function Category() {
                     style={{ marginRight: 5 }}
                   />
                   <Text style={[styles.tabText, isActive && styles.activeTabText, { fontSize: isTablet ? 16 : 13 }]}>
-                    {SECTION_LABELS[section]}
+                    {formatSectionGlobal(SECTION_LABELS[section])}
                   </Text>
                   {occupied > 0 && (
                     <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>

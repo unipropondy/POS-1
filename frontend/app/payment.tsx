@@ -35,6 +35,12 @@ import {
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { useGstStore } from "../stores/gstStore";
 
+const formatSection = (sec: string) => {
+  if (!sec) return "";
+  if (sec === "TAKEAWAY") return "Takeaway";
+  return sec.replace("_", "-").replace("SECTION", "Section");
+};
+
 /* ================= PAYMENT METHOD ICON MAP ================= */
 type PaymentMethod = {
   payMode: string;
@@ -449,8 +455,8 @@ export default function PaymentScreen() {
             <Text style={styles.orderTitle}>Order #{activeOrder?.orderId}</Text>
             <Text style={styles.orderSub}>
               {context?.orderType === "DINE_IN"
-                ? `Table ${context?.tableNo} • ${context?.section}`
-                : `Takeaway • ${context?.section}`}
+                ? `Table ${context?.tableNo} • ${formatSection(context?.section || "")}`
+                : `Takeaway • ${formatSection(context?.section || "")}`}
             </Text>
             {context?.tableNo && useTableStatusStore.getState().getLockedName(context.tableNo, context.section) && (
               <View style={{ marginTop: 4, backgroundColor: Theme.tableLocked.bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: Theme.tableLocked.border, flexDirection: 'row', alignItems: 'center', gap: 5 }}>

@@ -33,6 +33,12 @@ import { useGstStore } from "../stores/gstStore";
 import { getOrderContext } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 
+const formatSection = (sec: string) => {
+  if (!sec) return "";
+  if (sec === "TAKEAWAY") return "Takeaway";
+  return sec.replace("_", "-").replace("SECTION", "Section");
+};
+
 export default function SummaryScreen() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -212,7 +218,7 @@ export default function SummaryScreen() {
               <Text style={[styles.title, !isLandscape && { fontSize: 18 }]} numberOfLines={1}>Order Summary</Text>
               {context.orderType === "DINE_IN" ? (
                 <Text style={[styles.contextText, !isLandscape && { fontSize: 11 }]} numberOfLines={1}>
-                  Dine-In • {context.section} • Table {context.tableNo}
+                  Dine-In • {formatSection(context.section || "")} • Table {context.tableNo}
                 </Text>
               ) : (
                 <Text style={[styles.contextText, !isLandscape && { fontSize: 11 }]} numberOfLines={1}>

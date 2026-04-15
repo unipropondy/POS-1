@@ -22,96 +22,129 @@ import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useToast } from "../components/Toast";
 
-import { OrderItem, useActiveOrdersStore } from "../stores/activeOrdersStore";
+import { OrderItem, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { CartItem, useCartStore } from "../stores/cartStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { holdOrder } from "../stores/heldOrdersStore";
+import EditDishModal from "../components/EditDishModal";
 
-// --- MEMOIZED CART ITEM ---
-const CartItemRow = React.memo(({ 
-  item, 
-  onMinus, 
-  onPlus, 
-  onEdit 
-}: { 
-  item: any; 
-  onMinus: (id: string) => void; 
-  onPlus: (id: string) => void;
-  onEdit: (item: any) => void;
-}) => {
-  return (
-    <View style={styles.row}>
-      <View style={styles.itemInfo}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={[styles.name, item.sent === 1 && styles.sentName]}>
-            {item.name}
-          </Text>
-          <View style={styles.badgeRow}>
-            {item.sent === 1 ? (
-              <>
-                <Ionicons name="checkmark-circle" size={14} color={Theme.success} />
-                <Text style={styles.sentBadgeText}>SENT</Text>
-              </>
+// Premium Cart Item Card
+const CartItemCard = React.memo(
+  ({
+    item,
+    onMinus,
+    onPlus,
+    onEdit,
+    onVoid,
+  }: {
+    item: any;
+    onMinus?: (id: string) => void;
+    onPlus?: (id: string) => void;
+    onEdit: (item: any) => void;
+    onVoid?: (item: any) => void;
+  }) => {
+    const isSent = item.sent === 1 || !!item.sentDate;
+    const isVoided = item.status === "VOIDED";
+
+    return (
+      <View
+        style={[
+          styles.itemCard,
+          isVoided && styles.voidedCard,
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.dishName, isVoided && styles.voidedText]}>
+              {item.name}
+            </Text>
+            {isVoided ? (
+              <View style={[styles.statusTag, { backgroundColor: Theme.danger + "20" }]}>
+                <Text style={[styles.statusTagText, { color: Theme.danger }]}>VOIDED</Text>
+              </View>
+            ) : isSent ? (
+              <View style={[styles.statusTag, { backgroundColor: Theme.success + "20" }]}>
+                <Text style={[styles.statusTagText, { color: Theme.success }]}>SENT</Text>
+              </View>
             ) : (
-              <>
-                <Ionicons name="time" size={14} color={Theme.primary} />
-                <Text style={styles.newBadgeText}>NEW</Text>
-              </>
+              <View style={[styles.statusTag, { backgroundColor: Theme.primary + "20" }]}>
+                <Text style={[styles.statusTagText, { color: Theme.primary }]}>NEW</Text>
+              </View>
+            )}
+            {item.isTakeaway && (
+              <View style={[styles.statusTag, { backgroundColor: Theme.danger + "20" }]}>
+                <Text style={[styles.statusTagText, { color: Theme.danger }]}>TW</Text>
+              </View>
             )}
           </View>
+          
+          <TouchableOpacity onPress={() => onEdit(item)} style={styles.editBtn}>
+            <Ionicons name="create-outline" size={18} color={Theme.textSecondary} />
+          </TouchableOpacity>
         </View>
 
-        {item.modifiers && item.modifiers.length > 0 && (
-          <View style={styles.modifierContainer}>
-            <Text style={styles.modifierText}>
-              {item.modifiers.map((m: any) => m.ModifierName).join(", ")}
-            </Text>
-          </View>
-        )}
-
-        {item.notes ? (
-          <View style={[styles.modifierContainer, { backgroundColor: Theme.bgMain }]}>
-            <Text style={[styles.modifierText, { color: Theme.textPrimary }]}>
-              Note: {item.notes}
-            </Text>
+        {(item.modifiers && item.modifiers.length > 0) || (item.note || item.notes) ? (
+          <View style={styles.modifiersList}>
+            {item.modifiers && item.modifiers.length > 0 && (
+              <Text style={styles.modifierText}>
+                {item.modifiers.map((m: any) => m.ModifierName).join(", ")}
+              </Text>
+            )}
+            {(item.note || item.notes) && (
+              <Text style={[styles.modifierText, { marginTop: 2 }]}>
+                note: {item.note || item.notes}
+              </Text>
+            )}
           </View>
         ) : null}
 
-        <View style={styles.itemFooter}>
-          <Text style={styles.qty}>Qty: {item.qty}</Text>
-          <Text style={styles.price}>
-            ${((item.price || 0) * item.qty).toFixed(2)}
-          </Text>
+        <View style={styles.cardFooter}>
+          <View style={styles.qtyContainer}>
+            {!isSent && !isVoided ? (
+              <View style={styles.qtyControl}>
+                <TouchableOpacity
+                  style={styles.qtyCircle}
+                  onPress={() => onMinus?.(item.lineItemId)}
+                >
+                  <Ionicons name="remove" size={16} color={Theme.textPrimary} />
+                </TouchableOpacity>
+                <Text style={styles.qtyValue}>{item.qty}</Text>
+                <TouchableOpacity
+                  style={[styles.qtyCircle, { backgroundColor: Theme.primary }]}
+                  onPress={() => onPlus?.(item.lineItemId)}
+                >
+                  <Ionicons name="add" size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.sentQtyLabel}>Qty: {item.qty}</Text>
+            )}
+          </View>
+
+          <View style={styles.priceContainer}>
+            {item.discount > 0 && (
+              <Text style={styles.discountLabel}>-{item.discount}%</Text>
+            )}
+            <Text style={[styles.itemTotal, isVoided && styles.voidedText, item.discount > 0 && { color: "#22C55E" }]}>
+              ${((item.price || 0) * item.qty * (1 - (item.discount || 0) / 100)).toFixed(2)}
+            </Text>
+            {(isSent && !isVoided) ? (
+              <TouchableOpacity onPress={() => onVoid?.(item)} style={styles.voidActionBtn}>
+                <Ionicons name="trash-outline" size={18} color={Theme.danger} />
+              </TouchableOpacity>
+            ) : !isSent && (
+              <TouchableOpacity onPress={() => onMinus?.(item.lineItemId)} style={styles.voidActionBtn}>
+                <Ionicons name="trash-outline" size={18} color={Theme.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          onPress={() => onMinus(item.id)}
-          style={styles.actionBtn}
-        >
-          <Ionicons name="remove" size={20} color={Theme.textPrimary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => onPlus(item.id)}
-          style={[styles.actionBtn, { backgroundColor: Theme.primaryLight, borderColor: Theme.primaryBorder }]}
-        >
-          <Ionicons name="add" size={20} color={Theme.primary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => onEdit(item)}
-          style={[styles.actionBtn, { backgroundColor: Theme.bgNav }]}
-        >
-          <Ionicons name="create-outline" size={20} color={Theme.textSecondary} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
+    );
+  }
+);
 
 export default function CartScreen() {
   const router = useRouter();
@@ -124,30 +157,30 @@ export default function CartScreen() {
   const [editQty, setEditQty] = React.useState(1);
   const [editNote, setEditNote] = React.useState("");
 
-  const orderContext = useOrderContextStore((state) => state.currentOrder);
-  const carts = useCartStore((state) => state.carts);
-  const currentContextId = useCartStore((state) => state.currentContextId);
-  const removeFromCartGlobal = useCartStore((state) => state.removeFromCartGlobal);
-  const addToCartGlobal = useCartStore((state) => state.addToCartGlobal);
-  const clearCart = useCartStore((state) => state.clearCart);
-  const setCartItemsGlobal = useCartStore((state) => state.setCartItems);
+  const orderContext = useOrderContextStore((state: any) => state.currentOrder);
+  const carts = useCartStore((state: any) => state.carts);
+  const currentContextId = useCartStore((state: any) => state.currentContextId);
+  const removeFromCartGlobal = useCartStore((state: any) => state.removeFromCartGlobal);
+  const addToCartGlobal = useCartStore((state: any) => state.addToCartGlobal);
+  const clearCart = useCartStore((state: any) => state.clearCart);
+  const setCartItemsGlobal = useCartStore((state: any) => state.setCartItems);
 
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
   }, [carts, currentContextId]);
 
-  const activeOrders = useActiveOrdersStore((state) => state.activeOrders);
-  const appendOrder = useActiveOrdersStore((state) => state.appendOrder);
-  const markItemsSent = useActiveOrdersStore((state) => state.markItemsSent);
-  const closeActiveOrder = useActiveOrdersStore((state) => state.closeActiveOrder);
+  const activeOrders = useActiveOrdersStore((state: any) => state.activeOrders);
+  const appendOrder = useActiveOrdersStore((state: any) => state.appendOrder);
+  const markItemsSent = useActiveOrdersStore((state: any) => state.markItemsSent);
+  const closeActiveOrder = useActiveOrdersStore((state: any) => state.closeActiveOrder);
 
-  const tables = useTableStatusStore((s) => s.tables);
-  const updateTableStatus = useTableStatusStore((s) => s.updateTableStatus);
+  const tables = useTableStatusStore((s: any) => s.tables);
+  const updateTableStatus = useTableStatusStore((s: any) => s.updateTableStatus);
 
   const activeOrder = useMemo(() => {
     if (!orderContext) return undefined;
 
-    return activeOrders.find((o) => {
+    return activeOrders.find((o: any) => {
       if (orderContext.orderType === "DINE_IN") {
         return (
           o.context.orderType === "DINE_IN" &&
@@ -172,18 +205,20 @@ export default function CartScreen() {
 
   const subtotal = useMemo(() => {
     return displayItems.reduce((sum, item) => {
-      if (!item) return sum;
-      return sum + (item.price || 0) * item.qty;
+      if (!item || item.status === "VOIDED") return sum;
+      const baseTotal = (item.price || 0) * item.qty;
+      const discountVal = (item.discount || 0) / 100;
+      return sum + baseTotal * (1 - discountVal);
     }, 0);
   }, [displayItems]);
 
-  const taxRate = 0; 
+  const taxRate = 0;
   const taxAmount = subtotal * taxRate;
   const payableAmount = subtotal + taxAmount;
 
   const currentTableData = useMemo(() => {
     if (orderContext?.orderType !== "DINE_IN") return undefined;
-    return tables.find(t => t.section === orderContext.section && t.tableNo === orderContext.tableNo);
+    return tables.find((t: any) => t.section === orderContext.section && t.tableNo === orderContext.tableNo);
   }, [orderContext, tables]);
 
   React.useEffect(() => {
@@ -198,31 +233,58 @@ export default function CartScreen() {
     );
   }
 
+  const [itemToVoid, setItemToVoid] = React.useState<any>(null);
+
   const handleCancelOrder = () => {
     if (cancelPassword !== "786") {
-      showToast({ type: "error", message: "Incorrect Password", subtitle: "Admin password required to cancel" });
+      showToast({
+        type: "error",
+        message: "Incorrect Password",
+        subtitle: "Admin password required",
+      });
       return;
     }
 
-    if (activeOrder) closeActiveOrder(activeOrder.orderId);
-    clearCart();
-    if (orderContext.orderType === "DINE_IN" && orderContext.section && orderContext.tableNo) {
-      updateTableStatus(orderContext.section, orderContext.tableNo, "", "EMPTY");
+    if (itemToVoid && activeOrder) {
+      // Logic for voiding a single item
+      voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+      showToast({
+        type: "success",
+        message: "Item Voided",
+        subtitle: "Sent items updated",
+      });
+    } else {
+      // Logic for canceling the entire order
+      if (activeOrder) closeActiveOrder(activeOrder.orderId);
+      clearCart();
+      if (
+        orderContext.orderType === "DINE_IN" &&
+        orderContext.section &&
+        orderContext.tableNo
+      ) {
+        updateTableStatus(
+          orderContext.section,
+          orderContext.tableNo,
+          "",
+          "EMPTY",
+        );
+      }
+      router.replace("/(tabs)/category");
     }
-    
+
     setShowCancelModal(false);
     setCancelPassword("");
-    router.replace("/(tabs)/category");
+    setItemToVoid(null);
   };
 
   const updateItemNotes = (contextId: string, lineItemId: string, notes: string) => {
     const currentItems = carts[contextId] || [];
-    const updated = currentItems.map(i => i.lineItemId === lineItemId ? { ...i, notes } : i);
+    const updated = currentItems.map((i: any) => i.lineItemId === lineItemId ? { ...i, notes } : i);
     setCartItemsGlobal(contextId, updated);
   };
 
   const handlePlus = React.useCallback((lineItemId: string) => {
-    const item = cart.find(i => i.lineItemId === lineItemId);
+    const item = cart.find((i: any) => i.lineItemId === lineItemId);
     if (item) {
       const { qty, lineItemId: lid, ...rest } = item;
       addToCartGlobal(rest);
@@ -233,31 +295,16 @@ export default function CartScreen() {
     removeFromCartGlobal(lineItemId);
   }, [removeFromCartGlobal]);
 
+  const handleVoidItem = (item: any) => {
+    setEditingItem(null); // Close edit if open
+    setCancelPassword("");
+    setItemToVoid(item);
+    setShowCancelModal(true);
+  };
+
   const handleEdit = React.useCallback((item: any) => {
     setEditingItem(item);
-    setEditQty(item.qty);
-    setEditNote(item.note || item.notes || "");
   }, []);
-
-  const handleEditItemSave = () => {
-    if (!editingItem || !currentContextId) return;
-    
-    const updatedCart = cart.map(item => {
-      if (item && item.lineItemId === editingItem.lineItemId) {
-        return { ...item, qty: editQty, note: editNote };
-      }
-      return item;
-    });
-
-    setCartItemsGlobal(currentContextId, updatedCart);
-    setEditingItem(null);
-  };
-
-  const handleEditItemDelete = () => {
-    if (!editingItem) return;
-    removeFromCartGlobal(editingItem.lineItemId);
-    setEditingItem(null);
-  };
 
   const sendOrder = () => {
     const context = orderContext;
@@ -289,15 +336,16 @@ export default function CartScreen() {
     ({ item }: { item: any }) => {
       if (!item) return null;
       return (
-        <CartItemRow
+        <CartItemCard
           item={item}
           onPlus={handlePlus}
           onMinus={handleMinus}
           onEdit={handleEdit}
+          onVoid={handleVoidItem}
         />
       );
     },
-    [handlePlus, handleMinus, handleEdit, cart],
+    [handlePlus, handleMinus, handleEdit, handleVoidItem, cart],
   );
 
   return (
@@ -314,7 +362,7 @@ export default function CartScreen() {
             <View>
               {orderContext.orderType === "DINE_IN" && (
                 <Text style={styles.contextText}>
-                  Table {orderContext.tableNo} · {orderContext.section?.replace("_", " ")}
+                  Table {orderContext.tableNo} · {orderContext.section?.replace("_", "-").replace("SECTION", "Section")}
                 </Text>
               )}
               {orderContext.orderType === "TAKEAWAY" && (
@@ -327,11 +375,27 @@ export default function CartScreen() {
 
           <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
-              style={[styles.topActionBtn, { backgroundColor: Theme.dangerBg, borderColor: Theme.dangerBorder, borderWidth: 1 }]}
-              onPress={() => setShowCancelModal(true)}
+              style={[
+                styles.topActionBtn,
+                {
+                  backgroundColor: Theme.danger + "15",
+                  borderColor: Theme.danger + "30",
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={() => {
+                setItemToVoid(null); // Ensure we are canceling full order
+                setShowCancelModal(true);
+              }}
             >
-              <Ionicons name="close-circle-outline" size={16} color={Theme.danger} />
-              <Text style={[styles.topBtnText, { color: Theme.danger }]}>Cancel</Text>
+              <Ionicons
+                name="close-circle-outline"
+                size={16}
+                color={Theme.danger}
+              />
+              <Text style={[styles.topBtnText, { color: Theme.danger }]}>
+                Cancel
+              </Text>
             </Pressable>
             <Pressable
               style={[styles.topActionBtn, { backgroundColor: Theme.bgMuted, borderColor: Theme.border, borderWidth: 1 }]}
@@ -468,72 +532,12 @@ export default function CartScreen() {
         </View>
       </Modal>
 
-      {/* EDIT ITEM MODAL */}
-      <Modal transparent visible={!!editingItem} animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContentEdit}>
-            <Text style={styles.modalTitle}>Editing {editingItem?.name}</Text>
-            
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginVertical: 15 }}>
-              <Text style={{ color: Theme.textPrimary, fontSize: 16 }}>Quantity</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
-                <TouchableOpacity 
-                  style={styles.minus} 
-                  onPress={() => {
-                    if (editQty === 1) {
-                      handleEditItemDelete();
-                    } else {
-                      setEditQty(q => q - 1);
-                    }
-                  }}
-                >
-                  <Ionicons name="remove" size={20} color={Theme.textPrimary} />
-                </TouchableOpacity>
-                <Text style={{ color: Theme.textPrimary, fontSize: 20, fontFamily: Fonts.bold, width: 30, textAlign: "center" }}>
-                  {editQty}
-                </Text>
-                <TouchableOpacity 
-                  style={styles.plus} 
-                  onPress={() => setEditQty(q => q + 1)}
-                >
-                  <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Text style={{ color: Theme.textMuted, fontSize: 14, marginTop: 10, marginBottom: 5 }}>Special Instructions:</Text>
-            <TextInput
-              style={[styles.modalInput, { marginBottom: 15 }]}
-              value={editNote}
-              onChangeText={setEditNote}
-              placeholder="e.g. Less spicy, no onions"
-              placeholderTextColor={Theme.textMuted}
-              multiline
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.modalBtnCancel, { backgroundColor: Theme.dangerBg, borderColor: Theme.dangerBorder, borderWidth: 1 }]} 
-                onPress={handleEditItemDelete}
-              >
-                <Text style={[styles.modalBtnTextCancel, { color: Theme.danger }]}>Delete Item</Text>
-              </TouchableOpacity>
-              
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setEditingItem(null)}>
-                  <Text style={styles.modalBtnTextCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalBtnConfirm, { backgroundColor: Theme.primary }]} onPress={handleEditItemSave}>
-                  <Text style={styles.modalBtnTextConfirm}>Save</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      {/* UNIFIED EDIT MODAL */}
+      <EditDishModal
+        visible={!!editingItem}
+        onClose={() => setEditingItem(null)}
+        item={editingItem}
+      />
 
     </SafeAreaView>
   );
@@ -586,42 +590,139 @@ const styles = StyleSheet.create({
   },
   itemCountText: { color: Theme.primary, fontFamily: Fonts.bold, fontSize: 13 },
   emptyText: { color: Theme.textMuted, fontSize: 16, textAlign: "center", marginTop: 40, fontFamily: Fonts.medium },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 18,
-    paddingLeft: 16,
-    paddingRight: 10,
-    borderRadius: Theme.radiusLg,
-    marginBottom: 12,
+  itemCard: {
     backgroundColor: Theme.bgCard,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: Theme.border,
-    ...Theme.shadowMd,
+    ...Theme.shadowSm,
   },
-  itemInfo: { flex: 1, paddingRight: 8 },
-  name: { color: Theme.textPrimary, fontFamily: Fonts.extraBold, fontSize: 17, flex: 1 },
-  sentName: { color: Theme.textSecondary },
-  badgeRow: { flexDirection: "row", alignItems: "center", marginLeft: 8 },
-  sentBadgeText: { color: Theme.success, fontSize: 11, fontFamily: Fonts.extraBold, marginLeft: 3 },
-  newBadgeText: { color: Theme.primary, fontSize: 11, fontFamily: Fonts.extraBold, marginLeft: 3 },
-  itemFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
-  qty: { color: Theme.textSecondary, fontSize: 15, fontFamily: Fonts.semiBold },
-  price: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 18 },
-  actionRow: { flexDirection: "row", gap: 12, alignItems: 'center' },
-  actionBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  voidedCard: {
+    backgroundColor: Theme.dangerBg,
+    borderColor: Theme.dangerBorder,
+    borderStyle: "dashed",
+    opacity: 0.8,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  nameRow: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  dishName: {
+    fontSize: 16,
+    fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+  },
+  voidedText: {
+    textDecorationLine: "line-through",
+    color: Theme.textMuted,
+  },
+  statusTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  statusTagText: {
+    fontSize: 10,
+    fontFamily: Fonts.black,
+  },
+  editBtn: {
+    padding: 4,
+    backgroundColor: Theme.bgMain,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  modifiersList: {
+    marginTop: 8,
+  },
+  modifierText: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+    lineHeight: 18,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Theme.border + "50",
+  },
+  qtyContainer: {
+    flex: 1,
+  },
+  qtyControl: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Theme.bgMuted,
+    borderRadius: 10,
+    padding: 3,
+    alignSelf: "flex-start",
+  },
+  qtyCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
+    ...Theme.shadowSm,
+  },
+  qtyValue: {
+    fontSize: 15,
+    fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+    paddingHorizontal: 15,
+  },
+  sentQtyLabel: {
+    fontSize: 14,
+    fontFamily: Fonts.black,
+    color: Theme.textSecondary,
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  discountLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.black,
+    color: "#15803D",
+    backgroundColor: "#22C55E20",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  itemTotal: {
+    fontSize: 18,
+    fontFamily: Fonts.black,
+    color: Theme.primary,
+  },
+  voidActionBtn: {
+    padding: 6,
+    backgroundColor: Theme.bgMain,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: Theme.border,
   },
   bottomBlock: {
     position: "absolute",
-    bottom: 0, left: 0, right: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: Theme.bgMain,
     paddingVertical: 20,
     paddingHorizontal: 16,
@@ -666,19 +767,6 @@ const styles = StyleSheet.create({
     ...Theme.shadowMd,
   },
   checkoutBtnText: { color: "#fff", fontFamily: Fonts.black, fontSize: 18 },
-  modifierContainer: {
-    marginTop: 8,
-    marginBottom: 6,
-    backgroundColor: Theme.bgMuted,
-    padding: 8,
-    borderRadius: 8,
-  },
-  modifierText: {
-    color: Theme.textSecondary,
-    fontSize: 13,
-    fontFamily: Fonts.bold,
-    marginTop: 2,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -692,16 +780,6 @@ const styles = StyleSheet.create({
     borderRadius: Theme.radiusXl,
     width: "100%",
     maxWidth: 360,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    ...Theme.shadowLg,
-  },
-  modalContentEdit: {
-    backgroundColor: Theme.bgCard,
-    padding: 24,
-    borderRadius: Theme.radiusXl,
-    width: "100%",
-    maxWidth: 420,
     borderWidth: 1,
     borderColor: Theme.border,
     ...Theme.shadowLg,
@@ -759,24 +837,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontFamily: Fonts.black,
     fontSize: 14,
-  },
-  minus: {
-    width: 44,
-    height: 44,
-    backgroundColor: Theme.bgMuted,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: Theme.radiusMd,
-    borderWidth: 1,
-    borderColor: Theme.border,
-  },
-  plus: {
-    width: 44,
-    height: 44,
-    backgroundColor: Theme.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: Theme.radiusMd,
-    ...Theme.shadowSm,
   },
 });

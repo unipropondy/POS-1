@@ -28,6 +28,7 @@ import {
   useCartStore,
 } from "../../stores/cartStore";
 import { useOrderContextStore } from "../../stores/orderContextStore";
+import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
 
 const IMAGE_BASE_URL = `${API_URL}/api/menu/image/`;
 
@@ -113,7 +114,7 @@ const DishCard = React.memo(
           style={[
             styles.dishImageWrap,
             isPhone
-              ? { width: 50, height: 50, marginBottom: 4 }
+              ? { width: 48, height: 48, marginBottom: 4 }
               : isTablet
                 ? {
                     width: 75,
@@ -209,13 +210,42 @@ export default function MenuScreen() {
 
   const orderContext = useOrderContextStore((state) => state.currentOrder);
   const carts = useCartStore((state) => state.carts);
+  const currentContextId = useCartStore((state) => state.currentContextId);
+  const activeOrders = useActiveOrdersStore((state) => state.activeOrders);
+
+  const cart = useMemo(() => {
+    return (currentContextId && carts[currentContextId]) || [];
+  }, [carts, currentContextId]);
+
+  const activeOrder = useMemo(() => {
+    if (!orderContext) return undefined;
+    return activeOrders.find((o) => {
+      if (orderContext.orderType === "DINE_IN") {
+        return (
+          o.context.orderType === "DINE_IN" &&
+          o.context.section === orderContext.section &&
+          o.context.tableNo === orderContext.tableNo
+        );
+      }
+      return (
+        o.context.orderType === "TAKEAWAY" &&
+        o.context.takeawayNo === orderContext.takeawayNo
+      );
+    });
+  }, [activeOrders, orderContext]);
 
   const isLandscape = width > 900;
   const isTabletPortrait = width >= 600 && width <= 900;
   const isPhone = width < 600;
   const isLarge = true; // Always show cart on all devices
 
-  const cartWidth = isLandscape ? 380 : isTabletPortrait ? 330 : width * 0.55;
+  const cartItemsCount = useMemo(() => {
+    const draftCount = cart.length;
+    const sentCount = (activeOrder?.items || []).length;
+    return draftCount + sentCount;
+  }, [cart, activeOrder]);
+
+  const cartWidth = isLandscape ? 380 : isTabletPortrait ? 330 : width * 0.62;
   const mainWidth = width - cartWidth;
 
   const columns = width > 1200 ? 5 : width > 900 ? 3 : isPhone ? 1 : 2;
@@ -434,6 +464,18 @@ export default function MenuScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      <TouchableOpacity
+        style={styles.headerCartBtn}
+        onPress={() => router.push("/cart")}
+      >
+        <Ionicons name="cart-outline" size={24} color={Theme.primary} />
+        {cartItemsCount > 0 && (
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{cartItemsCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
       <View style={styles.topActions}>
         {!isLarge && (
           <TouchableOpacity
@@ -848,7 +890,11 @@ const styles = StyleSheet.create({
     borderColor: Theme.primary,
     ...Theme.shadowSm,
   },
-  groupText: { fontSize: 12, fontFamily: Fonts.medium, color: Theme.textSecondary },
+  groupText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Theme.textSecondary,
+  },
   groupTextActive: { color: Theme.textPrimary, fontFamily: Fonts.bold },
   gridContainer: { flex: 1 },
   listPadding: { paddingBottom: 80 },
@@ -902,6 +948,37 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.black,
     color: Theme.primary,
     marginTop: 4,
+  },
+  headerCartBtn: {
+    width: 48,
+    height: 48,
+    backgroundColor: Theme.bgMain,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: Theme.danger,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontFamily: Fonts.black,
   },
   title: { fontSize: 24, fontFamily: Fonts.black },
   modalOverlay: {

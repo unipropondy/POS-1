@@ -233,3 +233,5 @@ export const findActiveOrder = (context: OrderContext) => {
     return false;
   });
 };
+export const voidOrderItem = (orderId: string, lineItemId: string) =>
+  useActiveOrdersStore.getState().voidOrderItem(orderId, lineItemId);
