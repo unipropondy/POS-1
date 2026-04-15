@@ -70,6 +70,7 @@ const URGENCY_COLORS: Record<
 
 export default function KDSScreen() {
   const { width } = useWindowDimensions();
+  const isMobile = width < 600;
   const router = useRouter();
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
 
@@ -273,45 +274,50 @@ export default function KDSScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
         {/* TOP BAR */}
-        <View style={styles.topBar}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
+          <Pressable 
+            style={[styles.backBtn, isMobile && styles.backBtnMobile]} 
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color={Theme.textPrimary} />
           </Pressable>
 
-          <View style={styles.titleBlock}>
+          <View style={[styles.titleBlock, isMobile && styles.titleBlockMobile]}>
             <Ionicons
               name="fast-food-outline"
-              size={22}
+              size={isMobile ? 18 : 22}
               color={Theme.primary}
             />
-            <Text style={styles.screenTitle}>Kitchen Display</Text>
+            <Text style={[styles.screenTitle, isMobile && styles.screenTitleMobile]}>
+              KDS
+            </Text>
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statChip}>
+          <View style={[styles.statsRow, isMobile && styles.statsRowMobile]}>
+            <View style={[styles.statChip, isMobile && styles.statChipMobile]}>
               <View
                 style={[styles.statDot, { backgroundColor: Theme.success }]}
               />
               <Text style={styles.statText}>{stats.fresh}</Text>
             </View>
-            <View style={styles.statChip}>
+            <View style={[styles.statChip, isMobile && styles.statChipMobile]}>
               <View
                 style={[styles.statDot, { backgroundColor: Theme.warning }]}
               />
               <Text style={styles.statText}>{stats.warn}</Text>
             </View>
-            <View style={styles.statChip}>
+            <View style={[styles.statChip, isMobile && styles.statChipMobile]}>
               <View
                 style={[styles.statDot, { backgroundColor: Theme.danger }]}
               />
               <Text style={styles.statText}>{stats.critical}</Text>
             </View>
-            <Text style={styles.statTotal}>{stats.total} orders</Text>
+            {!isMobile && <Text style={styles.statTotal}>{stats.total} orders</Text>}
           </View>
         </View>
 
         {/* LEGEND */}
-        <View style={styles.legend}>
+        <View style={[styles.legend, isMobile && styles.legendMobile]}>
           <View style={styles.legendItem}>
             <View
               style={[styles.legendDot, { backgroundColor: Theme.success }]}
@@ -323,7 +329,7 @@ export default function KDSScreen() {
               style={[styles.legendDot, { backgroundColor: Theme.warning }]}
             />
             <Text style={styles.legendText}>
-              {URGENCY_FRESH}–{URGENCY_WARN}m Running Long
+              {URGENCY_FRESH}–{URGENCY_WARN}m{isMobile ? "" : " Running Long"}
             </Text>
           </View>
           <View style={styles.legendItem}>
@@ -436,6 +442,38 @@ const styles = StyleSheet.create({
     color: Theme.textSecondary,
     fontFamily: Fonts.bold,
     fontSize: 11,
+  },
+  topBarMobile: {
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    minHeight: 64,
+  },
+  backBtnMobile: {
+    position: "relative",
+    left: 0,
+    width: 38,
+    height: 38,
+  },
+  titleBlockMobile: {
+    gap: 6,
+  },
+  screenTitleMobile: {
+    fontSize: 18,
+  },
+  statsRowMobile: {
+    position: "relative",
+    right: 0,
+    gap: 4,
+  },
+  statChipMobile: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  legendMobile: {
+    paddingHorizontal: 15,
+    gap: 12,
+    flexWrap: "wrap",
   },
   list: { padding: 15, paddingBottom: 50 },
   cardOuter: {

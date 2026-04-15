@@ -144,19 +144,12 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
   const handleClearCart = () => {
     if (cart.length === 0) return;
-    Alert.alert(
-      "Clear Cart",
-      "Are you sure you want to remove all unsent items?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: () => clearCartStandalone(),
-        },
-      ],
-      { cancelable: true },
-    );
+    clearCartStandalone();
+    showToast({
+      type: "success",
+      message: "Cart Cleared",
+      subtitle: "Unsent items removed.",
+    });
   };
 
   if (!orderContext) {
@@ -253,6 +246,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             }
           }}
         >
+        {!isPhone && (
           <View style={styles.itemIndexWrap}>
             <Ionicons
               name="chevron-forward"
@@ -262,15 +256,15 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             />
             <Text style={styles.itemIndex}>{index + 1}</Text>
           </View>
+        )}
 
           <View style={styles.itemInfo}>
             <View
               style={[
                 styles.itemMainRow,
                 isPhone && {
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 4,
+                  alignItems: "center",
+                  gap: 6,
                 },
               ]}
             >
@@ -287,9 +281,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     styles.itemName,
                     (isSent || isVoided) && styles.textMuted,
                     isVoided && styles.strikeThrough,
-                    isPhone && { fontSize: 14 },
+                    isPhone && { fontSize: 13, flex: 1 },
                   ]}
-                  numberOfLines={isPhone ? 2 : 1}
+                  numberOfLines={1}
                 >
                   {item.name}
                 </Text>
@@ -314,7 +308,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       : isSent
                         ? "#22C55E30"
                         : "#3B82F630",
-                    marginTop: isPhone ? 2 : 0,
+                    paddingVertical: isPhone ? 2 : 4,
                   },
                 ]}
               >
@@ -322,6 +316,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   style={[
                     styles.statusTagText,
                     {
+                      fontSize: isPhone ? 8 : 9,
                       color: isVoided
                         ? Theme.danger
                         : isSent
@@ -360,7 +355,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               <View
                 style={[
                   styles.inlineControls,
-                  isPhone && { marginTop: 12, alignItems: "flex-end" },
+                  isPhone && { marginTop: 8 },
                 ]}
               >
                 {isSent || isVoided ? (
@@ -430,22 +425,23 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   {item.discount > 0 ? (
                     <View style={{ alignItems: "flex-end" }}>
                       <View
-                        style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                        style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
                       >
                         <Text
                           style={[
                             styles.itemPrice,
                             {
-                              fontSize: 11,
+                              fontSize: isPhone ? 10 : 11,
                               textDecorationLine: "line-through",
                               color: Theme.textMuted,
+                              minWidth: 0,
                             },
                           ]}
                         >
                           ${((item.price || 0) * item.qty).toFixed(2)}
                         </Text>
-                        <View style={styles.discountBadge}>
-                          <Text style={styles.discountBadgeText}>
+                        <View style={[styles.discountBadge, isPhone && { paddingHorizontal: 3 }]}>
+                          <Text style={[styles.discountBadgeText, isPhone && { fontSize: 8 }]}>
                             -{item.discount}%
                           </Text>
                         </View>
@@ -453,7 +449,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       <Text
                         style={[
                           styles.itemPrice,
-                          { color: "#22C55E", fontSize: 16 },
+                          { color: "#22C55E", fontSize: isPhone ? 15 : 16 },
                           isVoided && styles.strikeThrough,
                         ]}
                       >
@@ -469,9 +465,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     <Text
                       style={[
                         styles.itemPrice,
+                        isPhone && { fontSize: 15 },
                         isVoided && styles.strikeThrough,
-                        isVoided && styles.textMuted,
-                        { fontSize: 16 }
                       ]}
                     >
                       ${((item.price || 0) * item.qty).toFixed(2)}
