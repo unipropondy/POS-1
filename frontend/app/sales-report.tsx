@@ -437,7 +437,7 @@ export default function SalesReport() {
                 </View>
               </View>
 
-              <View style={styles.chartCard}>
+              <View style={[styles.chartCard, { minWidth: (SCREEN_W - 32 - 12) / 2 }]}>
                 <View style={styles.chartCardHeader}>
                   <Text style={styles.cardTitle}>ORDER TYPES</Text>
                   <Ionicons name="layers-outline" size={14} color={Theme.primary} />
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   tileValue: { fontFamily: Fonts.black, fontSize: 22 },
   chartsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
   chartCard: {
-    flex: 1, minWidth: (SCREEN_W - 32 - 12) / 2, padding: 20, borderRadius: 20,
+    flex: 1, padding: 20, borderRadius: 20,
     backgroundColor: Theme.bgCard, borderWidth: 1, borderColor: Theme.border, ...Theme.shadowMd,
   },
   chartCardWide: { width: "100%" },

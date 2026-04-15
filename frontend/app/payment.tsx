@@ -443,7 +443,6 @@ export default function PaymentScreen() {
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={20} color={Theme.textPrimary} />
-            <Text style={styles.backText}>Back to Summary</Text>
           </TouchableOpacity>
 
           <View style={styles.orderInfo}>
@@ -759,12 +758,11 @@ const styles = StyleSheet.create({
     borderBottomColor: Theme.border,
   },
   backBtn: {
-    flexDirection: "row",
+    width: 40,
+    height: 40,
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
     backgroundColor: Theme.bgMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Theme.border,

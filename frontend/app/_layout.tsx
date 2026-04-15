@@ -13,6 +13,8 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { useWindowDimensions } from "react-native";
+import * as ScreenOrientation from "expo-screen-orientation";
 import "react-native-reanimated";
 import { ToastProvider } from "../components/Toast";
 
@@ -27,6 +29,18 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+
+  // Lock orientation: portrait-only on phones, free rotation on tablets
+  useEffect(() => {
+    if (isTablet) {
+      ScreenOrientation.unlockAsync();
+    } else {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    }
+  }, [isTablet]);
+
 
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
