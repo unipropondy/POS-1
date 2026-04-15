@@ -13,6 +13,7 @@ async function initDB(pool) {
                     [SettlementID] [uniqueidentifier] NULL,
                     [DishId] [uniqueidentifier] NULL,
                     [DishGroupId] [uniqueidentifier] NULL,
+                    [SubCategoryId] [uniqueidentifier] NULL,
                     [CategoryId] [uniqueidentifier] NULL,
                     [DishName] [nvarchar](255) NULL,
                     [Qty] [int] NULL,
@@ -26,6 +27,9 @@ async function initDB(pool) {
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'DishGroupId')
             ALTER TABLE [dbo].[SettlementItemDetail] ADD DishGroupId UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'SubCategoryId')
+            ALTER TABLE [dbo].[SettlementItemDetail] ADD SubCategoryId UNIQUEIDENTIFIER NULL;
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND name = 'CategoryId')
             ALTER TABLE [dbo].[SettlementItemDetail] ADD CategoryId UNIQUEIDENTIFIER NULL;

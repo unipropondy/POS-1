@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ export default function SalesReport() {
   const [activePaymentModes, setActivePaymentModes] = useState<string[]>(["CASH", "CARD", "NETS", "PAYNOW"]);
   const [activeOrderTypes, setActiveOrderTypes] = useState<string[]>(["DINE-IN", "TAKEAWAY"]);
   const [sortOrder, setSortOrder] = useState<"NEWEST" | "HIGHEST">("NEWEST");
-  const [detailReportType, setDetailReportType] = useState<DetailReportType>("CATEGORY");
+  const [detailReportType, setDetailReportType] = useState<DetailReportType | null>(null);
   const [categoryReport, setCategoryReport] = useState<any[]>([]);
   const [dishReport, setDishReport] = useState<any[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -56,7 +56,9 @@ export default function SalesReport() {
         const savedSort = await AsyncStorage.getItem("sales_sort_order");
 
         if (savedDate) setSelectedDate(savedDate);
-        if (savedFilter) setSelectedFilter(savedFilter as FilterType);
+        if (savedFilter && ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(savedFilter)) {
+          setSelectedFilter(savedFilter as FilterType);
+        }
         if (savedModes) setActivePaymentModes(JSON.parse(savedModes));
         if (savedTypes) setActiveOrderTypes(JSON.parse(savedTypes));
         if (savedSort) setSortOrder(savedSort as "NEWEST" | "HIGHEST");
@@ -79,7 +81,7 @@ export default function SalesReport() {
   const fetchData = async () => {
     try {
       if (sales.length === 0) setLoading(true);
-      await Promise.all([fetchSales(), fetchSummary(), fetchDetailReports()]);
+      await Promise.all([fetchSales(), fetchSummary()]);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -88,35 +90,46 @@ export default function SalesReport() {
     }
   };
 
-  const fetchDetailReports = async () => {
+  const fetchDetailReport = useCallback(async (reportType: DetailReportType, filterType = selectedFilter) => {
     try {
       setLoadingReport(true);
-      const reportFilter = selectedFilter.toLowerCase();
+      const reportFilter = filterType.toLowerCase();
       const params = new URLSearchParams({
         filter: reportFilter,
+        t: Date.now().toString(),
       });
 
-      const [categoryResponse, dishResponse] = await Promise.all([
-        fetch(`${API_URL}/api/reports/category?${params.toString()}`),
-        fetch(`${API_URL}/api/reports/dish?${params.toString()}`),
-      ]);
+      const endpoint = reportType === "CATEGORY" ? "category" : "dish";
+      console.log("[SalesReport] Fetching report", { reportType, filterType: reportFilter });
+      const response = await fetch(`${API_URL}/api/reports/${endpoint}?${params.toString()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
 
-      const [categoryData, dishData] = await Promise.all([
-        categoryResponse.json(),
-        dishResponse.json(),
-      ]);
+      if (!response.ok) {
+        throw new Error(`Unable to load ${endpoint} report`);
+      }
 
-      setCategoryReport(Array.isArray(categoryData) ? categoryData.map((row) => ({
-        CategoryName: row.categoryName,
-        Sold: row.totalQuantitySold,
-        SalesAmount: row.totalSalesAmount,
-      })) : []);
-      setDishReport(Array.isArray(dishData) ? dishData.map((row) => ({
-        DishName: row.dishName,
-        CategoryName: row.categoryName,
-        Sold: row.quantitySold,
-        SalesAmount: row.totalSalesAmount,
-      })) : []);
+      const data = await response.json();
+      console.log("[SalesReport] API response", { reportType, filterType: reportFilter, rows: Array.isArray(data) ? data.length : 0, data });
+
+      if (reportType === "CATEGORY") {
+        setCategoryReport(Array.isArray(data) ? data.map((row) => ({
+          CategoryName: row.categoryName,
+          Sold: row.totalQty ?? row.totalQuantitySold,
+          SalesAmount: row.totalAmount ?? row.totalSalesAmount,
+        })) : []);
+        setDishReport([]);
+      } else {
+        setDishReport(Array.isArray(data) ? data.map((row) => ({
+          DishName: row.dishName,
+          CategoryName: row.categoryName,
+          SubCategoryName: row.subCategoryName,
+          Sold: row.totalQty ?? row.quantitySold,
+          SalesAmount: row.totalAmount ?? row.totalSalesAmount,
+        })) : []);
+        setCategoryReport([]);
+      }
     } catch (error) {
       console.error("Detail report fetch error:", error);
       setCategoryReport([]);
@@ -124,7 +137,22 @@ export default function SalesReport() {
     } finally {
       setLoadingReport(false);
     }
+  }, [selectedFilter]);
+
+  const handleReportPress = (reportType: DetailReportType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (detailReportType === reportType) {
+      fetchDetailReport(reportType);
+      return;
+    }
+    setDetailReportType(reportType);
   };
+
+  useEffect(() => {
+    if (detailReportType) {
+      fetchDetailReport(detailReportType, selectedFilter);
+    }
+  }, [selectedFilter, detailReportType, fetchDetailReport]);
 
   const fetchSales = async () => {
     try {
@@ -143,58 +171,39 @@ export default function SalesReport() {
 
   const fetchSummary = async () => {
     try {
-      let url = "";
-      if (selectedFilter === "DAILY") {
-        url = `${API_URL}/api/sales/daily/${selectedDate}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        setSummary(data);
-      } else {
-        const end = new Date(selectedDate);
-        const start = new Date(selectedDate);
+      const end = new Date(selectedDate);
+      const start = new Date(selectedDate);
 
-        if (selectedFilter === "WEEKLY") {
-          start.setDate(start.getDate() - 6);
-        } else if (selectedFilter === "MONTHLY") {
-          start.setDate(1);
-          end.setMonth(end.getMonth() + 1);
-          end.setDate(0);
-        } else if (selectedFilter === "YEARLY") {
-          start.setMonth(0, 1);
-          end.setMonth(11, 31);
-        }
-
-        const startStr = start.toISOString().split("T")[0];
-        const endStr = end.toISOString().split("T")[0];
-        url = `${API_URL}/api/sales/range?startDate=${startStr}&endDate=${endStr}`;
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (Array.isArray(data)) {
-          const aggregated = data.reduce((acc, curr) => ({
-            TotalTransactions: acc.TotalTransactions + curr.TotalTransactions,
-            TotalSales: acc.TotalSales + curr.TotalSales,
-            CashSales: acc.CashSales + curr.CashSales,
-            NETS_Sales: acc.NETS_Sales + curr.NETS_Sales,
-            PayNow_Sales: acc.PayNow_Sales + curr.PayNow_Sales,
-            TotalItems: acc.TotalItems + (curr.TotalItems || 0),
-          }), { TotalTransactions: 0, TotalSales: 0, CashSales: 0, NETS_Sales: 0, PayNow_Sales: 0, TotalItems: 0 });
-          setSummary(aggregated);
-        } else {
-          setSummary(null);
-        }
+      if (selectedFilter === "WEEKLY") {
+        start.setDate(start.getDate() - 6);
+      } else if (selectedFilter === "MONTHLY") {
+        start.setDate(1);
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(0);
+      } else if (selectedFilter === "YEARLY") {
+        start.setMonth(0, 1);
+        end.setMonth(11, 31);
       }
+
+      const startStr = start.toISOString().split("T")[0];
+      const endStr = end.toISOString().split("T")[0];
+      const url = `${API_URL}/api/sales/range?startDate=${startStr}&endDate=${endStr}`;
+      const response = await fetch(url, { cache: "no-store" });
+      const data = await response.json();
+      setSummary(Array.isArray(data) ? data[0] : data);
     } catch (error) {
       console.error("Summary fetch error:", error);
       setSummary(null);
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
-    fetchData();
+    await fetchData();
+    if (detailReportType) {
+      await fetchDetailReport(detailReportType);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -217,7 +226,7 @@ export default function SalesReport() {
       });
     } else if (selectedFilter === "WEEKLY") {
       const selectedDateObj = new Date(selectedDate);
-      const sevenDaysAgo = new Date(selectedDateObj.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(selectedDateObj.getTime() - 6 * 24 * 60 * 60 * 1000);
       dateScopedSales = sales.filter(s => {
         if (!s.SettlementDate) return false;
         const saleDate = new Date(s.SettlementDate);
@@ -257,21 +266,6 @@ export default function SalesReport() {
   }, [sales, selectedFilter, selectedDate, activePaymentModes, activeOrderTypes, sortOrder]);
 
   const filteredMetrics = useMemo(() => {
-    if (!summary || selectedFilter === "DAILY") {
-       const daySales = sales.filter(s => s.SettlementDate && s.SettlementDate.startsWith(selectedDate));
-       const filtered = daySales.filter(s => activePaymentModes.includes(s.PayMode));
-       
-       return {
-         TotalSales: filtered.reduce((acc, s) => acc + s.SysAmount, 0),
-         TotalTransactions: filtered.length,
-         TotalItems: filtered.reduce((acc, s) => acc + (s.ReceiptCount || 0), 0),
-         Cash: filtered.filter(s => s.PayMode === "CASH").reduce((acc, s) => acc + s.SysAmount, 0),
-         Card: filtered.filter(s => s.PayMode === "CARD").reduce((acc, s) => acc + s.SysAmount, 0),
-         Nets: filtered.filter(s => s.PayMode === "NETS").reduce((acc, s) => acc+ s.SysAmount, 0),
-         PayNow: filtered.filter(s=> s.PayMode === "PAYNOW").reduce((acc, s) => acc + s.SysAmount, 0),
-       };
-    }
-    
     const filtered = filteredSales;
     return {
        TotalSales: filtered.reduce((acc, s) => acc + s.SysAmount, 0),
@@ -282,7 +276,7 @@ export default function SalesReport() {
        Nets: filtered.filter(s => s.PayMode === "NETS").reduce((acc, s) => acc+ s.SysAmount, 0),
        PayNow: filtered.filter(s=> s.PayMode === "PAYNOW").reduce((acc, s) => acc + s.SysAmount, 0),
     };
-  }, [filteredSales, summary, selectedFilter, selectedDate, activePaymentModes]);
+  }, [filteredSales]);
 
   const avgOrder = useMemo(() => {
     if (!filteredMetrics.TotalTransactions) return 0;
@@ -358,6 +352,10 @@ export default function SalesReport() {
   );
 
   const renderDetailReport = () => {
+    if (!detailReportType) {
+      return null;
+    }
+
     const rows = detailReportType === "CATEGORY" ? categoryReport : dishReport;
     const isDishReport = detailReportType === "DISH";
 
@@ -368,7 +366,19 @@ export default function SalesReport() {
             <Text style={styles.cardTitle}>{isDishReport ? "DISH SALES REPORT" : "CATEGORY SALES REPORT"}</Text>
             <Text style={styles.reportSubText}>{rows.length} rows for the selected period</Text>
           </View>
-          <Ionicons name={isDishReport ? "restaurant-outline" : "albums-outline"} size={18} color={Theme.primary} />
+          <View style={styles.reportHeaderActions}>
+            <Ionicons name={isDishReport ? "restaurant-outline" : "albums-outline"} size={18} color={Theme.primary} />
+            <TouchableOpacity
+              onPress={() => {
+                setDetailReportType(null);
+                setCategoryReport([]);
+                setDishReport([]);
+              }}
+              style={styles.reportCloseBtn}
+            >
+              <Ionicons name="close" size={18} color={Theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loadingReport ? (
@@ -389,6 +399,7 @@ export default function SalesReport() {
                   {isDishReport ? "Dish" : "Category"}
                 </Text>
                 {isDishReport && <Text style={[styles.reportCell, styles.categoryNameCell]}>Category</Text>}
+                {isDishReport && <Text style={[styles.reportCell, styles.subCategoryNameCell]}>Subcategory</Text>}
                 <Text style={[styles.reportCell, styles.qtyCell]}>Qty</Text>
                 <Text style={[styles.reportCell, styles.amountCell]}>Sales</Text>
               </View>
@@ -400,6 +411,11 @@ export default function SalesReport() {
                   {isDishReport && (
                     <Text numberOfLines={1} style={[styles.reportCell, styles.reportCellText, styles.categoryNameCell]}>
                       {row.CategoryName || "Unmapped"}
+                    </Text>
+                  )}
+                  {isDishReport && (
+                    <Text numberOfLines={1} style={[styles.reportCell, styles.reportCellText, styles.subCategoryNameCell]}>
+                      {row.SubCategoryName || "Unmapped"}
                     </Text>
                   )}
                   <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell]}>{Number(row.Sold || 0).toFixed(0)}</Text>
@@ -497,14 +513,14 @@ export default function SalesReport() {
 
             <View style={styles.reportSwitchRow}>
               <TouchableOpacity
-                onPress={() => setDetailReportType("CATEGORY")}
+                onPress={() => handleReportPress("CATEGORY")}
                 style={[styles.reportSwitchBtn, detailReportType === "CATEGORY" && styles.activeReportSwitchBtn]}
               >
                 <Ionicons name="albums-outline" size={16} color={detailReportType === "CATEGORY" ? "#fff" : Theme.primary} />
                 <Text style={[styles.reportSwitchText, detailReportType === "CATEGORY" && styles.activeReportSwitchText]}>Category Sales Report</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setDetailReportType("DISH")}
+                onPress={() => handleReportPress("DISH")}
                 style={[styles.reportSwitchBtn, detailReportType === "DISH" && styles.activeReportSwitchBtn]}
               >
                 <Ionicons name="restaurant-outline" size={16} color={detailReportType === "DISH" ? "#fff" : Theme.primary} />
@@ -821,10 +837,21 @@ const styles = StyleSheet.create({
     ...Theme.shadowMd,
   },
   detailReportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 },
+  reportHeaderActions: { flexDirection: "row", alignItems: "center", gap: 10 },
+  reportCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Theme.bgMuted,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
   reportSubText: { color: Theme.textMuted, fontFamily: Fonts.semiBold, fontSize: 12, marginTop: 4 },
   reportLoading: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
   emptyReport: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
-  reportTable: { minWidth: 620, borderWidth: 1, borderColor: Theme.border, borderRadius: 12, overflow: "hidden" },
+  reportTable: { minWidth: 760, borderWidth: 1, borderColor: Theme.border, borderRadius: 12, overflow: "hidden" },
   reportTableHeader: { flexDirection: "row", backgroundColor: Theme.bgMuted, borderBottomWidth: 1, borderBottomColor: Theme.border },
   reportTableRow: { flexDirection: "row", alignItems: "center", backgroundColor: Theme.bgCard, borderBottomWidth: 1, borderBottomColor: Theme.border },
   reportTableRowAlt: { backgroundColor: Theme.bgMain },
@@ -832,6 +859,7 @@ const styles = StyleSheet.create({
   reportCellText: { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 13, textTransform: "none" },
   dishNameCell: { width: 230 },
   categoryNameCell: { width: 220 },
+  subCategoryNameCell: { width: 190 },
   qtyCell: { width: 80, textAlign: "right" },
   amountCell: { width: 110, textAlign: "right" },
   chartsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },

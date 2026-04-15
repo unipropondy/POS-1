@@ -25,33 +25,23 @@ const getReportDateRange = (req) => {
   return { start, end };
 };
 
-const getFilterDateRange = (filter = "daily") => {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
-
-  end.setHours(23, 59, 59, 999);
-
+const getReportDateWhereSql = (filter = "daily", saleDateColumn = "sh.LastSettlementDate") => {
   switch (String(filter).toLowerCase()) {
     case "weekly":
-      start.setDate(now.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
-      break;
+      return `${saleDateColumn} >= DATEADD(DAY, -7, GETDATE())`;
     case "monthly":
-      start.setFullYear(now.getFullYear(), now.getMonth(), 1);
-      start.setHours(0, 0, 0, 0);
-      break;
+      return `MONTH(${saleDateColumn}) = MONTH(GETDATE()) AND YEAR(${saleDateColumn}) = YEAR(GETDATE())`;
     case "yearly":
-      start.setFullYear(now.getFullYear(), 0, 1);
-      start.setHours(0, 0, 0, 0);
-      break;
+      return `YEAR(${saleDateColumn}) = YEAR(GETDATE())`;
     case "daily":
     default:
-      start.setHours(0, 0, 0, 0);
-      break;
+      return `CAST(${saleDateColumn} AS DATE) = CAST(GETDATE() AS DATE)`;
   }
+};
 
-  return { start, end };
+const normalizeReportFilter = (filter = "daily") => {
+  const normalized = String(filter || "daily").toLowerCase();
+  return ["daily", "weekly", "monthly", "yearly"].includes(normalized) ? normalized : "daily";
 };
 
 const parseCsv = (value) => String(value || "")
@@ -106,6 +96,7 @@ const validateSalePayload = ({ totalAmount, paymentMethod, items }) => {
 /* ================= SALES LIST & SUMMARY ================= */
 router.get("/all", async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, sh.OrderId, sh.OrderType,
@@ -319,65 +310,112 @@ router.get("/dish-report", async (req, res) => {
 
 router.get("/category", async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
-    const { start, end } = getFilterDateRange(req.query.filter);
+    const filter = normalizeReportFilter(req.query.filter);
+    const appDateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate");
+    const legacyDateWhereSql = getReportDateWhereSql(filter, "InvoiceDate");
+    console.log(`[REPORT API] type=category filter=${filter}`);
 
-    const result = await pool.request()
-      .input("Start", sql.DateTime, start)
-      .input("End", sql.DateTime, end)
-      .query(`
-        SELECT
-          ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
-          SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQuantitySold,
-          SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalSalesAmount
-        FROM SettlementHeader sh
-        INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
-        LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
-          OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(d.Name))))
-        LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, d.DishGroupId) = dg.DishGroupId
-        LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
-        WHERE sh.LastSettlementDate BETWEEN @Start AND @End
-          AND ISNULL(sh.IsCancelled, 0) = 0
-          AND ISNULL(sid.Qty, 0) > 0
-        GROUP BY ISNULL(cm.CategoryName, 'Unmapped')
-        ORDER BY totalSalesAmount DESC, totalQuantitySold DESC, categoryName ASC
+    const result = await pool.request().query(`
+        WITH AppReport AS (
+          SELECT
+            ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
+            SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
+            SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
+          FROM SettlementHeader sh
+          INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
+          LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
+            OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(d.Name))))
+          LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, d.DishGroupId) = dg.DishGroupId
+          LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
+          WHERE ${appDateWhereSql}
+            AND ISNULL(sh.IsCancelled, 0) = 0
+            AND ISNULL(sid.Qty, 0) > 0
+          GROUP BY ISNULL(cm.CategoryName, 'Unmapped')
+        ),
+        LegacyReport AS (
+          SELECT
+            ISNULL(MAX(categoryname), 'Unmapped') AS categoryName,
+            SUM(CAST(ISNULL(Sold, 0) AS decimal(18, 3))) AS totalQty,
+            SUM(CAST(ISNULL(Revenue, ItemSales) AS decimal(18, 2))) AS totalAmount
+          FROM vw_categorysalesreport
+          WHERE ${legacyDateWhereSql}
+          GROUP BY CategoryId
+        )
+        SELECT categoryName, SUM(totalQty) AS totalQty, SUM(totalAmount) AS totalAmount
+        FROM (
+          SELECT * FROM AppReport
+          UNION ALL
+          SELECT * FROM LegacyReport
+        ) ReportRows
+        GROUP BY categoryName
+        HAVING SUM(totalQty) > 0 OR SUM(totalAmount) > 0
+        ORDER BY totalAmount DESC, totalQty DESC, categoryName ASC
       `);
 
+    console.log(`[REPORT API] type=category filter=${filter} rows=${result.recordset.length}`);
     res.json(result.recordset || []);
   } catch (err) {
+    console.error("[REPORT API] category error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
 router.get("/dish", async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
-    const { start, end } = getFilterDateRange(req.query.filter);
+    const filter = normalizeReportFilter(req.query.filter);
+    const appDateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate");
+    const legacyDateWhereSql = getReportDateWhereSql(filter, "InvoiceDate");
+    console.log(`[REPORT API] type=dish filter=${filter}`);
 
-    const result = await pool.request()
-      .input("Start", sql.DateTime, start)
-      .input("End", sql.DateTime, end)
-      .query(`
-        SELECT
-          ISNULL(d.Name, sid.DishName) AS dishName,
-          ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
-          SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS quantitySold,
-          SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalSalesAmount
-        FROM SettlementHeader sh
-        INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
-        LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
-          OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(d.Name))))
-        LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, d.DishGroupId) = dg.DishGroupId
-        LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
-        WHERE sh.LastSettlementDate BETWEEN @Start AND @End
-          AND ISNULL(sh.IsCancelled, 0) = 0
-          AND ISNULL(sid.Qty, 0) > 0
-        GROUP BY ISNULL(d.Name, sid.DishName), ISNULL(cm.CategoryName, 'Unmapped')
-        ORDER BY totalSalesAmount DESC, quantitySold DESC, dishName ASC
+    const result = await pool.request().query(`
+        WITH AppReport AS (
+          SELECT
+            ISNULL(d.Name, sid.DishName) AS dishName,
+            ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
+            ISNULL(dg.DishGroupName, 'Unmapped') AS subCategoryName,
+            SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
+            SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
+          FROM SettlementHeader sh
+          INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
+          LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
+            OR (sid.DishId IS NULL AND LTRIM(RTRIM(LOWER(sid.DishName))) = LTRIM(RTRIM(LOWER(d.Name))))
+          LEFT JOIN DishGroupMaster dg ON COALESCE(sid.DishGroupId, d.DishGroupId) = dg.DishGroupId
+          LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
+          WHERE ${appDateWhereSql}
+            AND ISNULL(sh.IsCancelled, 0) = 0
+            AND ISNULL(sid.Qty, 0) > 0
+          GROUP BY ISNULL(d.Name, sid.DishName), ISNULL(cm.CategoryName, 'Unmapped'), ISNULL(dg.DishGroupName, 'Unmapped')
+        ),
+        LegacyReport AS (
+          SELECT
+            ISNULL(MAX(Dishname), 'Unmapped') AS dishName,
+            ISNULL(MAX(CategoryName), 'Unmapped') AS categoryName,
+            ISNULL(MAX(DishGroupname), 'Unmapped') AS subCategoryName,
+            SUM(CAST(ISNULL(Sold, 0) AS decimal(18, 3))) AS totalQty,
+            SUM(CAST(ISNULL(Revenue, ItemSales) AS decimal(18, 2))) AS totalAmount
+          FROM vw_Dishsalesreport
+          WHERE ${legacyDateWhereSql}
+          GROUP BY DishId, CategoryId, DishGroupId
+        )
+        SELECT dishName, categoryName, subCategoryName, SUM(totalQty) AS totalQty, SUM(totalAmount) AS totalAmount
+        FROM (
+          SELECT * FROM AppReport
+          UNION ALL
+          SELECT * FROM LegacyReport
+        ) ReportRows
+        GROUP BY dishName, categoryName, subCategoryName
+        HAVING SUM(totalQty) > 0 OR SUM(totalAmount) > 0
+        ORDER BY totalAmount DESC, totalQty DESC, dishName ASC
       `);
 
+    console.log(`[REPORT API] type=dish filter=${filter} rows=${result.recordset.length}`);
     res.json(result.recordset || []);
   } catch (err) {
+    console.error("[REPORT API] dish error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -534,13 +572,14 @@ router.post("/save", async (req, res) => {
             .input("SettlementID", settlementId)
             .input("DishId", meta.DishId || dishId)
             .input("DishGroupId", meta.DishGroupId || null)
+            .input("SubCategoryId", meta.DishGroupId || null)
             .input("CategoryId", meta.CategoryId || null)
             .input("DishName", item.dish_name || item.name || "Unknown")
             .input("Qty", item.qty || 1)
             .input("Price", item.price || 0)
             .input("OrderDateTime", new Date()).query(`
-              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, CategoryId, DishName, Qty, Price, OrderDateTime)
-              VALUES (@SettlementID, @DishId, @DishGroupId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime)
+              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, SubCategoryId, CategoryId, DishName, Qty, Price, OrderDateTime)
+              VALUES (@SettlementID, @DishId, @DishGroupId, @SubCategoryId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime)
             `);
         }
       }
