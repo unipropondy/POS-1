@@ -10,7 +10,6 @@ import {
   TextInput,
   Modal,
   ScrollView,
-  Dimensions,
   RefreshControl,
   Platform,
   StatusBar,
@@ -22,7 +21,6 @@ import { API_URL } from "@/constants/Config";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 
-const { width } = Dimensions.get("window");
 
 type MemberType = {
   MemberId: string;

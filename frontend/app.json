@@ -3,7 +3,7 @@
     "name": "Smart_Cafe",
     "slug": "Smart_Cafe",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.jpg",
     "scheme": "restaurantapp",
     "userInterfaceStyle": "automatic",

@@ -7,7 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Dimensions,
+  useWindowDimensions,
   Modal,
   StatusBar,
 } from "react-native";
@@ -22,13 +22,12 @@ import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useToast } from "../components/Toast";
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-
 type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
 export default function SalesReport() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { width: SCREEN_W } = useWindowDimensions();
   const [sales, setSales] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const todayDate = new Date().toISOString().split("T")[0];
@@ -664,7 +663,7 @@ const styles = StyleSheet.create({
   dateText: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 16 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
   metricTile: {
-    width: (SCREEN_W - 32 - 12) / 2, padding: 16, borderRadius: 16,
+    flex: 1, minWidth: 140, padding: 16, borderRadius: 16,
     borderLeftWidth: 4, backgroundColor: Theme.bgCard, ...Theme.shadowMd,
   },
   tileHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
@@ -730,7 +729,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)" },
   modalDismiss: { ...StyleSheet.absoluteFillObject },
   modalContent: {
-    width: Math.min(SCREEN_W * 0.9, 480), backgroundColor: Theme.bgCard, borderRadius: 24, padding: 24,
+    width: "90%", maxWidth: 480, backgroundColor: Theme.bgCard, borderRadius: 24, padding: 24,
     ...Theme.shadowLg, borderWidth: 1, borderColor: Theme.border,
   },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
@@ -750,7 +749,7 @@ const styles = StyleSheet.create({
   sidebarOverlay: { flex: 1, flexDirection: "row-reverse", backgroundColor: "rgba(0,0,0,0.4)" },
   sidebarDismiss: { flex: 1 },
   sidebarContent: {
-    width: Math.min(SCREEN_W * 0.8, 320), height: "100%", backgroundColor: Theme.bgCard, padding: 24,
+    width: 320, height: "100%", backgroundColor: Theme.bgCard, padding: 24,
     paddingTop: 60, borderLeftWidth: 1, borderLeftColor: Theme.border,
   },
   sidebarHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 30 },

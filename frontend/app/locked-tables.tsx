@@ -5,7 +5,6 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   FlatList,
   Modal,
   ScrollView,
@@ -23,7 +22,6 @@ import { Theme } from "../constants/theme";
 import { setOrderContext } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 
-const { width: SCREEN_W } = Dimensions.get("window");
 
 type TableType = {
   tableId: string;
