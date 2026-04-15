@@ -351,93 +351,137 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               
               {(item.note || item.notes) ? (
                 <Text style={styles.modifierTextSmall}>
-                  note: {item.note || item.notes}
+                  • Note: {item.note || item.notes}
                 </Text>
               ) : null}
             </View>
 
             {/* INLINE QTY CONTROL ON MAIN ROW */}
-            <View
-              style={[
-                styles.inlineControls,
-                isPhone && { marginTop: 12, alignItems: "flex-end" },
-              ]}
-            >
-              {isSent || isVoided ? (
-                <View style={styles.sentLabel}>
-                  <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.qtyControlSmall,
-                    isPhone && {
-                      backgroundColor: Theme.bgCard,
-                      borderWidth: 1,
-                      borderColor: Theme.border,
-                    },
-                  ]}
-                >
-                  <TouchableOpacity
+              <View
+                style={[
+                  styles.inlineControls,
+                  isPhone && { marginTop: 12, alignItems: "flex-end" },
+                ]}
+              >
+                {isSent || isVoided ? (
+                  <View style={styles.sentLabel}>
+                    <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
+                  </View>
+                ) : (
+                  <View
                     style={[
-                      styles.qtyBtnSmall,
-                      isPhone && { width: 32, height: 32 },
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      updateCartItemQty(
-                        item.lineItemId,
-                        Math.max(0, item.qty - 1),
-                      );
-                    }}
-                  >
-                    <Ionicons
-                      name="remove"
-                      size={isPhone ? 20 : 18}
-                      color={Theme.primary}
-                    />
-                  </TouchableOpacity>
-                  <Text
-                    style={[
-                      styles.qtyTextSmall,
-                      isPhone && { paddingHorizontal: 12, fontSize: 14 },
+                      styles.qtyControlSmall,
+                      isPhone && {
+                        backgroundColor: Theme.bgCard,
+                        borderWidth: 1,
+                        borderColor: Theme.border,
+                      },
                     ]}
                   >
-                    {item.qty}
-                  </Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.qtyBtnSmall,
-                      isPhone && { width: 32, height: 32 },
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      updateCartItemQty(item.lineItemId, item.qty + 1);
-                    }}
-                  >
-                    <Ionicons
-                      name="add"
-                      size={isPhone ? 20 : 18}
-                      color={Theme.primary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              )}
+                    <TouchableOpacity
+                      style={[
+                        styles.qtyBtnSmall,
+                        isPhone && { width: 32, height: 32 },
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        updateCartItemQty(
+                          item.lineItemId,
+                          Math.max(0, item.qty - 1),
+                        );
+                      }}
+                    >
+                      <Ionicons
+                        name="remove"
+                        size={isPhone ? 20 : 18}
+                        color={Theme.primary}
+                      />
+                    </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.qtyTextSmall,
+                        isPhone && { paddingHorizontal: 12, fontSize: 14 },
+                      ]}
+                    >
+                      {item.qty}
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.qtyBtnSmall,
+                        isPhone && { width: 32, height: 32 },
+                      ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        updateCartItemQty(item.lineItemId, item.qty + 1);
+                      }}
+                    >
+                      <Ionicons
+                        name="add"
+                        size={isPhone ? 20 : 18}
+                        color={Theme.primary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
 
-              <View style={styles.priceContainer}>
-                <Text
-                  style={[
-                    styles.itemPrice,
-                    isVoided && styles.strikeThrough,
-                    isVoided && styles.textMuted,
-                  ]}
-                >
-                  ${((item.price || 0) * item.qty).toFixed(2)}
-                </Text>
+                <View style={{ flex: 1 }} />
+
+                <View style={[styles.priceContainer, { alignItems: "flex-end" }]}>
+                  {item.discount > 0 ? (
+                    <View style={{ alignItems: "flex-end" }}>
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                      >
+                        <Text
+                          style={[
+                            styles.itemPrice,
+                            {
+                              fontSize: 11,
+                              textDecorationLine: "line-through",
+                              color: Theme.textMuted,
+                            },
+                          ]}
+                        >
+                          ${((item.price || 0) * item.qty).toFixed(2)}
+                        </Text>
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountBadgeText}>
+                            -{item.discount}%
+                          </Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={[
+                          styles.itemPrice,
+                          { color: "#22C55E", fontSize: 16 },
+                          isVoided && styles.strikeThrough,
+                        ]}
+                      >
+                        $
+                        {(
+                          (item.price || 0) *
+                          item.qty *
+                          (1 - (item.discount || 0) / 100)
+                        ).toFixed(2)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={[
+                        styles.itemPrice,
+                        isVoided && styles.strikeThrough,
+                        isVoided && styles.textMuted,
+                        { fontSize: 16 }
+                      ]}
+                    >
+                      ${((item.price || 0) * item.qty).toFixed(2)}
+                    </Text>
+                  )}
+                </View>
 
                 {isSent && !isVoided ? (
                   <TouchableOpacity
-                    style={styles.deleteBtn}
+                    style={[styles.deleteBtn, { marginLeft: 10 }]}
                     onPress={() => {
                       setItemToVoid(item);
                       setShowCancelModal(true);
@@ -447,7 +491,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   </TouchableOpacity>
                 ) : !isSent && !isVoided ? (
                   <TouchableOpacity
-                    style={styles.deleteBtn}
+                    style={[styles.deleteBtn, { marginLeft: 10 }]}
                     onPress={() => {
                       removeFromCartGlobal(item.lineItemId);
                       showToast({
@@ -466,10 +510,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 ) : null}
               </View>
             </View>
-          </View>
         </Pressable>
-
-        {/* LEGACY INLINE DISCOUNT REMOVED AS PER REQUEST */}
       </View>
     );
   };
@@ -766,10 +807,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sentQtyText: {
-    fontSize: 13,
-    fontFamily: Fonts.extraBold,
-    color: Theme.textMuted,
-    paddingLeft: 10,
+    fontSize: 10,
+    fontFamily: Fonts.black,
+    color: Theme.textSecondary,
+    textTransform: 'uppercase',
   },
   qtyControlSmall: {
     flexDirection: "row",
@@ -965,8 +1006,21 @@ const styles = StyleSheet.create({
   },
   sentLabel: {
     backgroundColor: Theme.bgMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  discountBadge: {
+    backgroundColor: "#22C55E15",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#22C55E30",
+  },
+  discountBadgeText: {
+    color: "#15803D",
+    fontSize: 9,
+    fontFamily: Fonts.black,
   },
 });
