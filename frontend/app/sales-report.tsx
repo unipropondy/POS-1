@@ -101,10 +101,7 @@ export default function SalesReport() {
 
       const endpoint = reportType === "CATEGORY" ? "category" : "dish";
       console.log("[SalesReport] Fetching report", { reportType, filterType: reportFilter });
-      const response = await fetch(`${API_URL}/api/reports/${endpoint}?${params.toString()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
-      });
+      const response = await fetch(`${API_URL}/api/reports/${endpoint}?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Unable to load ${endpoint} report`);
@@ -114,14 +111,14 @@ export default function SalesReport() {
       console.log("[SalesReport] API response", { reportType, filterType: reportFilter, rows: Array.isArray(data) ? data.length : 0, data });
 
       if (reportType === "CATEGORY") {
-        setCategoryReport(Array.isArray(data) ? data.map((row) => ({
+        setCategoryReport(Array.isArray(data) ? data.map((row: any) => ({
           CategoryName: row.categoryName,
           Sold: row.totalQty ?? row.totalQuantitySold,
           SalesAmount: row.totalAmount ?? row.totalSalesAmount,
         })) : []);
         setDishReport([]);
       } else {
-        setDishReport(Array.isArray(data) ? data.map((row) => ({
+        setDishReport(Array.isArray(data) ? data.map((row: any) => ({
           DishName: row.dishName,
           CategoryName: row.categoryName,
           SubCategoryName: row.subCategoryName,
@@ -156,7 +153,9 @@ export default function SalesReport() {
 
   const fetchSales = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/sales/all`);
+      const response = await fetch(`${API_URL}/api/sales/all`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
       const data = await response.json();
       if (Array.isArray(data)) {
         setSales(data);
@@ -188,7 +187,7 @@ export default function SalesReport() {
       const startStr = start.toISOString().split("T")[0];
       const endStr = end.toISOString().split("T")[0];
       const url = `${API_URL}/api/sales/range?startDate=${startStr}&endDate=${endStr}`;
-      const response = await fetch(url, { cache: "no-store" });
+      const response = await fetch(url);
       const data = await response.json();
       setSummary(Array.isArray(data) ? data[0] : data);
     } catch (error) {
@@ -370,13 +369,14 @@ export default function SalesReport() {
             <Ionicons name={isDishReport ? "restaurant-outline" : "albums-outline"} size={18} color={Theme.primary} />
             <TouchableOpacity
               onPress={() => {
+                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setDetailReportType(null);
                 setCategoryReport([]);
                 setDishReport([]);
               }}
               style={styles.reportCloseBtn}
             >
-              <Ionicons name="close" size={18} color={Theme.textSecondary} />
+              <Ionicons name="close" size={18} color="#dc2626" />
             </TouchableOpacity>
           </View>
         </View>
@@ -400,7 +400,7 @@ export default function SalesReport() {
                 </Text>
                 {isDishReport && <Text style={[styles.reportCell, styles.categoryNameCell]}>Category</Text>}
                 {isDishReport && <Text style={[styles.reportCell, styles.subCategoryNameCell]}>Subcategory</Text>}
-                <Text style={[styles.reportCell, styles.qtyCell]}>Qty</Text>
+                <Text style={[styles.reportCell, styles.qtyCell, { textAlign: 'center' }]}>QTY</Text>
                 <Text style={[styles.reportCell, styles.amountCell]}>Sales</Text>
               </View>
               {rows.slice(0, 50).map((row, idx) => (
@@ -419,7 +419,7 @@ export default function SalesReport() {
                     </Text>
                   )}
                   <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell]}>{Number(row.Sold || 0).toFixed(0)}</Text>
-                  <Text style={[styles.reportCell, styles.reportCellText, styles.amountCell]}>{formatCurrency(Number(row.SalesAmount || 0))}</Text>
+                  <Text style={[styles.reportCell, styles.reportCellText, styles.amountCell, { color: Theme.success, fontWeight: 'bold' }]}>{formatCurrency(Number(row.SalesAmount || 0))}</Text>
                 </View>
               ))}
             </View>
@@ -838,30 +838,79 @@ const styles = StyleSheet.create({
   },
   detailReportHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 },
   reportHeaderActions: { flexDirection: "row", alignItems: "center", gap: 10 },
-  reportCloseBtn: {
+   reportCloseBtn: {
     width: 34,
     height: 34,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Theme.bgMuted,
+    backgroundColor: "#fee2e2",  // Light red background
     borderWidth: 1,
-    borderColor: Theme.border,
+    borderColor: "#fecaca",      // Light red border
   },
   reportSubText: { color: Theme.textMuted, fontFamily: Fonts.semiBold, fontSize: 12, marginTop: 4 },
   reportLoading: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
   emptyReport: { minHeight: 120, alignItems: "center", justifyContent: "center", gap: 10 },
-  reportTable: { minWidth: 760, borderWidth: 1, borderColor: Theme.border, borderRadius: 12, overflow: "hidden" },
-  reportTableHeader: { flexDirection: "row", backgroundColor: Theme.bgMuted, borderBottomWidth: 1, borderBottomColor: Theme.border },
-  reportTableRow: { flexDirection: "row", alignItems: "center", backgroundColor: Theme.bgCard, borderBottomWidth: 1, borderBottomColor: Theme.border },
-  reportTableRowAlt: { backgroundColor: Theme.bgMain },
-  reportCell: { paddingHorizontal: 12, paddingVertical: 11, color: Theme.textMuted, fontFamily: Fonts.black, fontSize: 11, textTransform: "uppercase" },
-  reportCellText: { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 13, textTransform: "none" },
-  dishNameCell: { width: 230 },
-  categoryNameCell: { width: 220 },
-  subCategoryNameCell: { width: 190 },
-  qtyCell: { width: 80, textAlign: "right" },
-  amountCell: { width: 110, textAlign: "right" },
+   reportTable: { 
+    minWidth: 360, 
+    borderWidth: 1, 
+    borderColor: Theme.border, 
+    borderRadius: 12, 
+    overflow: "hidden",
+    backgroundColor: Theme.bgCard,
+  },
+  reportTableHeader: { 
+    flexDirection: "row", 
+    backgroundColor: Theme.bgMuted, 
+    borderBottomWidth: 1, 
+    borderBottomColor: Theme.border,
+  },
+  reportTableRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: Theme.bgCard, 
+    borderBottomWidth: 1, 
+    borderBottomColor: Theme.border,
+  },
+  reportTableRowAlt: { 
+    backgroundColor: Theme.bgMain 
+  },
+  reportCell: { 
+    paddingHorizontal: 12, 
+    paddingVertical: 11, 
+    color: Theme.textMuted, 
+    fontFamily: Fonts.black, 
+    fontSize: 11, 
+    textTransform: "uppercase" 
+  },
+  reportCellText: { 
+    color: Theme.textPrimary, 
+    fontFamily: Fonts.bold, 
+    fontSize: 13, 
+    textTransform: "none" 
+  },
+  dishNameCell: { 
+    minWidth: 150,
+    flex: 2,
+  },
+  categoryNameCell: { 
+    minWidth: 120,
+    flex: 1.5,
+  },
+  subCategoryNameCell: { 
+    minWidth: 100,
+    flex: 1,
+  },
+  qtyCell: { 
+    width: 70, 
+    textAlign: "center",
+    flexShrink: 0,
+  },
+  amountCell: { 
+    width: 100, 
+    textAlign: "right",
+    flexShrink: 0,
+  },
   chartsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
   chartCard: {
     flex: 1, padding: 20, borderRadius: 20,
