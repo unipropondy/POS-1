@@ -156,7 +156,7 @@ export default function LoginScreen() {
                 style={[
                   styles.content,
                   { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-                  isLandscape && { maxWidth: 600 }
+                  isLandscape && { maxWidth: 480 }
                 ]}
               >
                 {/* Logo */}
@@ -165,7 +165,7 @@ export default function LoginScreen() {
                     <Ionicons name="restaurant" size={isLandscape ? 28 : 44} color={Theme.primary} />
                   </View>
                   <View style={isLandscape && { alignItems: 'flex-start' }}>
-                    <Text style={[styles.appName, isLandscape && { fontSize: 20 }]}>Smart Cafe POS</Text>
+                    <Text style={[styles.appName, isLandscape && { fontSize: 20 }]}>Smart POS</Text>
                     <Text style={[styles.appTagline, isLandscape && { fontSize: 11, marginTop: 0 }]}>Point of Sale System</Text>
                   </View>
                 </View>

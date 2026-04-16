@@ -85,6 +85,7 @@ const DishCard = React.memo(
         style={[
           styles.card,
           { width, padding: isPhone ? 8 : isTablet ? 12 : 10 },
+          isLandscape && !isTablet && { maxHeight: 135 },
         ]}
         onPress={() => onPress(dish)}
         activeOpacity={0.7}
@@ -257,7 +258,7 @@ export default function MenuScreen() {
     : (isLandscape ? 2 : 1); // 2 columns in landscape phone
   
   const gap = isPhone ? (isLandscape ? 8 : 8) : 12;
-  const cardWidth = (mainWidth - (isPhone ? 32 : 40) - gap * (columns - 1)) / columns;
+  const cardWidth = (mainWidth - (isPhone ? 24 : 40) - gap * (columns - 1)) / columns;
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
