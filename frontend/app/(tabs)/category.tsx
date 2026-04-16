@@ -41,8 +41,8 @@ const SOLID_LIGHT_VIOLET = '#F5F3FF';
 const formatSectionGlobal = (sec: string) => {
   if (!sec) return "";
   if (sec === "TAKEAWAY") return "Takeaway";
-  // Convert SECTION_1 -> Section-1 or "Section 1" -> Section-1
-  return sec.replace("_", "-").replace("SECTION", "Section").replace(" ", "-");
+  // Convert SECTION_1 -> Section 1 or "Section-1" -> Section 1
+  return sec.replace("_", " ").replace("-", " ").replace("SECTION", "Section");
 };
 
 // --- MEMOIZED TABLE COMPONENT ---

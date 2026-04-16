@@ -360,7 +360,7 @@ export default function PaymentScreen() {
           </head>
           <body>
             <div class="text-center">
-              <div class="title">SMART CAFE POS</div>
+              <div class="title">SMART POS</div>
               <div>Tel: +65 1234 5678</div>
               ${gstRegNo ? `<div>GST Reg No: ${gstRegNo}</div>` : ''}
             </div>

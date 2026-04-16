@@ -99,7 +99,9 @@ router.get("/all", async (req, res) => {
     res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, sh.OrderId, sh.OrderType,
+      SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, 
+      CONVERT(VARCHAR(8), sh.LastSettlementDate, 112) + '-' + RIGHT('0000' + CAST(sh.OrderId AS VARCHAR(10)), 4) AS OrderId, 
+      sh.OrderType,
       sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, 
       ${normalizeReportPayModeSql("sts.PayMode")} as PayMode,
       ISNULL(NULLIF(sts.SysAmount, 0), ISNULL(sh.SysAmount, 0)) as SysAmount,
@@ -124,7 +126,8 @@ router.get("/transactions", async (req, res) => {
       .input("Start", sql.DateTime, startDate || new Date(new Date().setDate(new Date().getDate() - 30)))
       .input("End", sql.DateTime, endDate || new Date())
       .query(`
-        SELECT sh.SettlementID, sh.LastSettlementDate, sh.BillNo, sh.SysAmount AS TotalAmount, sts.PayMode
+        SELECT sh.SettlementID, sh.LastSettlementDate, sh.BillNo, sh.SysAmount AS TotalAmount, sts.PayMode,
+        CONVERT(VARCHAR(8), sh.LastSettlementDate, 112) + '-' + RIGHT('0000' + CAST(sh.OrderId AS VARCHAR(10)), 4) AS OrderId
         FROM SettlementHeader sh
         LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
         WHERE sh.LastSettlementDate BETWEEN @Start AND @End

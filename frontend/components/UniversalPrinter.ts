@@ -103,7 +103,7 @@ class UniversalPrinter {
     <body>
 
       <!-- HEADER -->
-      <div class="center bold">SMART CAFE POS</div>
+      <div class="center bold">SMART POS</div>
       <div class="center">Singapore</div>
       ${gstRegNo ? `<div class="center">GST Reg No: ${gstRegNo}</div>` : ''}
 

@@ -247,6 +247,18 @@ export default function SalesReport() {
     }
   };
 
+  const formatOrderId = (order: any) => {
+    if (!order) return "";
+    const rawId = String(order.OrderId || order.BillNo || "");
+    if (rawId.includes("-")) return rawId;
+    
+    const d = order.SettlementDate ? new Date(order.SettlementDate) : new Date();
+    const datePart = d.getFullYear().toString() + 
+                     (d.getMonth() + 1).toString().padStart(2, '0') + 
+                     d.getDate().toString().padStart(2, '0');
+    return `${datePart}-${rawId.padStart(4, '0')}`;
+  };
+
   const formatCurrency = (amount: number) => {
     return `$${amount?.toFixed(2) || "0.00"}`;
   };
@@ -1104,7 +1116,7 @@ export default function SalesReport() {
                       : `🪑 Table ${item.TableNo || "N/A"}`}
                   </Text>
                   <Text style={styles.txSmall}>
-                    Order #{item.OrderId || item.BillNo?.slice(-6)}
+                    Order #{formatOrderId(item)}
                   </Text>
                 </View>
                 <View style={styles.txTimeInfo}>
@@ -1147,9 +1159,7 @@ export default function SalesReport() {
                 <View style={styles.modalHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.modalTitle}>
-                      Order #
-                      {selectedOrder?.OrderId ||
-                        selectedOrder?.BillNo?.slice(-6)}
+                      Order #{formatOrderId(selectedOrder)}
                     </Text>
                     <Text style={styles.modalSub}>
                       {new Date(selectedOrder?.SettlementDate).toLocaleString()}
