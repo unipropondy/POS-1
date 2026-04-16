@@ -15,7 +15,7 @@ import {
   Platform,
   Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
 import { API_URL } from "../../constants/Config";
@@ -369,26 +369,30 @@ export default function Category() {
     }
   }, [urlSection]);
 
-  let columns = 10;
-  if (!isTablet) {
-    columns = isLandscape ? 5 : 3;
-  } else {
+  const insets = useSafeAreaInsets();
+  const GAP = !isTablet && isLandscape ? 8 : 10;
+  const PADDING = isTablet ? 24 : (isLandscape ? 12 : 16);
+  // Subtract safe area insets to account for notches in landscape
+  const availableGridWidth = width - PADDING * 2 - insets.left - insets.right - 2;
+
+  let columns = 3;
+  if (isTablet) {
     if (width < 768) columns = 4;
     else if (width < 1024) columns = 6;
     else if (width < 1280) columns = 8;
     else if (width < 1920) columns = 10;
     else columns = 12;
+  } else {
+    if (isLandscape) {
+      // Aim for approx 110-120px boxes on mobile landscape
+      columns = Math.max(5, Math.floor(availableGridWidth / 115));
+    } else {
+      columns = 3;
+    }
   }
 
-  const GAP = !isTablet && isLandscape ? 8 : 10;
-  const PADDING = isTablet ? 24 : (isLandscape ? 12 : 16);
-  const availableGridWidth = width - PADDING * 2;
-  let itemSize = (availableGridWidth - GAP * (columns - 1)) / columns;
-  
-  // Cap item height in landscape to prevent overly tall cards
-  if (isLandscape && !isTablet) {
-    itemSize = Math.min(itemSize, 90);
-  }
+  // Use Math.floor to be safe against sub-pixel overflow
+  const itemSize = Math.floor((availableGridWidth - GAP * (columns - 1)) / columns);
 
   useEffect(() => {
     const index = SECTIONS.indexOf(activeTab);

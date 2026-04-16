@@ -92,6 +92,8 @@ export default function SummaryScreen() {
 
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const isLandscape = SCREEN_W > SCREEN_H;
+  const isTablet = Math.min(SCREEN_W, SCREEN_H) >= 500;
+  const isPhone = !isTablet;
 
   const fetchCancelReasons = async () => {
     try {
@@ -208,7 +210,7 @@ export default function SummaryScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
       <View style={styles.container}>
         {/* HEADER */}
-        <View style={styles.headerBar}>
+        <View style={[styles.headerBar, isPhone && isLandscape && { height: 50, marginBottom: 5 }]}>
           <View style={styles.headerLeft}>
             <Pressable style={styles.iconBtn} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color={Theme.textPrimary} />
@@ -230,38 +232,38 @@ export default function SummaryScreen() {
 
           <View style={styles.headerRight}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: Theme.dangerBg, borderColor: Theme.dangerBorder, borderWidth: 1 }]}
+              style={[styles.actionBtn, { backgroundColor: Theme.dangerBg, borderColor: Theme.dangerBorder, borderWidth: 1 }, !isTablet && isLandscape && { height: 32, paddingHorizontal: 8 }]}
               onPress={async () => {
                 await fetchCancelReasons();
                 setShowCancelModal(true);
               }}
             >
-              <Ionicons name="trash-outline" size={18} color={Theme.danger} />
-              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.danger }]}>Cancel</Text>}
+              <Ionicons name="trash-outline" size={!isTablet && isLandscape ? 16 : 18} color={Theme.danger} />
+              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.danger }, !isTablet && isLandscape && { fontSize: 10 }]}>Cancel</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: Theme.infoBg, borderColor: Theme.infoBorder, borderWidth: 1 }]}
+              style={[styles.actionBtn, { backgroundColor: Theme.infoBg, borderColor: Theme.infoBorder, borderWidth: 1 }, !isTablet && isLandscape && { height: 32, paddingHorizontal: 8 }]}
               onPress={() => router.push("/kds")}
             >
-              <Ionicons name="tv-outline" size={18} color={Theme.info} />
-              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.info }]}>KDS</Text>}
+              <Ionicons name="tv-outline" size={!isTablet && isLandscape ? 16 : 18} color={Theme.info} />
+              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.info }, !isTablet && isLandscape && { fontSize: 10 }]}>KDS</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: Theme.primaryLight, borderColor: Theme.primaryBorder, borderWidth: 1 }]}
+              style={[styles.actionBtn, { backgroundColor: Theme.primaryLight, borderColor: Theme.primaryBorder, borderWidth: 1 }, !isTablet && isLandscape && { height: 32, paddingHorizontal: 8 }]}
               onPress={() => setShowDiscount(true)}
             >
-              <Ionicons name="pricetag-outline" size={18} color={Theme.primary} />
-              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.primary }]}>Discount</Text>}
+              <Ionicons name="pricetag-outline" size={!isTablet && isLandscape ? 16 : 18} color={Theme.primary} />
+              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.primary }, !isTablet && isLandscape && { fontSize: 10 }]}>Discount</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: Theme.warningBg, borderColor: Theme.warningBorder, borderWidth: 1 }]}
+              style={[styles.actionBtn, { backgroundColor: Theme.warningBg, borderColor: Theme.warningBorder, borderWidth: 1 }, !isTablet && isLandscape && { height: 32, paddingHorizontal: 8 }]}
               onPress={handleFOC}
             >
-              <Ionicons name="gift-outline" size={18} color={Theme.warning} />
-              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.warning }]}>FOC</Text>}
+              <Ionicons name="gift-outline" size={!isTablet && isLandscape ? 16 : 18} color={Theme.warning} />
+              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.warning }, !isTablet && isLandscape && { fontSize: 10 }]}>FOC</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -330,74 +332,76 @@ export default function SummaryScreen() {
           </View>
 
           {/* TOTALS RECEIPT CARD */}
-          <View style={[styles.receiptContainer, isLandscape && styles.receiptContainerLandscape]}>
-            <View style={styles.receiptCard}>
-              <View style={styles.receiptHeader}>
-                <Ionicons name="receipt-outline" size={18} color={Theme.primary} />
-                <Text style={styles.receiptHeaderText}>Bill Summary</Text>
-                <View style={styles.itemCountChip}>
-                  <Text style={styles.itemCountChipText}>{totalItems} items</Text>
-                </View>
-              </View>
-
-              <View style={styles.receiptDivider} />
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>${displaySubtotal.toFixed(2)}</Text>
-              </View>
-
-              {discountInfo?.applied && (
-                <View style={styles.summaryRow}>
-                  <Text style={[styles.summaryLabel, { color: Theme.danger }]}>
-                    {discountInfo.label || "Discount"}
-                  </Text>
-                  <Text style={[styles.summaryValue, { color: Theme.danger }]}>-${discountAmount.toFixed(2)}</Text>
-                </View>
-              )}
-
-              {gstEnabled ? (
-                <View style={styles.summaryRow}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Text style={styles.summaryLabel}>GST ({gstPercentage}%)</Text>
-                    <TouchableOpacity onPress={() => setShowGstModal(true)}>
-                      <Ionicons name="settings-outline" size={12} color={Theme.textMuted} />
-                    </TouchableOpacity>
+          <View style={[styles.receiptContainer, isLandscape && styles.receiptContainerLandscape, isPhone && isLandscape && { width: 320 }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={isLandscape && !isTablet && { paddingBottom: 20 }}>
+              <View style={[styles.receiptCard, isLandscape && !isTablet && { padding: 16 }]}>
+                <View style={[styles.receiptHeader, isLandscape && !isTablet && { marginBottom: 10 }]}>
+                  <Ionicons name="receipt-outline" size={18} color={Theme.primary} />
+                  <Text style={styles.receiptHeaderText}>Bill Summary</Text>
+                  <View style={styles.itemCountChip}>
+                    <Text style={styles.itemCountChipText}>{totalItems} items</Text>
                   </View>
-                  <Text style={styles.summaryValue}>${gstAmount.toFixed(2)}</Text>
                 </View>
-              ) : (
-                <TouchableOpacity 
-                  style={styles.gstBtn} 
-                  onPress={() => gstConfigured ? setGstEnabled(true) : setShowGstModal(true)}
+
+                <View style={[styles.receiptDivider, isLandscape && !isTablet && { marginBottom: 10 }]} />
+
+                <View style={[styles.summaryRow, isLandscape && !isTablet && { marginBottom: 8 }]}>
+                  <Text style={styles.summaryLabel}>Subtotal</Text>
+                  <Text style={styles.summaryValue}>${displaySubtotal.toFixed(2)}</Text>
+                </View>
+
+                {discountInfo?.applied && (
+                  <View style={[styles.summaryRow, isLandscape && !isTablet && { marginBottom: 8 }]}>
+                    <Text style={[styles.summaryLabel, { color: Theme.danger }]}>
+                      {discountInfo.label || "Discount"}
+                    </Text>
+                    <Text style={[styles.summaryValue, { color: Theme.danger }]}>-${discountAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+
+                {gstEnabled ? (
+                  <View style={[styles.summaryRow, isLandscape && !isTablet && { marginBottom: 8 }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={styles.summaryLabel}>GST ({gstPercentage}%)</Text>
+                      <TouchableOpacity onPress={() => setShowGstModal(true)}>
+                        <Ionicons name="settings-outline" size={12} color={Theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.summaryValue}>${gstAmount.toFixed(2)}</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.gstBtn, isLandscape && !isTablet && { marginBottom: 8, paddingVertical: 4 }]} 
+                    onPress={() => gstConfigured ? setGstEnabled(true) : setShowGstModal(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={14} color={Theme.primary} />
+                    <Text style={styles.gstBtnText}>Enable GST</Text>
+                  </TouchableOpacity>
+                )}
+
+                <View style={[styles.dashedDivider, isLandscape && !isTablet && { marginVertical: 10 }]}>
+                  <View style={[styles.dashLine, { borderColor: Theme.border }]} />
+                </View>
+
+                <View style={[styles.grandRow, isLandscape && !isTablet && { marginBottom: 15 }]}>
+                  <View>
+                    <Text style={[styles.grandLabel, isLandscape && !isTablet && { fontSize: 12 }]}>Total Amount</Text>
+                    <Text style={styles.grandSub}>Including all taxes</Text>
+                  </View>
+                  <Text style={[styles.grandValue, isLandscape && !isTablet && { fontSize: 24 }]}>${grandTotal.toFixed(2)}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.proceedBtn, isLandscape && !isTablet && { height: 48, borderRadius: 12 }]}
+                  onPress={() => router.push("/payment")}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="add-circle-outline" size={14} color={Theme.primary} />
-                  <Text style={styles.gstBtnText}>Enable GST</Text>
+                  <Ionicons name="card-outline" size={22} color="#fff" />
+                  <Text style={[styles.proceedText, isLandscape && !isTablet && { fontSize: 16 }]}>Proceed to Payment</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </TouchableOpacity>
-              )}
-
-              <View style={styles.dashedDivider}>
-                <View style={[styles.dashLine, { borderColor: Theme.border }]} />
               </View>
-
-              <View style={styles.grandRow}>
-                <View>
-                  <Text style={styles.grandLabel}>Total Amount</Text>
-                  <Text style={styles.grandSub}>Including all taxes</Text>
-                </View>
-                <Text style={styles.grandValue}>${grandTotal.toFixed(2)}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.proceedBtn}
-                onPress={() => router.push("/payment")}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="card-outline" size={22} color="#fff" />
-                <Text style={styles.proceedText}>Proceed to Payment</Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </View>

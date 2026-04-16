@@ -17,7 +17,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CartSidebar from "../../components/CartSidebar";
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
@@ -246,19 +246,23 @@ export default function MenuScreen() {
     return draftCount + sentCount;
   }, [cart, activeOrder]);
 
+  const insets = useSafeAreaInsets();
+  const usableWidth = width - insets.left - insets.right;
+
   // Sidebar width should be more responsive
   const cartWidth = isTablet 
     ? (width > 1024 ? 380 : 330) 
-    : (isLandscape ? width * 0.38 : width * 0.62);
+    : (isLandscape ? usableWidth * 0.38 : width * 0.62);
   
-  const mainWidth = width - cartWidth;
+  const mainWidth = (isLandscape && !isTablet ? usableWidth : width) - cartWidth;
 
   const columns = isTablet 
     ? (width > 1200 ? 5 : 3) 
-    : (isLandscape ? 2 : 1); // 2 columns in landscape phone
+    : (isLandscape ? 2 : 1); // Back to 2 columns as requested
   
-  const gap = isPhone ? (isLandscape ? 8 : 8) : 12;
-  const cardWidth = (mainWidth - (isPhone ? 24 : 40) - gap * (columns - 1)) / columns;
+  const gap = isPhone ? (isLandscape ? 12 : 8) : 12;
+  // Increase internal padding subtraction (24 -> 32) to ensure cards don't touch edges or sidebar
+  const cardWidth = Math.floor((mainWidth - (isPhone ? 32 : 40) - gap * (columns - 1)) / columns);
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
@@ -510,7 +514,7 @@ export default function MenuScreen() {
             style={[
               styles.catPill,
               selectedKitchenId === k.CategoryId && styles.catPillActive,
-              isPhone && isLandscape && { height: 28, paddingHorizontal: 12 }
+              isPhone && isLandscape && { height: 36, paddingHorizontal: 16 }
             ]}
             onPress={() => loadGroups(k.CategoryId)}
           >
@@ -518,7 +522,7 @@ export default function MenuScreen() {
               style={[
                 styles.catText,
                 selectedKitchenId === k.CategoryId && styles.catTextActive,
-                isPhone && isLandscape && { fontSize: 11 }
+                isPhone && isLandscape && { fontSize: 13 }
               ]}
             >
               {k.KitchenTypeName}
@@ -527,7 +531,7 @@ export default function MenuScreen() {
         ))}
       </ScrollView>
 
-      <View style={isPhone && isLandscape ? { marginTop: 6 } : { marginTop: 15 }}>
+      <View style={isPhone && isLandscape ? { marginTop: 12 } : { marginTop: 15 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -539,7 +543,7 @@ export default function MenuScreen() {
               style={[
                 styles.groupPill,
                 selectedGroup === g.DishGroupId && styles.groupPillActive,
-                isPhone && isLandscape && { height: 28, paddingHorizontal: 10 }
+                isPhone && isLandscape && { height: 36, paddingHorizontal: 14 }
               ]}
               onPress={() => loadDishes(g.DishGroupId)}
             >
@@ -547,7 +551,7 @@ export default function MenuScreen() {
                 style={[
                   styles.groupText,
                   selectedGroup === g.DishGroupId && styles.groupTextActive,
-                  isPhone && isLandscape && { fontSize: 10 }
+                  isPhone && isLandscape && { fontSize: 12 }
                 ]}
               >
                 {g.DishGroupName}

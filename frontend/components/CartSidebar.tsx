@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
   DimensionValue,
   FlatList,
   LayoutAnimation,
@@ -247,17 +246,17 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             }
           }}
         >
-        {!isPhone && (
-          <View style={styles.itemIndexWrap}>
-            <Ionicons
-              name="chevron-forward"
-              size={12}
-              color={Theme.textMuted}
-              style={styles.chevron}
-            />
-            <Text style={styles.itemIndex}>{index + 1}</Text>
-          </View>
-        )}
+          {(!isPhone || isLandscape) && (
+            <View style={styles.itemIndexWrap}>
+              <Ionicons
+                name="chevron-forward"
+                size={12}
+                color={Theme.textMuted}
+                style={styles.chevron}
+              />
+              <Text style={styles.itemIndex}>{index + 1}</Text>
+            </View>
+          )}
 
           <View style={styles.itemInfo}>
             <View
@@ -333,7 +332,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
             {/* MODIFIERS & NOTES LIST - VERTICAL STACK */}
             <View style={styles.modifierListSmall}>
-              {item.modifiers && item.modifiers.length > 0 &&
+              {item.modifiers &&
+                item.modifiers.length > 0 &&
                 item.modifiers.map((m: any, idx: number) => (
                   <Text
                     key={`${m.ModifierId}-${idx}`}
@@ -342,10 +342,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     • {m.ModifierName}
                     {m.Price > 0 ? ` (+$${m.Price.toFixed(2)})` : ""}
                   </Text>
-                ))
-              }
-              
-              {(item.note || item.notes) ? (
+                ))}
+
+              {item.note || item.notes ? (
                 <Text style={styles.modifierTextSmall}>
                   • Note: {item.note || item.notes}
                 </Text>
@@ -353,170 +352,192 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             </View>
 
             {/* INLINE QTY CONTROL ON MAIN ROW */}
-              <View
-                style={[
-                  styles.inlineControls,
-                  isPhone && { marginTop: 8 },
-                ]}
-              >
-                {isSent || isVoided ? (
-                  <View style={styles.sentLabel}>
-                    <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
-                  </View>
-                ) : (
-                  <View
-                    style={[
-                      styles.qtyControlSmall,
-                      isPhone && {
-                        backgroundColor: Theme.bgCard,
-                        borderWidth: 1,
-                        borderColor: Theme.border,
-                      },
-                    ]}
-                  >
-                    <TouchableOpacity
-                      style={[
-                        styles.qtyBtnSmall,
-                        isPhone && { width: 32, height: 32 },
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        updateCartItemQty(
-                          item.lineItemId,
-                          Math.max(0, item.qty - 1),
-                        );
-                      }}
-                    >
-                      <Ionicons
-                        name="remove"
-                        size={isPhone ? 20 : 18}
-                        color={Theme.primary}
-                      />
-                    </TouchableOpacity>
-                    <Text
-                      style={[
-                        styles.qtyTextSmall,
-                        isPhone && { paddingHorizontal: 12, fontSize: 14 },
-                      ]}
-                    >
-                      {item.qty}
-                    </Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.qtyBtnSmall,
-                        isPhone && { width: 32, height: 32 },
-                      ]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        updateCartItemQty(item.lineItemId, item.qty + 1);
-                      }}
-                    >
-                      <Ionicons
-                        name="add"
-                        size={isPhone ? 20 : 18}
-                        color={Theme.primary}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                <View style={{ flex: 1 }} />
-
-                <View style={[styles.priceContainer, { alignItems: "flex-end" }]}>
-                  {item.discount > 0 ? (
-                    <View style={{ alignItems: "flex-end" }}>
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-                      >
-                        <Text
-                          style={[
-                            styles.itemPrice,
-                            {
-                              fontSize: isPhone ? 10 : 11,
-                              textDecorationLine: "line-through",
-                              color: Theme.textMuted,
-                              minWidth: 0,
-                            },
-                          ]}
-                        >
-                          ${((item.price || 0) * item.qty).toFixed(2)}
-                        </Text>
-                        <View style={[styles.discountBadge, isPhone && { paddingHorizontal: 3 }]}>
-                          <Text style={[styles.discountBadgeText, isPhone && { fontSize: 8 }]}>
-                            -{item.discount}%
-                          </Text>
-                        </View>
-                      </View>
-                      <Text
-                        style={[
-                          styles.itemPrice,
-                          { color: "#22C55E", fontSize: isPhone ? 15 : 16 },
-                          isVoided && styles.strikeThrough,
-                        ]}
-                      >
-                        $
-                        {(
-                          (item.price || 0) *
-                          item.qty *
-                          (1 - (item.discount || 0) / 100)
-                        ).toFixed(2)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text
-                      style={[
-                        styles.itemPrice,
-                        isPhone && { fontSize: 15 },
-                        isVoided && styles.strikeThrough,
-                      ]}
-                    >
-                      ${((item.price || 0) * item.qty).toFixed(2)}
-                    </Text>
-                  )}
+            <View style={[styles.inlineControls, isPhone && { marginTop: 8 }]}>
+              {isSent || isVoided ? (
+                <View style={styles.sentLabel}>
+                  <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
                 </View>
-
-                {isSent && !isVoided ? (
+              ) : (
+                <View
+                  style={[
+                    styles.qtyControlSmall,
+                    isPhone && {
+                      backgroundColor: Theme.bgCard,
+                      borderWidth: 1,
+                      borderColor: Theme.border,
+                    },
+                  ]}
+                >
                   <TouchableOpacity
-                    style={[styles.deleteBtn, { marginLeft: 10 }]}
-                    onPress={() => {
-                      setItemToVoid(item);
-                      setShowCancelModal(true);
-                    }}
-                  >
-                    <Ionicons name="trash" size={20} color={Theme.danger} />
-                  </TouchableOpacity>
-                ) : !isSent && !isVoided ? (
-                  <TouchableOpacity
-                    style={[styles.deleteBtn, { marginLeft: 10 }]}
-                    onPress={() => {
-                      removeFromCartGlobal(item.lineItemId);
-                      showToast({
-                        type: "info",
-                        message: "Removed",
-                        subtitle: `${item.name} deleted`,
-                      });
+                    style={[
+                      styles.qtyBtnSmall,
+                      isPhone && { width: 32, height: 32 },
+                    ]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      updateCartItemQty(
+                        item.lineItemId,
+                        Math.max(0, item.qty - 1),
+                      );
                     }}
                   >
                     <Ionicons
-                      name="trash-outline"
-                      size={20}
-                      color={Theme.textMuted}
+                      name="remove"
+                      size={isPhone ? 20 : 18}
+                      color={Theme.primary}
                     />
                   </TouchableOpacity>
-                ) : null}
+                  <Text
+                    style={[
+                      styles.qtyTextSmall,
+                      isPhone && { paddingHorizontal: 12, fontSize: 14 },
+                    ]}
+                  >
+                    {item.qty}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.qtyBtnSmall,
+                      isPhone && { width: 32, height: 32 },
+                    ]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      updateCartItemQty(item.lineItemId, item.qty + 1);
+                    }}
+                  >
+                    <Ionicons
+                      name="add"
+                      size={isPhone ? 20 : 18}
+                      color={Theme.primary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <View style={{ flex: 1 }} />
+
+              <View style={[styles.priceContainer, { alignItems: "flex-end" }]}>
+                {item.discount > 0 ? (
+                  <View style={{ alignItems: "flex-end" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.itemPrice,
+                          {
+                            fontSize: isPhone ? 10 : 11,
+                            textDecorationLine: "line-through",
+                            color: Theme.textMuted,
+                            minWidth: 0,
+                          },
+                        ]}
+                      >
+                        ${((item.price || 0) * item.qty).toFixed(2)}
+                      </Text>
+                      <View
+                        style={[
+                          styles.discountBadge,
+                          isPhone && { paddingHorizontal: 3 },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.discountBadgeText,
+                            isPhone && { fontSize: 8 },
+                          ]}
+                        >
+                          -{item.discount}%
+                        </Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={[
+                        styles.itemPrice,
+                        { color: "#22C55E", fontSize: isPhone ? 15 : 16 },
+                        isVoided && styles.strikeThrough,
+                      ]}
+                    >
+                      $
+                      {(
+                        (item.price || 0) *
+                        item.qty *
+                        (1 - (item.discount || 0) / 100)
+                      ).toFixed(2)}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={[
+                      styles.itemPrice,
+                      isPhone && { fontSize: 15 },
+                      isVoided && styles.strikeThrough,
+                    ]}
+                  >
+                    ${((item.price || 0) * item.qty).toFixed(2)}
+                  </Text>
+                )}
               </View>
+
+              {isSent && !isVoided ? (
+                <TouchableOpacity
+                  style={[styles.deleteBtn, { marginLeft: 10 }]}
+                  onPress={() => {
+                    setItemToVoid(item);
+                    setShowCancelModal(true);
+                  }}
+                >
+                  <Ionicons name="trash" size={20} color={Theme.danger} />
+                </TouchableOpacity>
+              ) : !isSent && !isVoided ? (
+                <TouchableOpacity
+                  style={[styles.deleteBtn, { marginLeft: 10 }]}
+                  onPress={() => {
+                    removeFromCartGlobal(item.lineItemId);
+                    showToast({
+                      type: "info",
+                      message: "Removed",
+                      subtitle: `${item.name} deleted`,
+                    });
+                  }}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={20}
+                    color={Theme.textMuted}
+                  />
+                </TouchableOpacity>
+              ) : null}
             </View>
+          </View>
         </Pressable>
       </View>
     );
   };
 
   return (
-    <View style={[styles.container, { width }, isPhone && isLandscape && styles.containerLandscapePhone]}>
+    <View
+      style={[
+        styles.container,
+        { width },
+        isPhone && isLandscape && styles.containerLandscapePhone,
+      ]}
+    >
       {/* HEADER ACTIONS */}
-      <View style={[styles.header, isPhone && isLandscape && { marginBottom: 10 }]}>
+      <View
+        style={[styles.header, isPhone && isLandscape && { marginBottom: 10 }]}
+      >
         <View style={styles.tableIdentity}>
-          <Text style={[styles.tableIdentityText, isPhone && isLandscape && { fontSize: 13 }]}>
+          <Text
+            style={[
+              styles.tableIdentityText,
+              isPhone && isLandscape && { fontSize: 13 },
+            ]}
+          >
             {orderContext.orderType === "TAKEAWAY"
               ? `TAKEAWAY #${orderContext.takeawayNo}`
               : `${formatSectionGlobal(orderContext.section || "")} - T${orderContext.tableNo}`}
@@ -553,11 +574,32 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       />
 
       {/* FOOTER AREA */}
-      <View style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}>
-        <View style={[styles.summary, isPhone && isLandscape && { marginBottom: 8 }]}>
+      <View
+        style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}
+      >
+        <View
+          style={[
+            styles.summary,
+            isPhone && isLandscape && { marginBottom: 8 },
+          ]}
+        >
           <View style={styles.summaryRow}>
-            <Text style={[styles.payableLabel, isPhone && isLandscape && { fontSize: 13 }]}>Subtotal</Text>
-            <Text style={[styles.payableValue, isPhone && isLandscape && { fontSize: 14 }]}>${subtotal.toFixed(2)}</Text>
+            <Text
+              style={[
+                styles.payableLabel,
+                isPhone && isLandscape && { fontSize: 13 },
+              ]}
+            >
+              Subtotal
+            </Text>
+            <Text
+              style={[
+                styles.payableValue,
+                isPhone && isLandscape && { fontSize: 14 },
+              ]}
+            >
+              ${subtotal.toFixed(2)}
+            </Text>
           </View>
         </View>
 
@@ -809,7 +851,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: Fonts.black,
     color: Theme.textSecondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   qtyControlSmall: {
     flexDirection: "row",
