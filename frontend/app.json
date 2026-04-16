@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Smart POS",
-    "slug": "Smart_POS",
+    "slug": "pos-1",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.jpg",
@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.lokesh9976.Smart_Cafe"
+      "package": "com.javi06.pos1",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -47,9 +48,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "74a93936-d032-4b64-ba03-f1d93e2f3b07"
+        "projectId": "5bb6afb3-f13c-4d31-8888-bacd54796371"
       }
     },
-    "owner": "lokesh9976"
+    "owner": "javi06"
   }
 }

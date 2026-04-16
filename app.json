@@ -2,13 +2,16 @@
   "expo": {
     "name": "Smart POS",
     "slug": "pos-1",
+    "version": "1.0.0",
+    "orientation": "default",
     "extra": {
       "eas": {
         "projectId": "5bb6afb3-f13c-4d31-8888-bacd54796371"
       }
     },
     "android": {
-      "package": "com.javi06.pos1"
+      "package": "com.javi06.pos1",
+      "versionCode": 1
     }
   }
 }
