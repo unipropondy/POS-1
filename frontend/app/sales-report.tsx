@@ -856,9 +856,10 @@ export default function SalesReport() {
             {renderDetailReport()}
 
             {/* Charts Section */}
-            <View style={styles.chartsContainer}>
-              {/* Pie Chart */}
-              <View style={[styles.chartCard, styles.chartCardWide]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chartsScrollContent}>
+              <View style={styles.chartsContainer}>
+                {/* Pie Chart */}
+                <View style={[styles.chartCard, { width: SCREEN_W > 768 ? Math.max(300, (SCREEN_W - 64) / 3) : 300 }]}>
                 <View style={styles.chartCardHeader}>
                   <Text style={styles.cardTitle}>PAYMENT CHANNEL MIX</Text>
                   <Ionicons name="pie-chart" size={14} color={Theme.primary} />
@@ -938,7 +939,7 @@ export default function SalesReport() {
               <View
                 style={[
                   styles.chartCard,
-                  { minWidth: (SCREEN_W - 32 - 12) / 2 },
+                  { width: SCREEN_W > 768 ? Math.max(300, (SCREEN_W - 64) / 3) : 300 },
                 ]}
               >
                 <View style={styles.chartCardHeader}>
@@ -994,7 +995,12 @@ export default function SalesReport() {
                 </View>
               </View>
 
-              <View style={styles.chartCard}>
+              <View 
+                style={[
+                  styles.chartCard,
+                  { width: SCREEN_W > 768 ? Math.max(300, (SCREEN_W - 64) / 3) : 300 },
+                ]}
+              >
                 <View style={styles.chartCardHeader}>
                   <Text style={styles.cardTitle}>KEY METRICS</Text>
                   <Ionicons
@@ -1034,7 +1040,8 @@ export default function SalesReport() {
                   </View>
                 </View>
               </View>
-            </View>
+              </View>
+            </ScrollView>
 
             {/* Breakdown */}
             <View style={styles.breakdownCard}>
@@ -1651,11 +1658,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     flexShrink: 0,
   },
+  chartsScrollContent: {
+    paddingRight: 16, // Extra padding at the end for scrolling
+    marginBottom: 24,
+  },
   chartsContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: 12,
-    marginBottom: 24,
   },
   chartCard: {
     flex: 1,
