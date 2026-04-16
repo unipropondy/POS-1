@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Smart POS",
+    "slug": "pos-1",
+    "extra": {
+      "eas": {
+        "projectId": "5bb6afb3-f13c-4d31-8888-bacd54796371"
+      }
+    },
+    "android": {
+      "package": "com.javi06.pos1"
+    }
+  }
+}
