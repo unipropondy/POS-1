@@ -94,7 +94,7 @@ export default function PaymentScreen() {
   const isTablet = Math.min(width, height) >= 500;
   const isMobile = !isTablet;
   const isTabletPortrait = isTablet && !isLandscape && width < 1024;
-  const showOrderPanel = isTablet && (isLandscape || width >= 1024);
+  const showOrderPanel = (isTablet && (isLandscape || width >= 1024)) || (isMobile && isLandscape);
 
   const context = getOrderContext();
   const activeOrder = context ? findActiveOrder(context) : undefined;
@@ -489,9 +489,13 @@ export default function PaymentScreen() {
           >
             <View style={[styles.mainLayout, !showOrderPanel && styles.mobileLayout]}>
                 {/* LEFT: TOTALS */}
-                <View style={[styles.leftPane, !showOrderPanel && { flex: 0 }]}>
-                  <Text style={styles.sectionLabel}>Amount Due</Text>
-                  <Text style={styles.grandTotal}>${total.toFixed(2)}</Text>
+                <View style={[
+                  styles.leftPane, 
+                  !showOrderPanel && { flex: 0 },
+                  isMobile && isLandscape && { padding: 10, flex: 0.6 }
+                ]}>
+                  <Text style={[styles.sectionLabel, isMobile && isLandscape && { fontSize: 10, marginBottom: 4 }]}>Amount Due</Text>
+                  <Text style={[styles.grandTotal, isMobile && isLandscape && { fontSize: 24 }]}>${total.toFixed(2)}</Text>
 
                   <View style={styles.breakdown}>
                     <View style={styles.breakRow}>
@@ -516,8 +520,8 @@ export default function PaymentScreen() {
                 </View>
 
                 {/* CENTER: PAYMENT METHOD & CASH INPUT */}
-                <View style={styles.centerPane}>
-                  <Text style={styles.sectionLabel}>Select Payment Method</Text>
+                <View style={[styles.centerPane, isMobile && isLandscape && { padding: 10, flex: 1.5 }]}>
+                  <Text style={[styles.sectionLabel, isMobile && isLandscape && { fontSize: 10, marginBottom: 4 }]}>Select Payment Method</Text>
 
                   {loadingMethods ? (
                     <View style={styles.methodsLoading}>
@@ -697,6 +701,7 @@ export default function PaymentScreen() {
                   <TouchableOpacity
                     style={[
                       styles.confirmBtn,
+                      isMobile && isLandscape && { height: 44, marginTop: 10 },
                       isCashMethod(method) && paidNum < total && Math.abs(paidNum - total) > 0.01 && styles.disabled
                     ]}
                     disabled={processing || (isCashMethod(method) && paidNum < total && Math.abs(paidNum - total) > 0.01)}
@@ -707,8 +712,8 @@ export default function PaymentScreen() {
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                        <Text style={styles.confirmText}>Complete Settlement</Text>
+                        <Ionicons name="checkmark-circle" size={isMobile && isLandscape ? 18 : 24} color="#fff" />
+                        <Text style={[styles.confirmText, isMobile && isLandscape && { fontSize: 14 }]}>Complete Settlement</Text>
                       </>
                     )}
                   </TouchableOpacity>

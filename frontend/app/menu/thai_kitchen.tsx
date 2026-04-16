@@ -79,7 +79,7 @@ const NavRail = () => {
 };
 
 const DishCard = React.memo(
-  ({ dish, width, cartQty, onPress, isPhone, isTablet }: any) => {
+  ({ dish, width, cartQty, onPress, isPhone, isTablet, isLandscape }: any) => {
     return (
       <TouchableOpacity
         style={[
@@ -143,7 +143,7 @@ const DishCard = React.memo(
             >
               <Ionicons
                 name="restaurant-outline"
-                size={isPhone ? 24 : isTablet ? 48 : 40}
+                size={isPhone ? (isLandscape ? 16 : 24) : isTablet ? 48 : 40}
                 color={Theme.textMuted}
               />
             </View>
@@ -254,10 +254,10 @@ export default function MenuScreen() {
 
   const columns = isTablet 
     ? (width > 1200 ? 5 : 3) 
-    : (isLandscape ? 2 : 1);
+    : (isLandscape ? 2 : 1); // 2 columns in landscape phone
   
-  const gap = isPhone ? 8 : 12;
-  const cardWidth = (mainWidth - (isPhone ? 20 : 40) - gap * (columns - 1)) / columns;
+  const gap = isPhone ? (isLandscape ? 8 : 8) : 12;
+  const cardWidth = (mainWidth - (isPhone ? 32 : 40) - gap * (columns - 1)) / columns;
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
@@ -379,10 +379,11 @@ export default function MenuScreen() {
           onPress={openModifiers}
           isPhone={isPhone}
           isTablet={isTablet}
+          isLandscape={isLandscape}
         />
       );
     },
-    [orderContext, carts, cardWidth, openModifiers],
+    [orderContext, carts, cardWidth, openModifiers, isPhone, isTablet, isLandscape],
   );
 
   const toggleModifier = (mod: any) => {
@@ -444,41 +445,41 @@ export default function MenuScreen() {
   };
 
   const renderTopBar = () => (
-    <View style={styles.topBar}>
+    <View style={[styles.topBar, isPhone && isLandscape && { marginBottom: 6, height: 40 }]}>
       <TouchableOpacity
         onPress={() => router.replace("/(tabs)/category")}
-        style={styles.backBtn}
+        style={[styles.backBtn, isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 }]}
       >
-        <Ionicons name="arrow-back" size={24} color={Theme.textPrimary} />
+        <Ionicons name="arrow-back" size={isPhone && isLandscape ? 20 : 24} color={Theme.textPrimary} />
       </TouchableOpacity>
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, isPhone && isLandscape && { height: 36, flex: 0.8 }]}>
         <Ionicons
           name="search"
-          size={20}
+          size={isPhone && isLandscape ? 16 : 20}
           color={Theme.textMuted}
           style={styles.searchIcon}
         />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, isPhone && isLandscape && { fontSize: 13 }]}
           placeholder="Search products....."
           value={searchText}
           onChangeText={setSearchText}
         />
         {searchText.length > 0 && (
           <TouchableOpacity onPress={() => setSearchText("")}>
-            <Ionicons name="close-circle" size={18} color={Theme.textMuted} />
+            <Ionicons name="close-circle" size={16} color={Theme.textMuted} />
           </TouchableOpacity>
         )}
       </View>
 
       <TouchableOpacity
-        style={styles.headerCartBtn}
+        style={[styles.headerCartBtn, isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 }]}
         onPress={() => router.push("/cart")}
       >
-        <Ionicons name="cart-outline" size={24} color={Theme.primary} />
+        <Ionicons name="cart-outline" size={isPhone && isLandscape ? 20 : 24} color={Theme.primary} />
         {cartItemsCount > 0 && (
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{cartItemsCount}</Text>
+          <View style={[styles.cartBadge, isPhone && isLandscape && { top: -4, right: -4, minWidth: 16, height: 16 }]}>
+            <Text style={[styles.cartBadgeText, isPhone && isLandscape && { fontSize: 9 }]}>{cartItemsCount}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -496,7 +497,7 @@ export default function MenuScreen() {
   );
 
   const renderCategoryNav = () => (
-    <View style={styles.categoryNavigation}>
+    <View style={[styles.categoryNavigation, isPhone && isLandscape && { marginBottom: 6 }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -508,6 +509,7 @@ export default function MenuScreen() {
             style={[
               styles.catPill,
               selectedKitchenId === k.CategoryId && styles.catPillActive,
+              isPhone && isLandscape && { height: 28, paddingHorizontal: 12 }
             ]}
             onPress={() => loadGroups(k.CategoryId)}
           >
@@ -515,6 +517,7 @@ export default function MenuScreen() {
               style={[
                 styles.catText,
                 selectedKitchenId === k.CategoryId && styles.catTextActive,
+                isPhone && isLandscape && { fontSize: 11 }
               ]}
             >
               {k.KitchenTypeName}
@@ -523,7 +526,7 @@ export default function MenuScreen() {
         ))}
       </ScrollView>
 
-      <View style={{ marginTop: 15 }}>
+      <View style={isPhone && isLandscape ? { marginTop: 6 } : { marginTop: 15 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -535,6 +538,7 @@ export default function MenuScreen() {
               style={[
                 styles.groupPill,
                 selectedGroup === g.DishGroupId && styles.groupPillActive,
+                isPhone && isLandscape && { height: 28, paddingHorizontal: 10 }
               ]}
               onPress={() => loadDishes(g.DishGroupId)}
             >
@@ -542,6 +546,7 @@ export default function MenuScreen() {
                 style={[
                   styles.groupText,
                   selectedGroup === g.DishGroupId && styles.groupTextActive,
+                  isPhone && isLandscape && { fontSize: 10 }
                 ]}
               >
                 {g.DishGroupName}
@@ -814,7 +819,7 @@ const styles = StyleSheet.create({
   railLabelActive: { color: Theme.primary },
   railBottom: { gap: 20, alignItems: "center" },
   logoutBtn: { alignItems: "center" },
-  main: { flex: 1, padding: 20 },
+  main: { flex: 1, padding: 12 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",

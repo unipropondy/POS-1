@@ -512,11 +512,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   };
 
   return (
-    <View style={[styles.container, { width }]}>
+    <View style={[styles.container, { width }, isPhone && isLandscape && styles.containerLandscapePhone]}>
       {/* HEADER ACTIONS */}
-      <View style={styles.header}>
+      <View style={[styles.header, isPhone && isLandscape && { marginBottom: 10 }]}>
         <View style={styles.tableIdentity}>
-          <Text style={styles.tableIdentityText}>
+          <Text style={[styles.tableIdentityText, isPhone && isLandscape && { fontSize: 13 }]}>
             {orderContext.orderType === "TAKEAWAY"
               ? `TAKEAWAY #${orderContext.takeawayNo}`
               : `${formatSectionGlobal(orderContext.section || "")} - T${orderContext.tableNo}`}
@@ -553,11 +553,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       />
 
       {/* FOOTER AREA */}
-      <View style={styles.footer}>
-        <View style={styles.summary}>
+      <View style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}>
+        <View style={[styles.summary, isPhone && isLandscape && { marginBottom: 8 }]}>
           <View style={styles.summaryRow}>
-            <Text style={styles.payableLabel}>Subtotal</Text>
-            <Text style={styles.payableValue}>${subtotal.toFixed(2)}</Text>
+            <Text style={[styles.payableLabel, isPhone && isLandscape && { fontSize: 13 }]}>Subtotal</Text>
+            <Text style={[styles.payableValue, isPhone && isLandscape && { fontSize: 14 }]}>${subtotal.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -696,6 +696,9 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderLeftColor: Theme.border,
     padding: 16,
+  },
+  containerLandscapePhone: {
+    padding: 8,
   },
   emptySurface: {
     flex: 1,

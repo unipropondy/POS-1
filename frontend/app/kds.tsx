@@ -69,8 +69,10 @@ const URGENCY_COLORS: Record<
 };
 
 export default function KDSScreen() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 600;
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 500;
+  const isMobile = !isTablet;
   const router = useRouter();
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
 
@@ -130,7 +132,9 @@ export default function KDSScreen() {
       .sort((a: any, b: any) => a.createdAt - b.createdAt);
   }, [activeOrders]);
 
-  const numColumns = width > 1400 ? 4 : width > 1000 ? 3 : width > 700 ? 2 : 1;
+  const numColumns = isTablet 
+    ? (width > 1400 ? 4 : width > 1000 ? 3 : 2)
+    : (isLandscape ? 2 : 1);
 
   const stats = useMemo(() => {
     let fresh = 0,
@@ -168,16 +172,16 @@ export default function KDSScreen() {
           { borderColor: uc.border, backgroundColor: Theme.bgCard },
         ]}
       >
-        <View style={[styles.urgencyBar, { backgroundColor: uc.timer }]} />
-        <View style={styles.cardInner}>
+        <View style={[styles.urgencyBar, { backgroundColor: uc.timer }, isMobile && isLandscape && { height: 4 }]} />
+        <View style={[styles.cardInner, isMobile && isLandscape && { padding: 12 }]}>
           <View style={styles.cardHeader}>
             <View style={styles.cardHeaderLeft}>
-              <Text style={styles.table}>
+              <Text style={[styles.table, isMobile && isLandscape && { fontSize: 18 }]}>
                 {item.context.orderType === "DINE_IN"
                   ? `${formatSection(item.context.section || "T1")} • Table ${item.context.tableNo}`
                   : `Takeaway • #${item.context.takeawayNo}`}
               </Text>
-              <Text style={styles.orderId}>#{item.orderId}</Text>
+              <Text style={[styles.orderId, isMobile && isLandscape && { fontSize: 11, marginTop: 2 }]}>#{item.orderId}</Text>
             </View>
 
             <View style={styles.timerBlock}>
@@ -189,9 +193,9 @@ export default function KDSScreen() {
               >
                 {minutes}:{seconds.toString().padStart(2, "0")}
               </Animated.Text>
-              <View style={[styles.urgencyPill, { borderColor: uc.border }]}>
-                <Ionicons name={uc.icon} size={11} color={uc.timer} />
-                <Text style={[styles.urgencyLabel, { color: uc.timer }]}>
+              <View style={[styles.urgencyPill, { borderColor: uc.border }, isMobile && isLandscape && { paddingVertical: 1, paddingHorizontal: 6 }]}>
+                <Ionicons name={uc.icon} size={isMobile && isLandscape ? 10 : 11} color={uc.timer} />
+                <Text style={[styles.urgencyLabel, { color: uc.timer }, isMobile && isLandscape && { fontSize: 9 }]}>
                   {uc.label}
                 </Text>
               </View>
@@ -206,15 +210,16 @@ export default function KDSScreen() {
             const isNew = i.sentAt && elapsedItem < 300000;
 
             return (
-              <View key={i.lineItemId} style={styles.itemBlock}>
+              <View key={i.lineItemId} style={[styles.itemBlock, isMobile && isLandscape && { marginBottom: 6 }]}>
                 <View style={styles.itemRow}>
-                  <View style={styles.itemQtyWrap}>
-                    <Text style={styles.itemQty}>{i.qty}×</Text>
+                  <View style={[styles.itemQtyWrap, isMobile && isLandscape && { paddingVertical: 2, paddingHorizontal: 6 }]}>
+                    <Text style={[styles.itemQty, isMobile && isLandscape && { fontSize: 12 }]}>{i.qty}×</Text>
                   </View>
                   <Text
                     style={[
                       styles.itemText,
                       i.status === "VOIDED" && styles.itemVoidedText,
+                      isMobile && isLandscape && { fontSize: 14 }
                     ]}
                     numberOfLines={2}
                   >

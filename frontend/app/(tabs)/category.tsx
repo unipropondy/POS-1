@@ -380,10 +380,15 @@ export default function Category() {
     else columns = 12;
   }
 
-  const GAP = 10;
-  const PADDING = isTablet ? 24 : 16;
+  const GAP = !isTablet && isLandscape ? 8 : 10;
+  const PADDING = isTablet ? 24 : (isLandscape ? 12 : 16);
   const availableGridWidth = width - PADDING * 2;
-  const itemSize = (availableGridWidth - GAP * (columns - 1)) / columns;
+  let itemSize = (availableGridWidth - GAP * (columns - 1)) / columns;
+  
+  // Cap item height in landscape to prevent overly tall cards
+  if (isLandscape && !isTablet) {
+    itemSize = Math.min(itemSize, 90);
+  }
 
   useEffect(() => {
     const index = SECTIONS.indexOf(activeTab);
@@ -392,8 +397,8 @@ export default function Category() {
     }
   }, [activeTab]);
 
-  const numberFont = Math.max(12, Math.min(22, itemSize * 0.3));
-  const smallFont = Math.max(8, Math.min(13, itemSize * 0.17));
+  const numberFont = Math.max(12, Math.min(isTablet ? 24 : 20, itemSize * 0.32));
+  const smallFont = Math.max(8, Math.min(isTablet ? 14 : 11, itemSize * 0.18));
 
   const currentTables = allTables.filter((table) => {
     if (activeTab === "TAKEAWAY") return table.DiningSection === 4;
@@ -523,7 +528,11 @@ export default function Category() {
       <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
 
       {/* ═══════════ TOP NAV BAR ═══════════ */}
-      <View style={[styles.topNavContainer, { paddingHorizontal: isTablet ? 20 : 14 }]}>
+      <View style={[
+        styles.topNavContainer, 
+        { paddingHorizontal: isTablet ? 20 : 12 },
+        !isTablet && isLandscape && { height: 42, paddingVertical: 2, gap: 8 }
+      ]}>
 
         {/* CENTER — Section Tabs */}
         <ScrollView
@@ -552,7 +561,11 @@ export default function Category() {
                   key={section}
                   onPress={() => setActiveTab(section)}
                   activeOpacity={0.75}
-                  style={[styles.tabBtn, isActive && styles.activeTabBtn]}
+                  style={[
+                    styles.tabBtn, 
+                    isActive && styles.activeTabBtn,
+                    !isTablet && isLandscape && { paddingVertical: 6, paddingHorizontal: 12 }
+                  ]}
                 >
                   <Ionicons
                     name={SECTION_ICONS[section] as any}
@@ -638,7 +651,7 @@ export default function Category() {
           activeOpacity={1}
           onPress={() => setIsMenuVisible(false)}
         >
-          <View style={styles.menuContent}>
+          <View style={[styles.menuContent, !isTablet && isLandscape && { maxHeight: '85%' }]}>
             {/* User Info Header */}
             {user && (
               <View style={styles.menuUserSection}>
@@ -692,6 +705,30 @@ export default function Category() {
                 </TouchableOpacity>
               )}
 
+              {/* Legend in Menu for Mobile Landscape */}
+              {!isTablet && isLandscape && (
+                <>
+                  <View style={styles.menuDivider} />
+                  <View style={{ padding: 12 }}>
+                    <Text style={[styles.menuUserRole, { marginBottom: 10, color: Theme.textPrimary }]}>Table Legend</Text>
+                    <View style={{ gap: 8 }}>
+                      {[
+                        { color: Theme.tableSent.border, label: "Dining" },
+                        { color: Theme.tableHold.border, label: "Hold" },
+                        { color: Theme.tableBillRequest.border, label: "Checkout" },
+                        { color: Theme.tableLocked.border, label: "Reserved" },
+                        { color: "#7C3AED", label: "Overtime" },
+                      ].map((item) => (
+                        <View key={item.label} style={styles.legendItem}>
+                          <View style={[styles.legendDot, { backgroundColor: item.color, width: 10, height: 10 }]} />
+                          <Text style={[styles.legendText, { fontSize: 12 }]}>{item.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </>
+              )}
+
               <View style={styles.menuDivider} />
 
               <TouchableOpacity
@@ -712,38 +749,45 @@ export default function Category() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ═══════════ SECTION HEADER ═══════════ */}
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeaderLeft}>
-          <View style={styles.sectionAccentBar} />
-          <Text style={styles.sectionHeaderTitle}>{SECTION_LABELS[activeTab]}</Text>
-          <View style={styles.sectionCountBadge}>
-            <Text style={styles.sectionCountText}>{currentTables.length} tables</Text>
+      {/* ── Section Header Row (Hidden on Mobile Landscape) ── */}
+      {(!isLandscape || isTablet) && (
+        <View style={[
+          styles.sectionHeader,
+          !isTablet && isLandscape && { paddingVertical: 4, paddingHorizontal: 14 }
+        ]}>
+          <View style={styles.sectionHeaderLeft}>
+            <View style={[styles.sectionAccentBar, !isTablet && isLandscape && { height: 14 }]} />
+            <Text style={[styles.sectionHeaderTitle, !isTablet && isLandscape && { fontSize: 13 }]}>
+              {SECTION_LABELS[activeTab]}
+            </Text>
+            <View style={[styles.sectionCountBadge, !isTablet && isLandscape && { paddingVertical: 1 }]}>
+              <Text style={styles.sectionCountText}>{currentTables.length} tables</Text>
+            </View>
+            {occupiedCount > 0 && (
+              <View style={[styles.occupiedBadge, !isTablet && isLandscape && { paddingVertical: 1 }]}>
+                <View style={styles.occupiedDot} />
+                <Text style={styles.occupiedText}>{occupiedCount} occupied</Text>
+              </View>
+            )}
           </View>
-          {occupiedCount > 0 && (
-            <View style={styles.occupiedBadge}>
-              <View style={styles.occupiedDot} />
-              <Text style={styles.occupiedText}>{occupiedCount} occupied</Text>
-            </View>
-          )}
-        </View>
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          {[
-            { color: Theme.tableSent.border, label: "Dining" },
-            { color: Theme.tableHold.border, label: "Hold" },
-            { color: Theme.tableBillRequest.border, label: "Checkout" },
-            { color: Theme.tableLocked.border, label: "Reserved" },
-            { color: "#7C3AED", label: "Overtime" },
-          ].map((item) => (
-            <View key={item.label} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-              <Text style={styles.legendText}>{item.label}</Text>
-            </View>
-          ))}
+          {/* Legend */}
+          <View style={styles.legend}>
+            {[
+              { color: Theme.tableSent.border, label: "Dining" },
+              { color: Theme.tableHold.border, label: "Hold" },
+              { color: Theme.tableBillRequest.border, label: "Checkout" },
+              { color: Theme.tableLocked.border, label: "Reserved" },
+              { color: "#7C3AED", label: "Overtime" },
+            ].map((item) => (
+              <View key={item.label} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                <Text style={styles.legendText}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* ═══════════ TABLE GRID ═══════════ */}
       <FlatList
