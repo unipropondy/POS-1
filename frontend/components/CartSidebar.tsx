@@ -56,8 +56,9 @@ interface CartSidebarProps {
 export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   const router = useRouter();
   const { showToast } = useToast();
-  const { width: screenWidth } = useWindowDimensions();
-  const isPhone = screenWidth < 600;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isLandscape = screenWidth > screenHeight;
+  const isPhone = Math.min(screenWidth, screenHeight) < 500;
 
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);

@@ -32,14 +32,10 @@ export default function RootLayout() {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 
-  // Lock orientation: portrait-only on phones, free rotation on tablets
+  // Enable free rotation on all devices
   useEffect(() => {
-    if (isTablet) {
-      ScreenOrientation.unlockAsync();
-    } else {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-    }
-  }, [isTablet]);
+    ScreenOrientation.unlockAsync();
+  }, []);
 
 
   const [fontsLoaded, fontError] = useFonts({

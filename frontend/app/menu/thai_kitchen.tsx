@@ -179,7 +179,7 @@ const DishCard = React.memo(
 
 export default function MenuScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
 
   const [kitchens, setKitchens] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
@@ -234,10 +234,10 @@ export default function MenuScreen() {
     });
   }, [activeOrders, orderContext]);
 
-  const isLandscape = width > 900;
-  const isTabletPortrait = width >= 600 && width <= 900;
-  const isPhone = width < 600;
-  const isLarge = true; // Always show cart on all devices
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 500;
+  const isPhone = !isTablet;
+  const isLarge = true; // Always show cart sidebar
 
   const cartItemsCount = useMemo(() => {
     const draftCount = cart.length;
@@ -245,13 +245,19 @@ export default function MenuScreen() {
     return draftCount + sentCount;
   }, [cart, activeOrder]);
 
-  const cartWidth = isLandscape ? 380 : isTabletPortrait ? 330 : width * 0.62;
+  // Sidebar width should be more responsive
+  const cartWidth = isTablet 
+    ? (width > 1024 ? 380 : 330) 
+    : (isLandscape ? width * 0.38 : width * 0.62);
+  
   const mainWidth = width - cartWidth;
 
-  const columns = width > 1200 ? 5 : width > 900 ? 3 : isPhone ? 1 : 2;
-  const gap = isPhone ? 8 : 12; // Smaller gap for phones
-  const cardWidth =
-    (mainWidth - (isPhone ? 20 : 40) - gap * (columns - 1)) / columns;
+  const columns = isTablet 
+    ? (width > 1200 ? 5 : 3) 
+    : (isLandscape ? 2 : 1);
+  
+  const gap = isPhone ? 8 : 12;
+  const cardWidth = (mainWidth - (isPhone ? 20 : 40) - gap * (columns - 1)) / columns;
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
@@ -372,7 +378,7 @@ export default function MenuScreen() {
           cartQty={cartQty}
           onPress={openModifiers}
           isPhone={isPhone}
-          isTablet={isTabletPortrait}
+          isTablet={isTablet}
         />
       );
     },

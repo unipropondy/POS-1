@@ -90,9 +90,11 @@ export default function PaymentScreen() {
   const { showToast } = useToast();
   const { width, height } = useWindowDimensions();
 
-  const isMobile = width < 768;
-  const isTabletPortrait = width >= 768 && width < 1024 && height > width;
-  const showOrderPanel = !isMobile && !isTabletPortrait;
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 500;
+  const isMobile = !isTablet;
+  const isTabletPortrait = isTablet && !isLandscape && width < 1024;
+  const showOrderPanel = isTablet && (isLandscape || width >= 1024);
 
   const context = getOrderContext();
   const activeOrder = context ? findActiveOrder(context) : undefined;

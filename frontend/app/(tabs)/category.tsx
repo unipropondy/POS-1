@@ -221,7 +221,7 @@ const SECTION_ICONS: Record<string, string> = {
 };
 
 export default function Category() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const { section: urlSection } = useLocalSearchParams<{ section?: string }>();
 
@@ -237,7 +237,8 @@ export default function Category() {
   const activeOrders = useActiveOrdersStore((s: any) => s.activeOrders);
   const carts = useCartStore((s: any) => s.carts);
 
-  const isTablet = width >= 768;
+  const isTablet = Math.min(width, height) >= 500;
+  const isLandscape = width > height;
 
   const user = useAuthStore((s: any) => s.user);
   const logout = useAuthStore((s: any) => s.logout);
@@ -369,12 +370,15 @@ export default function Category() {
   }, [urlSection]);
 
   let columns = 10;
-  if (width < 480) columns = 3;
-  else if (width < 768) columns = 4;
-  else if (width < 1024) columns = 6;
-  else if (width < 1280) columns = 8;
-  else if (width < 1920) columns = 10;
-  else columns = 12;
+  if (!isTablet) {
+    columns = isLandscape ? 5 : 3;
+  } else {
+    if (width < 768) columns = 4;
+    else if (width < 1024) columns = 6;
+    else if (width < 1280) columns = 8;
+    else if (width < 1920) columns = 10;
+    else columns = 12;
+  }
 
   const GAP = 10;
   const PADDING = isTablet ? 24 : 16;
