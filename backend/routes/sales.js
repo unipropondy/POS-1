@@ -456,7 +456,6 @@ router.get("/daily/:date", async (req, res) => {
 router.get("/daily-order-count", async (req, res) => {
   try {
     const pool = await poolPromise;
-    // Get start and end of today
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -470,7 +469,6 @@ router.get("/daily-order-count", async (req, res) => {
         WHERE LastSettlementDate BETWEEN @Start AND @End
       `);
     
-    // Return the next number in the sequence
     const count = result.recordset[0].currentCount || 0;
     res.json({ nextNumber: count + 1 });
   } catch (err) {
@@ -487,10 +485,6 @@ router.post("/save", async (req, res) => {
       discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId
     } = req.body;
 
-    if (!orderId || !/^\d{8}-\d{4}$/.test(orderId)) {
-      return res.status(400).json({ error: "Invalid Order ID format. Expected: YYYYMMDD-NNNN" });
-    }
-
     const validationError = validateSalePayload({ totalAmount, paymentMethod, items });
     if (validationError) {
       return res.status(400).json({ error: validationError });
@@ -500,21 +494,11 @@ router.post("/save", async (req, res) => {
     await transaction.begin();
 
     try {
-      const duplicate = await transaction.request()
-        .input("OrderId", orderId)
-        .query("SELECT TOP 1 SettlementID FROM SettlementHeader WHERE OrderId = @OrderId AND ISNULL(IsCancelled, 0) = 0");
-
-      if (duplicate.recordset.length > 0) {
-        await transaction.rollback();
-        return res.status(409).json({ error: "This order has already been settled" });
-      }
-
       const settlementIdResult = await transaction.request().query(`SELECT NEWID() AS id`);
       const settlementId = settlementIdResult.recordset[0].id;
       const billNo = generateRandomBillId();
 
-      // 1. Insert into SettlementHeader
-      await transaction.request()
+      const insertResult = await transaction.request()
         .input("SettlementID", settlementId)
         .input("LastSettlementDate", new Date())
         .input("SubTotal", subTotal || 0)
@@ -522,7 +506,6 @@ router.post("/save", async (req, res) => {
         .input("DiscountAmount", discountAmount || 0)
         .input("DiscountType", discountType || "fixed")
         .input("BillNo", billNo)
-        .input("OrderId", orderId || null)
         .input("OrderType", orderType || "DINE-IN")
         .input("TableNo", tableNo || null)
         .input("Section", section || null)
@@ -532,11 +515,13 @@ router.post("/save", async (req, res) => {
         .input("ManualAmount", totalAmount || 0)
         .input("CreatedBy", cashierId || "ADMIN")
         .input("CreatedOn", new Date()).query(`
-          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderId, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount, CreatedBy, CreatedOn)
-          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderId, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
+          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount, CreatedBy, CreatedOn)
+          OUTPUT inserted.OrderId
+          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
         `);
+      
+      const generatedOrderId = insertResult.recordset[0].OrderId;
 
-      // 2. Insert into SettlementTotalSales
       const normalizedPayMode = normalizePayMode(paymentMethod);
       const receiptCount = Array.isArray(items)
         ? items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
@@ -553,7 +538,6 @@ router.post("/save", async (req, res) => {
           VALUES (@SettlementID, @PayMode, @SysAmount, @ManualAmount, @AmountDiff, @ReceiptCount)
         `);
 
-      // 3. Insert individual dishes
       if (items && Array.isArray(items)) {
         for (const item of items) {
           const dishId = toGuidOrNull(item.dishId || item.id);
@@ -584,7 +568,6 @@ router.post("/save", async (req, res) => {
         }
       }
 
-      // 4. Insert into PaymentDetailCur (Legacy DB Support)
       try {
         const paymodeRow = await transaction.request()
           .input("PayModeCode", sql.VarChar(50), (paymentMethod || "CAS").trim())
@@ -618,7 +601,6 @@ router.post("/save", async (req, res) => {
         console.warn("⚠️ [SAVE SALE] PaymentDetailCur insert skipped:", pdcErr.message);
       }
 
-      // 5. Update Member Balance if Credit
       if (memberId && (paymentMethod || "").toUpperCase() === "CREDIT") {
         await transaction.request()
           .input("MemberId", memberId)
@@ -627,7 +609,15 @@ router.post("/save", async (req, res) => {
       }
 
       await transaction.commit();
-      res.json({ success: true, settlementId, billNo });
+      
+      // Format OrderId as #YYYYMMDD-NNNN
+      const now = new Date();
+      const datePart = now.getFullYear().toString() + 
+                     (now.getMonth() + 1).toString().padStart(2, '0') + 
+                     now.getDate().toString().padStart(2, '0');
+      const displayOrderId = `${datePart}-${generatedOrderId.toString().padStart(4, '0')}`;
+
+      res.json({ success: true, settlementId, billNo, orderId: displayOrderId });
     } catch (err) {
       if (transaction) await transaction.rollback();
       throw err;
@@ -668,7 +658,6 @@ router.post("/orders/validate-cancel", async (req, res) => {
     }
 });
 
-/* ... other payment endpoints (history, methods) ... */
 router.get("/payment-history", async (req, res) => {
     try {
       const pool = await poolPromise;

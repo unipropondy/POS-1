@@ -242,8 +242,8 @@ export default function PaymentScreen() {
 
   const saveSaleToDatabase = async () => {
     try {
-      if (!activeOrder?.orderId || !/^\d{8}-\d{4}$/.test(activeOrder.orderId)) {
-        showToast({ type: "error", message: "Invalid Order ID", subtitle: "Order ID format is invalid" });
+      if (!activeOrder?.orderId) {
+        showToast({ type: "error", message: "Invalid Order Context", subtitle: "Order reference is missing" });
         return false;
       }
       
@@ -269,6 +269,8 @@ export default function PaymentScreen() {
         cashierId: "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88"
       };
       
+      let generatedOrderId = null;
+      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
@@ -293,7 +295,8 @@ export default function PaymentScreen() {
       }
 
       if (result.success) {
-        return true;
+        generatedOrderId = result.orderId;
+        return { success: true, orderId: result.orderId };
       } else {
         showToast({ type: "error", message: "Payment Failed", subtitle: result.error || "Unable to process payment" });
         return false;
@@ -304,7 +307,7 @@ export default function PaymentScreen() {
       } else {
         showToast({ type: "error", message: "Payment Error", subtitle: error.message });
       }
-      return false;
+      return { success: false };
     }
   };
 
@@ -318,11 +321,13 @@ export default function PaymentScreen() {
 
     setProcessing(true);
 
-    const saved = await saveSaleToDatabase();
-    if (!saved) {
+    const saveResult: any = await saveSaleToDatabase();
+    if (!saveResult.success) {
       setProcessing(false);
       return;
     }
+
+    const realOrderId = saveResult.orderId;
 
     const printBill = () => {
       const dateStr = new Date().toLocaleString();
@@ -362,7 +367,7 @@ export default function PaymentScreen() {
             <div class="divider"></div>
             <div>
               <div>Date: ${dateStr}</div>
-              <div>Order #: ${activeOrder?.orderId || 'N/A'}</div>
+              <div>Order #: ${realOrderId || activeOrder?.orderId || 'N/A'}</div>
               <div>Method: ${method}</div>
             </div>
             <div class="divider"></div>
@@ -401,7 +406,7 @@ export default function PaymentScreen() {
           paidNum: paidNum.toFixed(2),
           change: change.toFixed(2),
           method,
-          orderId: activeOrder?.orderId ?? "",
+          orderId: realOrderId || activeOrder?.orderId || "",
           tableNo: context?.tableNo ?? "",
           section: context?.section ?? "",
           orderType: context?.orderType ?? "",
