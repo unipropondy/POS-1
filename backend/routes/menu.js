@@ -62,7 +62,7 @@ router.get("/dishes/group/:DishGroupId", async (req, res) => {
             d.Name,  
             d.DishGroupId, 
             currentcost AS Price,
-             (select i.Imageid
+             (select i.imagedata
                from ImageList i
                where d.Imageid = i.Imageid) AS HasImage
      FROM DishMaster d
