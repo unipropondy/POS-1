@@ -130,6 +130,7 @@ const DishCard = React.memo(
             <Image
               source={{ uri: `${IMAGE_BASE_URL}${dish.Image}` }}
               style={styles.dishImg}
+              resizeMode="cover"
             />
           ) : (
             <View
