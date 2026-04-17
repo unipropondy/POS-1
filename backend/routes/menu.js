@@ -20,9 +20,9 @@ router.get("/kitchens", async (req, res) => {
 router.get("/dishgroups/:CategoryId", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input("CategoryId", req.params.CategoryId)
-      .query(`
+    const result = await pool
+      .request()
+      .input("CategoryId", req.params.CategoryId).query(`
         SELECT a.DishGroupId, a.DishGroupName
         FROM DishGroupMaster a
         JOIN CategoryMaster b ON a.CategoryId = b.CategoryId
@@ -55,15 +55,19 @@ router.get("/dishes/all", async (req, res) => {
 router.get("/dishes/group/:DishGroupId", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request()
-      .input("DishGroupId", req.params.DishGroupId)
-      .query(`
-        SELECT d.DishId, d.Name, d.DishGroupId, ISNULL(p.Amount, 0) AS Price,
-        d.Imageid, CASE WHEN i.Imageid IS NOT NULL THEN 1 ELSE 0 END AS HasImage
-        FROM DishMaster d
-        INNER JOIN DishPriceList p ON d.DishId = p.DishId
-        LEFT JOIN ImageList i ON d.Imageid = i.Imageid
-        WHERE d.IsActive = 1 AND d.DishGroupId = @DishGroupId ORDER BY d.Name ASC
+    const result = await pool
+      .request()
+      .input("DishGroupId", req.params.DishGroupId).query(`
+        SELECT d.DishId, 
+            d.Name,  
+            d.DishGroupId, 
+            currentcost AS Price,
+             (select i.Imageid
+               from ImageList i
+               where d.Imageid = i.Imageid) AS HasImage
+     FROM DishMaster d
+      WHERE d.IsActive = 1 
+      AND d.DishGroupId = @DishGroupId ORDER BY d.Name ASC
       `);
     res.json(result.recordset);
   } catch (err) {
@@ -75,7 +79,9 @@ router.get("/dishes/group/:DishGroupId", async (req, res) => {
 router.get("/image/:imageId", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request().input("Imageid", req.params.imageId)
+    const result = await pool
+      .request()
+      .input("Imageid", req.params.imageId)
       .query(`SELECT ImageData FROM ImageList WHERE Imageid = @Imageid`);
 
     if (result.recordset.length > 0 && result.recordset[0].ImageData) {
@@ -106,13 +112,16 @@ router.get("/modifiers/:dishId", async (req, res) => {
 });
 
 router.post("/modifiers/validate", async (req, res) => {
-    try {
-      const { dishId } = req.body;
-      if (!dishId) return res.status(400).json({ valid: false, message: "Dish ID is required" });
-      res.json({ valid: true, message: "Modifier selection is valid" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  try {
+    const { dishId } = req.body;
+    if (!dishId)
+      return res
+        .status(400)
+        .json({ valid: false, message: "Dish ID is required" });
+    res.json({ valid: true, message: "Modifier selection is valid" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
