@@ -64,6 +64,12 @@ const toGuidOrNull = (value) => {
     : null;
 };
 
+const DEFAULT_GUID = "00000000-0000-0000-0000-000000000000";
+
+const sanitizeGuid = (value, fallback = DEFAULT_GUID) => {
+  return toGuidOrNull(value) || fallback;
+};
+
 const validateSalePayload = ({ totalAmount, paymentMethod, items }) => {
   if (!paymentMethod || !String(paymentMethod).trim()) {
     return "Payment mode is required";
@@ -488,8 +494,11 @@ router.post("/save", async (req, res) => {
       discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId
     } = req.body;
 
+    console.log(`[SAVE SALE] Starting transaction. Items: ${items?.length}, Total: ${totalAmount}, Method: ${paymentMethod}`);
+
     const validationError = validateSalePayload({ totalAmount, paymentMethod, items });
     if (validationError) {
+      console.warn(`[SAVE SALE] Validation failed: ${validationError}`);
       return res.status(400).json({ error: validationError });
     }
 
@@ -501,48 +510,53 @@ router.post("/save", async (req, res) => {
       const settlementId = settlementIdResult.recordset[0].id;
       const billNo = generateRandomBillId();
 
+      console.log(`[SAVE SALE] Step 1: Inserting SettlementHeader...`);
       const insertResult = await transaction.request()
-        .input("SettlementID", settlementId)
-        .input("LastSettlementDate", new Date())
-        .input("SubTotal", subTotal || 0)
-        .input("TotalTax", taxAmount || 0)
-        .input("DiscountAmount", discountAmount || 0)
-        .input("DiscountType", discountType || "fixed")
-        .input("BillNo", billNo)
-        .input("OrderType", orderType || "DINE-IN")
-        .input("TableNo", tableNo || null)
-        .input("Section", section || null)
-        .input("MemberId", memberId || null)
-        .input("CashierID", cashierId || null)
-        .input("SysAmount", totalAmount || 0)
-        .input("ManualAmount", totalAmount || 0)
-        .input("CreatedBy", cashierId || "ADMIN")
-        .input("CreatedOn", new Date()).query(`
+        .input("SettlementID", sql.UniqueIdentifier, settlementId)
+        .input("LastSettlementDate", sql.DateTime, new Date())
+        .input("SubTotal", sql.Money, subTotal || 0)
+        .input("TotalTax", sql.Money, taxAmount || 0)
+        .input("DiscountAmount", sql.Money, discountAmount || 0)
+        .input("DiscountType", sql.NVarChar(50), discountType || "fixed")
+        .input("BillNo", sql.NVarChar(50), billNo)
+        .input("OrderType", sql.NVarChar(50), orderType || "DINE-IN")
+        .input("TableNo", sql.NVarChar(50), tableNo || null)
+        .input("Section", sql.NVarChar(100), section || null)
+        .input("MemberId", sql.UniqueIdentifier, toGuidOrNull(memberId))
+        .input("CashierID", sql.UniqueIdentifier, toGuidOrNull(cashierId))
+        .input("SysAmount", sql.Money, totalAmount || 0)
+        .input("ManualAmount", sql.Money, totalAmount || 0)
+        .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
+        .input("CreatedOn", sql.DateTime, new Date()).query(`
           INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount, CreatedBy, CreatedOn)
           OUTPUT inserted.OrderId
           VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
         `);
       
       const generatedOrderId = insertResult.recordset[0].OrderId;
+      console.log(`[SAVE SALE] SettlementHeader success. OrderId: ${generatedOrderId}`);
 
       const normalizedPayMode = normalizePayMode(paymentMethod);
       const receiptCount = Array.isArray(items)
         ? items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
         : 0;
 
+      console.log(`[SAVE SALE] Step 2: Inserting SettlementTotalSales...`);
       await transaction.request()
-        .input("SettlementID", settlementId)
-        .input("PayMode", normalizedPayMode)
-        .input("SysAmount", totalAmount || 0)
-        .input("ManualAmount", totalAmount || 0)
-        .input("AmountDiff", 0)
-        .input("ReceiptCount", receiptCount).query(`
+        .input("SettlementID", sql.UniqueIdentifier, settlementId)
+        .input("PayMode", sql.VarChar(50), normalizedPayMode)
+        .input("SysAmount", sql.Money, totalAmount || 0)
+        .input("ManualAmount", sql.Money, totalAmount || 0)
+        .input("AmountDiff", sql.Money, 0)
+        .input("ReceiptCount", sql.Numeric(18, 0), receiptCount).query(`
           INSERT INTO SettlementTotalSales (SettlementID, PayMode, SysAmount, ManualAmount, AmountDiff, ReceiptCount)
           VALUES (@SettlementID, @PayMode, @SysAmount, @ManualAmount, @AmountDiff, @ReceiptCount)
         `);
+      console.log(`[SAVE SALE] SettlementTotalSales success.`);
 
       if (items && Array.isArray(items)) {
         for (const item of items) {
+          console.log(`[SAVE SALE] Step 3: Item [${item.dish_name || item.name}]...`);
           const dishId = toGuidOrNull(item.dishId || item.id);
           const dishMeta = await transaction.request()
             .input("DishId", sql.UniqueIdentifier, dishId)
@@ -556,53 +570,56 @@ router.post("/save", async (req, res) => {
             `);
           const meta = dishMeta.recordset[0] || {};
           await transaction.request()
-            .input("SettlementID", settlementId)
-            .input("DishId", meta.DishId || dishId)
-            .input("DishGroupId", meta.DishGroupId || null)
-            .input("SubCategoryId", meta.DishGroupId || null)
-            .input("CategoryId", meta.CategoryId || null)
-            .input("DishName", item.dish_name || item.name || "Unknown")
-            .input("Qty", item.qty || 1)
-            .input("Price", item.price || 0)
-            .input("OrderDateTime", new Date()).query(`
+            .input("SettlementID", sql.UniqueIdentifier, settlementId)
+            .input("DishId", sql.UniqueIdentifier, toGuidOrNull(meta.DishId || dishId))
+            .input("DishGroupId", sql.UniqueIdentifier, toGuidOrNull(meta.DishGroupId))
+            .input("SubCategoryId", sql.UniqueIdentifier, toGuidOrNull(meta.DishGroupId))
+            .input("CategoryId", sql.UniqueIdentifier, toGuidOrNull(meta.CategoryId))
+            .input("DishName", sql.NVarChar(255), item.dish_name || item.name || "Unknown")
+            .input("Qty", sql.Int, item.qty || 1)
+            .input("Price", sql.Decimal(18, 2), item.price || 0)
+            .input("OrderDateTime", sql.DateTime, new Date()).query(`
               INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, SubCategoryId, CategoryId, DishName, Qty, Price, OrderDateTime)
               VALUES (@SettlementID, @DishId, @DishGroupId, @SubCategoryId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime)
             `);
         }
       }
 
-      try {
+        console.log(`[SAVE SALE] Step 4: Inserting PaymentDetailCur...`);
         const paymodeRow = await transaction.request()
           .input("PayModeCode", sql.VarChar(50), (paymentMethod || "CAS").trim())
           .query(`SELECT TOP 1 ISNULL(Position, 1) AS Position FROM [dbo].[Paymode] WHERE LTRIM(RTRIM(PayMode)) = @PayModeCode`);
         
         const paymodePosition = paymodeRow.recordset.length > 0 ? paymodeRow.recordset[0].Position : 1;
 
-        const bizRow = await transaction.request().query(`SELECT TOP 1 ISNULL(CAST(BusinessUnitId AS VARCHAR(50)), '1') AS BusinessUnitId FROM [dbo].[PaymentDetailCur]`);
-        const businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : "1";
+        const bizRow = await transaction.request().query(`SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL`);
+        let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : null;
+        
+        if (!toGuidOrNull(businessUnitId)) {
+            const bizRow2 = await transaction.request().query(`SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL`);
+            businessUnitId = bizRow2.recordset.length > 0 ? bizRow2.recordset[0].BusinessUnitId : DEFAULT_GUID;
+        }
 
         await transaction.request()
-          .input("PaymentId", settlementId)
-          .input("RestaurantBillId", settlementId)
-          .input("BilledFor", 1)
-          .input("PaymentCollectedOn", new Date())
-          .input("PaymentType", 1)
-          .input("Paymode", paymodePosition)
-          .input("Amount", totalAmount || 0)
+          .input("PaymentId", sql.UniqueIdentifier, settlementId)
+          .input("RestaurantBillId", sql.UniqueIdentifier, settlementId)
+          .input("BilledFor", sql.Int, 1)
+          .input("PaymentCollectedOn", sql.DateTime, new Date())
+          .input("PaymentType", sql.Int, 1)
+          .input("Paymode", sql.Int, paymodePosition)
+          .input("Amount", sql.Decimal(18, 2), totalAmount || 0)
           .input("ReferenceNumber", sql.VarChar(100), null)
-          .input("Remarks", paymentMethod || "")
-          .input("BusinessUnitId", businessUnitId)
-          .input("CreatedBy", cashierId || "ADMIN")
-          .input("CreatedOn", new Date())
-          .input("ModifiedBy", cashierId || "ADMIN")
-          .input("ModifiedOn", new Date())
+          .input("Remarks", sql.VarChar(500), paymentMethod || "")
+          .input("BusinessUnitId", sql.UniqueIdentifier, sanitizeGuid(businessUnitId))
+          .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
+          .input("CreatedOn", sql.DateTime, new Date())
+          .input("ModifiedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
+          .input("ModifiedOn", sql.DateTime, new Date())
           .query(`
             INSERT INTO [dbo].[PaymentDetailCur] (PaymentId, RestaurantBillId, BilledFor, PaymentCollectedOn, PaymentType, Paymode, Amount, ReferenceNumber, Remarks, BusinessUnitId, CreatedBy, CreatedOn, ModifiedBy, ModifiedOn)
             VALUES (@PaymentId, @RestaurantBillId, @BilledFor, @PaymentCollectedOn, @PaymentType, @Paymode, @Amount, @ReferenceNumber, @Remarks, @BusinessUnitId, @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn)
           `);
-      } catch (pdcErr) {
-        console.warn("⚠️ [SAVE SALE] PaymentDetailCur insert skipped:", pdcErr.message);
-      }
+        console.log(`[SAVE SALE] PaymentDetailCur success.`);
 
       if (memberId && (paymentMethod || "").toUpperCase() === "CREDIT") {
         await transaction.request()
