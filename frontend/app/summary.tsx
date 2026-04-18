@@ -18,7 +18,9 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  Image,
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
@@ -343,12 +345,19 @@ export default function SummaryScreen() {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={isLandscape && !isTablet && { paddingBottom: 20 }}>
               <View style={[styles.receiptCard, isLandscape && !isTablet && { padding: 16 }]}>
                 <View style={[styles.receiptHeader, isLandscape && !isTablet && { marginBottom: 10 }]}>
-                  <Ionicons name="receipt-outline" size={18} color={Theme.primary} />
+                  <View style={{ backgroundColor: Theme.primaryLight, padding: 5, borderRadius: 8 }}>
+                    <Image 
+                      source={require("../assets/images/logo.png")} 
+                      style={{ width: 24, height: 24, borderRadius: 4 }}
+                      resizeMode="contain"
+                    />
+                  </View>
                   <Text style={styles.receiptHeaderText}>Bill Summary</Text>
                   <View style={styles.itemCountChip}>
                     <Text style={styles.itemCountChipText}>{totalItems} items</Text>
                   </View>
                 </View>
+
 
                 <View style={[styles.receiptDivider, isLandscape && !isTablet && { marginBottom: 10 }]} />
 

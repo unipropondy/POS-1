@@ -5,6 +5,7 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +19,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
 import { API_URL } from "../../constants/Config";
@@ -162,13 +164,18 @@ export default function LoginScreen() {
                 {/* Logo */}
                 <View style={[styles.logoWrap, isLandscape && { marginBottom: 15, flexDirection: 'row', gap: 15 }]}>
                   <View style={[styles.logoBadge, isLandscape && { width: 50, height: 50, borderRadius: 15, marginBottom: 0 }]}>
-                    <Ionicons name="restaurant" size={isLandscape ? 28 : 44} color={Theme.primary} />
+                    <Image 
+                      source={require("../../assets/images/logo.png")} 
+                      style={{ width: isLandscape ? 40 : 70, height: isLandscape ? 40 : 70, borderRadius: isLandscape ? 12 : 20 }}
+                      resizeMode="contain"
+                    />
                   </View>
                   <View style={isLandscape && { alignItems: 'flex-start' }}>
                     <Text style={[styles.appName, isLandscape && { fontSize: 20 }]}>Smart POS</Text>
                     <Text style={[styles.appTagline, isLandscape && { fontSize: 11, marginTop: 0 }]}>Point of Sale System</Text>
                   </View>
                 </View>
+
 
                 {/* Card */}
                 <Animated.View style={[styles.card, { transform: [{ translateX: shakeAnim }] }, isLandscape && { padding: 20 }]}>
