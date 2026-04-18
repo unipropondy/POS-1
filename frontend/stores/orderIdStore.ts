@@ -27,8 +27,12 @@ export const getNextOrderId = () => {
   AsyncStorage.setItem("localOrderCounter", String(localOrderCounter)).catch(console.error);
 
   const paddedCounter = String(localOrderCounter).padStart(4, "0");
-  return `${currentDateString}-${paddedCounter}`;
+  const randomSuffix = Math.random().toString(16).slice(2, 6).toUpperCase();
+  
+  // Return a clearly marked temporary ID with a random suffix to avoid multi-device collisions
+  return `TEMP-${currentDateString}-${paddedCounter}-${randomSuffix}`;
 };
+
 
 /**
  * Legacy support for validation, though DB now handles it.
