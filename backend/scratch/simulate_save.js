@@ -26,12 +26,12 @@ async function testSave() {
       taxAmount: 0,
       discountAmount: 0,
       discountType: 'fixed',
-      orderId: 'TEST-123',
+      orderId: 'TEST-SIM-' + Date.now(),
       orderType: 'DINE-IN',
       tableNo: '2',
       section: 'Section-1',
       memberId: null,
-      cashierId: null
+      cashierId: 'FFA46DDA-2871-42BB-BE6D-A547AE9C1B88'
     };
 
     console.log('--- Starting Simulated Save Transaction ---');
@@ -39,10 +39,20 @@ async function testSave() {
     await transaction.begin();
 
     try {
-      const settlementId = DEFAULT_GUID; // Use a fixed GUID for test
+      const settlementIdResult = await transaction.request().query('SELECT NEWID() AS id');
+      const settlementId = settlementIdResult.recordset[0].id;
       const billNo = generateRandomBillId();
 
-      console.log('Step 1: Inserting SettlementHeader...');
+      console.log('Step 1: Resolving BusinessUnitId...');
+      const bizRow = await transaction.request().query(`
+          SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+          UNION ALL
+          SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+      `);
+      let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
+      console.log('BusinessUnitId resolved to:', businessUnitId);
+
+      console.log('Step 2: Inserting SettlementHeader...');
       const insertResult = await transaction.request()
         .input("SettlementID", settlementId)
         .input("LastSettlementDate", new Date())
@@ -56,17 +66,18 @@ async function testSave() {
         .input("Section", body.section || null)
         .input("MemberId", toGuidOrNull(body.memberId))
         .input("CashierID", toGuidOrNull(body.cashierId))
+        .input("BusinessUnitId", sanitizeGuid(businessUnitId))
         .input("SysAmount", body.totalAmount || 0)
         .input("ManualAmount", body.totalAmount || 0)
         .input("CreatedBy", sanitizeGuid(body.cashierId))
         .input("CreatedOn", new Date()).query(`
-          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, SysAmount, ManualAmount, CreatedBy, CreatedOn)
+          INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn)
           OUTPUT inserted.OrderId
-          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
+          VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
         `);
       console.log('SettlementHeader OK, OrderId:', insertResult.recordset[0].OrderId);
 
-      console.log('Step 2: Inserting SettlementTotalSales...');
+      console.log('Step 3: Inserting SettlementTotalSales...');
       await transaction.request()
         .input("SettlementID", settlementId)
         .input("PayMode", 'CASH')
@@ -79,7 +90,7 @@ async function testSave() {
         `);
       console.log('SettlementTotalSales OK');
 
-      console.log('Step 3: Inserting SettlementItemDetail...');
+      console.log('Step 4: Inserting SettlementItemDetail...');
       for (const item of body.items) {
           await transaction.request()
             .input("SettlementID", settlementId)
@@ -97,14 +108,7 @@ async function testSave() {
       }
       console.log('SettlementItemDetail OK');
 
-      console.log('Step 4: Inserting PaymentDetailCur...');
-      const bizRow = await transaction.request().query(`SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL`);
-      let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : null;
-      if (!toGuidOrNull(businessUnitId)) {
-          const bizRow2 = await pool.request().query(`SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL`);
-          businessUnitId = bizRow2.recordset.length > 0 ? bizRow2.recordset[0].BusinessUnitId : DEFAULT_GUID;
-      }
-      
+      console.log('Step 5: Inserting PaymentDetailCur...');
       await transaction.request()
           .input("PaymentId", settlementId)
           .input("RestaurantBillId", settlementId)
@@ -126,8 +130,9 @@ async function testSave() {
           `);
       console.log('PaymentDetailCur OK');
 
-      await transaction.rollback();
-      console.log('--- Test Completed Successfully (Rolled back) ---');
+      await transaction.commit();
+      console.log('--- TEST COMPLETED SUCCESSFULLY (COMMITTED) ---');
+      console.log('Check the sales report now!');
     } catch (err) {
       console.error('--- TRANSACTION ERROR ---');
       console.error(err);
