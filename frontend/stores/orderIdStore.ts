@@ -27,12 +27,10 @@ export const getNextOrderId = () => {
   AsyncStorage.setItem("localOrderCounter", String(localOrderCounter)).catch(console.error);
 
   const paddedCounter = String(localOrderCounter).padStart(4, "0");
-  const randomSuffix = Math.random().toString(16).slice(2, 6).toUpperCase();
   
-  // Return a clearly marked temporary ID with a random suffix to avoid multi-device collisions
-  return `TEMP-${currentDateString}-${paddedCounter}-${randomSuffix}`;
+  // Return simple #YYYYMMDD-NNNN format (adding # here or in UI)
+  return `${currentDateString}-${paddedCounter}`;
 };
-
 
 /**
  * Legacy support for validation, though DB now handles it.
@@ -50,6 +48,21 @@ export const validateOrderId = (orderId: string): boolean => {
 
 export const initializeOrderCounter = async () => {
   try {
+    // 1. Try to fetch from server first
+    try {
+      const response = await fetch(`${API_URL}/api/sales/daily-order-count`);
+      const data = await response.json();
+      if (data && typeof data.nextNumber === 'number') {
+        localOrderCounter = data.nextNumber - 1; // getNextOrderId will increment this
+        const date = new Date();
+        lastDateString = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
+        console.log(`[OrderIdStore] Fetched from server: ${data.nextNumber}`);
+        return;
+      }
+    } catch (e) {
+      console.warn("[OrderIdStore] Failed to fetch count from server, falling back to local storage");
+    }
+
     const savedDate = await AsyncStorage.getItem("lastOrderDateString");
     const savedCounter = await AsyncStorage.getItem("localOrderCounter");
     
@@ -71,4 +84,5 @@ export const initializeOrderCounter = async () => {
     console.error("[OrderIdStore] Failed to init counter", err);
   }
 };
+
 
