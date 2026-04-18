@@ -53,15 +53,17 @@ const TableItemComponent = React.memo(({
   tableData, 
   onPress,
   numberFont,
-  smallFont
+  smallFont,
+  isTabletPortrait
 }: { 
   item: TableItem; 
   itemSize: number; 
-  activeTab: string;
-  tableData: any;
+  activeTab: string; 
+  tableData: any; 
   onPress: (item: TableItem, tableData: any) => void;
   numberFont: number;
   smallFont: number;
+  isTabletPortrait?: boolean;
 }) => {
   const IS_MOBILE = Platform.OS !== 'web';
   let borderColor = Theme.border;
@@ -174,7 +176,14 @@ const TableItemComponent = React.memo(({
             <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={Theme.danger} />
             <Text style={[styles.timeText, { fontSize: smallFont, color: "#B91C1C", fontWeight: "bold" }]}>RESERVED</Text>
             {tableData.lockedByName ? (
-              <View style={{ backgroundColor: "#B91C1C", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 }}>
+              <View style={{ 
+                backgroundColor: "#B91C1C", 
+                paddingHorizontal: 6, 
+                paddingVertical: 2, 
+                borderRadius: 4, 
+                marginTop: 4,
+                marginBottom: isTabletPortrait ? 10 : 0 
+              }}>
                 <Text 
                   style={[styles.lockedNameText, { fontSize: smallFont, color: "#FFF" }]} 
                   numberOfLines={1} 
@@ -514,6 +523,7 @@ export default function Category() {
         onPress={handleTablePress}
         numberFont={numberFont}
         smallFont={smallFont}
+        isTabletPortrait={isTablet && !isLandscape}
       />
     );
   }, [activeTab, tables, activeOrders, carts, itemSize, numberFont, smallFont, handleTablePress]);
@@ -578,7 +588,10 @@ export default function Category() {
                     style={{ marginRight: 5 }}
                   />
                   <Text style={[styles.tabText, isActive && styles.activeTabText, { fontSize: isTablet ? 16 : 13 }]}>
-                    {formatSectionGlobal(SECTION_LABELS[section])}
+                    {!isTablet && !isLandscape 
+                      ? formatSectionGlobal(SECTION_LABELS[section]).replace("Section ", "Sec-")
+                      : formatSectionGlobal(SECTION_LABELS[section])
+                    }
                   </Text>
                   {occupied > 0 && (
                     <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
@@ -607,7 +620,7 @@ export default function Category() {
                 size={20}
                 color={Theme.warning}
               />
-              {isTablet && (
+              {isTablet && isLandscape && (
                 <Text style={[styles.headerActionText, { color: Theme.warning }]}>
                   Lock Tables
                 </Text>
@@ -623,7 +636,7 @@ export default function Category() {
               activeOpacity={0.75}
             >
               <Ionicons name="tv-outline" size={20} color={Theme.info} />
-              {isTablet && (
+              {isTablet && isLandscape && (
                 <Text style={[styles.headerActionText, { color: Theme.info }]}>
                   KDS
                 </Text>
@@ -655,7 +668,11 @@ export default function Category() {
           activeOpacity={1}
           onPress={() => setIsMenuVisible(false)}
         >
-          <View style={[styles.menuContent, !isTablet && isLandscape && { maxHeight: '85%' }]}>
+          <View style={[
+            styles.menuContent, 
+            isTablet && { width: 300, right: 20 },
+            { maxHeight: height * 0.8 }
+          ]}>
             {/* User Info Header */}
             {user && (
               <View style={styles.menuUserSection}>
@@ -709,8 +726,8 @@ export default function Category() {
                 </TouchableOpacity>
               )}
 
-              {/* Legend in Menu for Mobile Landscape */}
-              {!isTablet && isLandscape && (
+              {/* Legend in Menu for Mobile */}
+              {!isTablet && (
                 <>
                   <View style={styles.menuDivider} />
                   <View style={{ padding: 12 }}>
@@ -775,8 +792,9 @@ export default function Category() {
             )}
           </View>
 
-          {/* Legend */}
-          <View style={styles.legend}>
+          {/* Legend - Only show on tablets directly on screen */}
+          {isTablet && (
+            <View style={styles.legend}>
             {[
               { color: Theme.tableSent.border, label: "Dining" },
               { color: Theme.tableHold.border, label: "Hold" },
@@ -789,7 +807,8 @@ export default function Category() {
                 <Text style={styles.legendText}>{item.label}</Text>
               </View>
             ))}
-          </View>
+            </View>
+          )}
         </View>
       )}
 

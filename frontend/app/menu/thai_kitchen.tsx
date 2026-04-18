@@ -258,7 +258,7 @@ export default function MenuScreen() {
   const mainWidth = (isLandscape && !isTablet ? usableWidth : width) - cartWidth;
 
   const columns = isTablet 
-    ? (width > 1200 ? 5 : 3) 
+    ? (isLandscape ? (width > 1200 ? 5 : 3) : 2) 
     : (isLandscape ? 2 : 1); // Back to 2 columns as requested
   
   const gap = isPhone ? (isLandscape ? 12 : 8) : 12;

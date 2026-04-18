@@ -27,7 +27,7 @@ import { API_URL } from "@/constants/Config";
 
 import DiscountModal from "../components/DiscountModal";
 import GstSettingsModal from "../components/GstSettingsModal";
-import { findActiveOrder, useActiveOrdersStore } from "../stores/activeOrdersStore";
+import { findActiveOrder, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { useCartStore } from "../stores/cartStore";
 import { useGstStore } from "../stores/gstStore"; 
 import { getOrderContext } from "../stores/orderContextStore";
@@ -54,6 +54,10 @@ export default function SummaryScreen() {
   const [customCancelReason, setCustomCancelReason] = useState("");
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
   const [loadingReasons, setLoadingReasons] = useState(false);
+  const [cancelPassword, setCancelPassword] = useState("");
+  const [itemToVoid, setItemToVoid] = useState<any | null>(null);
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [voidPassword, setVoidPassword] = useState("");
 
   const { enabled: gstEnabled, percentage: gstPercentage, taxMode, isConfigured: gstConfigured, setEnabled: setGstEnabled, loadSettings: loadGst } = useGstStore();
 
@@ -110,11 +114,8 @@ export default function SummaryScreen() {
   };
 
   const handleCancelOrder = async () => {
-    if (!selectedCancelReason && !customCancelReason.trim()) {
-      showToast({
-        type: "error",
-        message: "Please select or enter a cancellation reason",
-      });
+    if (cancelPassword !== "786") {
+      showToast({ type: "error", message: "Incorrect Password", subtitle: "Admin password required to cancel order" });
       return;
     }
 
@@ -140,6 +141,7 @@ export default function SummaryScreen() {
       setShowCancelModal(false);
       setSelectedCancelReason(null);
       setCustomCancelReason("");
+      setCancelPassword("");
 
       setTimeout(() => {
         router.replace("/(tabs)/category");
@@ -231,16 +233,7 @@ export default function SummaryScreen() {
           </View>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: Theme.dangerBg, borderColor: Theme.dangerBorder, borderWidth: 1 }, !isTablet && isLandscape && { height: 32, paddingHorizontal: 8 }]}
-              onPress={async () => {
-                await fetchCancelReasons();
-                setShowCancelModal(true);
-              }}
-            >
-              <Ionicons name="trash-outline" size={!isTablet && isLandscape ? 16 : 18} color={Theme.danger} />
-              {isLandscape && <Text style={[styles.actionBtnText, { color: Theme.danger }, !isTablet && isLandscape && { fontSize: 10 }]}>Cancel</Text>}
-            </TouchableOpacity>
+
 
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: Theme.infoBg, borderColor: Theme.infoBorder, borderWidth: 1 }, !isTablet && isLandscape && { height: 32, paddingHorizontal: 8 }]}
@@ -326,6 +319,20 @@ export default function SummaryScreen() {
                       ${((item.price || 0) * item.qty).toFixed(2)}
                     </Text>
                   </View>
+
+                  {/* BIN BUTTON (VOID) */}
+                  {((item as any).status !== "VOIDED") && (
+                    <TouchableOpacity 
+                      style={styles.itemTrashBtn}
+                      onPress={() => {
+                        setItemToVoid(item);
+                        setVoidPassword("");
+                        setShowVoidModal(true);
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={Theme.danger} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             />
@@ -484,6 +491,18 @@ export default function SummaryScreen() {
                       multiline
                     />
                   )}
+
+                  <View style={{ height: 20 }} />
+                  <Text style={[styles.modalDesc, { marginBottom: 10, fontWeight: 'bold', color: Theme.textPrimary }]}>Enter Admin Password</Text>
+                  <TextInput
+                    style={[styles.customReasonInput, { minHeight: 50, marginTop: 0 }]}
+                    placeholder="Admin Password"
+                    placeholderTextColor={Theme.textMuted}
+                    value={cancelPassword}
+                    onChangeText={setCancelPassword}
+                    secureTextEntry
+                    keyboardType="number-pad"
+                  />
                 </ScrollView>
               )}
 
@@ -516,6 +535,60 @@ export default function SummaryScreen() {
               </View>
             </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* VOID ITEM MODAL */}
+      <Modal transparent visible={showVoidModal} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 350 }]}>
+            <Text style={styles.modalTitle}>Void Item?</Text>
+            <Text style={styles.modalDesc}>
+              Enter password to void "{itemToVoid?.name}". This will mark the item as cancelled.
+            </Text>
+            
+            <TextInput
+              style={[styles.customReasonInput, { minHeight: 50, marginTop: 0 }]}
+              placeholder="Admin Password"
+              placeholderTextColor={Theme.textMuted}
+              value={voidPassword}
+              onChangeText={setVoidPassword}
+              secureTextEntry
+              keyboardType="number-pad"
+              autoFocus
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalBtnCancel}
+                onPress={() => {
+                  setShowVoidModal(false);
+                  setItemToVoid(null);
+                  setVoidPassword("");
+                }}
+              >
+                <Text style={styles.modalBtnTextCancel}>Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtnConfirm, { backgroundColor: Theme.danger }]}
+                onPress={() => {
+                  if (voidPassword === "786") {
+                    if (activeOrder && itemToVoid) {
+                      voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+                      showToast({ type: "success", message: "Item Voided" });
+                      setShowVoidModal(false);
+                      setItemToVoid(null);
+                      setVoidPassword("");
+                    }
+                  } else {
+                    showToast({ type: "error", message: "Incorrect Password" });
+                  }
+                }}
+              >
+                <Text style={styles.modalBtnTextConfirm}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -657,6 +730,14 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary,
     fontFamily: Fonts.black,
     fontSize: 17,
+  },
+  itemTrashBtn: {
+    padding: 8,
+    backgroundColor: Theme.bgMuted,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    marginLeft: 10,
   },
   receiptContainer: {
     width: "100%",

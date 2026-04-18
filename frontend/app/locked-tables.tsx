@@ -12,11 +12,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
   StatusBar,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { setOrderContext } from "../stores/orderContextStore";
@@ -50,6 +51,8 @@ const SOLID_LIGHT_AMBER = '#FFFBEB';
 const SOLID_LIGHT_RED   = '#FEF2F2';
 
 export default function LockedTablesScreen() {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const IS_MOBILE = Platform.OS !== 'web';
   const [lockedTables, setLockedTables] = useState<TableType[]>([]);
@@ -231,6 +234,23 @@ export default function LockedTablesScreen() {
     }
   };
 
+  const isTablet = Math.min(width, height) >= 500;
+  const isLandscape = width > height;
+
+  let columns = 3;
+  if (isTablet) {
+    if (width < 768) columns = 4;
+    else if (width < 1024) columns = 6;
+    else columns = 8;
+  } else {
+    columns = isLandscape ? 5 : 3;
+  }
+
+  const GAP = 12; // Slightly tighter gap for better 3-col fit
+  const PADDING = 20;
+  const availableWidth = width - (PADDING * 2) - insets.left - insets.right;
+  const itemSize = Math.floor((availableWidth - (GAP * (columns - 1))) / columns);
+
   const sectionTables = React.useMemo(() => {
     return allTables.filter((t) => getSectionFromDiningSection(t.diningSection) === activeSection);
   }, [allTables, activeSection]);
@@ -243,6 +263,10 @@ export default function LockedTablesScreen() {
     // Define "Active" as anything with an order that isn't EMPTY or LOCKED
     const isActive = tableStatus && ['SENT', 'HOLD', 'BILL_REQUESTED'].includes(tableStatus.status);
 
+    const iconSize = Math.max(22, itemSize * 0.18);
+    const numberSize = Math.max(18, itemSize * 0.22);
+    const statusSize = Math.max(9, itemSize * 0.08);
+
     const cardBg = item.isLocked 
       ? (IS_MOBILE ? SOLID_LIGHT_RED : Theme.danger + "10")
       : isActive 
@@ -253,6 +277,8 @@ export default function LockedTablesScreen() {
       <View style={[
         styles.tableCard, 
         { 
+          width: itemSize,
+          height: itemSize * 1.15, // Vertically bigger to avoid congestion
           backgroundColor: cardBg,
           elevation: (item.isLocked || isActive) ? 0 : 2, // Fix fill artifacts
           borderWidth: (item.isLocked || isActive) ? 2 : 1.5,
@@ -274,15 +300,15 @@ export default function LockedTablesScreen() {
             }
           }}
         >
-          <View style={[styles.tableIcon, item.isLocked && styles.lockedIcon, isActive && styles.activeIcon]}>
+          <View style={[styles.tableIcon, item.isLocked && styles.lockedIcon, isActive && styles.activeIcon, { width: itemSize * 0.4, height: itemSize * 0.4, borderRadius: itemSize * 0.12 }]}>
             <Ionicons
               name={item.isLocked ? "lock-closed" : isActive ? "restaurant" : "lock-open-outline"}
-              size={24}
+              size={iconSize}
               color={item.isLocked ? Theme.danger : isActive ? Theme.success : Theme.textMuted}
             />
           </View>
-          <Text style={styles.tableNumber}>{item.tableNumber}</Text>
-          <Text style={[styles.tableStatus, item.isLocked && styles.lockedStatus, isActive && styles.activeStatus]}>
+          <Text style={[styles.tableNumber, { fontSize: numberSize }]}>{item.tableNumber}</Text>
+          <Text style={[styles.tableStatus, item.isLocked && styles.lockedStatus, isActive && styles.activeStatus, { fontSize: statusSize }]}>
             {item.isLocked ? "LOCKED" : isActive ? "IN USE" : "AVAILABLE"}
           </Text>
         </TouchableOpacity>
@@ -321,10 +347,17 @@ export default function LockedTablesScreen() {
       {lockedTables.length > 0 && (
         <View style={styles.lockedPreviewContainer}>
           <Text style={styles.lockedPreviewTitle}>🔒 RESERVED TABLES ({lockedTables.length})</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lockedTablesScroll}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.lockedTablesScrollContent}
+            style={styles.lockedTablesScroll}
+          >
             {lockedTables.map((table, index) => (
               <View key={`${table.tableId}-${index}`} style={styles.lockedTablePreview}>
-                <Ionicons name="lock-closed" size={16} color={Theme.danger} />
+                <View style={styles.lockedTablePreviewIcon}>
+                  <Ionicons name="lock-closed" size={14} color={Theme.danger} />
+                </View>
                 <Text style={styles.lockedTablePreviewNo}>Table {table.tableNumber}</Text>
               </View>
             ))}
@@ -332,24 +365,38 @@ export default function LockedTablesScreen() {
         </View>
       )}
 
-      {/* Section Tabs */}
-      <View style={styles.sectionTabs}>
-        {SECTIONS.map((section) => (
-          <TouchableOpacity
-            key={section}
-            style={[styles.sectionTab, activeSection === section && styles.activeSectionTab]}
-            onPress={() => setActiveSection(section)}
-          >
-            <Text style={[styles.sectionTabText, activeSection === section && styles.activeSectionTabText]}>
-              {SECTION_LABELS[section]}
-            </Text>
-            <View style={[styles.sectionTabBadge, activeSection === section && styles.activeSectionTabBadge]}>
-              <Text style={styles.sectionTabBadgeText}>
-                {allTables.filter((t) => getSectionFromDiningSection(t.diningSection) === section && t.isLocked).length}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+      {/* Section Tabs - Scrollable */}
+      <View style={styles.sectionTabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sectionTabsScrollContent}
+        >
+          {SECTIONS.map((section) => {
+            const isActive = activeSection === section;
+            const lockedCount = allTables.filter((t) => getSectionFromDiningSection(t.diningSection) === section && t.isLocked).length;
+            
+            return (
+              <TouchableOpacity
+                key={section}
+                style={[styles.sectionTab, isActive && styles.activeSectionTab]}
+                onPress={() => setActiveSection(section)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.sectionTabText, isActive && styles.activeSectionTabText]}>
+                  {SECTION_LABELS[section]}
+                </Text>
+                {lockedCount > 0 && (
+                  <View style={[styles.sectionTabBadge, isActive && styles.activeSectionTabBadge]}>
+                    <Text style={[styles.sectionTabBadgeText, isActive && styles.activeSectionTabBadgeText]}>
+                      {lockedCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {loading ? (
@@ -362,7 +409,8 @@ export default function LockedTablesScreen() {
           data={sectionTables}
           keyExtractor={(item) => item.tableId}
           renderItem={renderTableItem}
-          numColumns={4}
+          key={columns}
+          numColumns={columns}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
@@ -453,63 +501,76 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Theme.success + "30",
   },
   lockedPreviewContainer: { padding: 20, backgroundColor: Theme.bgCard, borderBottomWidth: 1, borderBottomColor: Theme.border },
-  lockedPreviewTitle: { color: Theme.textSecondary, fontFamily: Fonts.black, fontSize: 13, marginBottom: 15 },
+  lockedPreviewTitle: { color: Theme.textSecondary, fontFamily: Fonts.black, fontSize: 13, marginBottom: 15, letterSpacing: 0.5 },
   lockedTablesScroll: { flexDirection: "row" },
+  lockedTablesScrollContent: { paddingRight: 20 },
   lockedTablePreview: {
-    flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 15, paddingVertical: 10,
-    backgroundColor: Theme.danger + "15", borderRadius: 10, marginRight: 10, borderWidth: 1, borderColor: Theme.danger + "30",
+    flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 12,
+    backgroundColor: Theme.danger + "08", borderRadius: 14, marginRight: 12, borderWidth: 1, borderColor: Theme.danger + "20",
+  },
+  lockedTablePreviewIcon: {
+    width: 28, height: 28, borderRadius: 8, backgroundColor: Theme.danger + "10",
+    justifyContent: "center", alignItems: "center",
   },
   lockedTablePreviewNo: { color: Theme.danger, fontFamily: Fonts.bold, fontSize: 14 },
-  sectionTabs: { flexDirection: "row", padding: 20, gap: 10 },
+  sectionTabsContainer: { paddingVertical: 15, backgroundColor: Theme.bgMain },
+  sectionTabsScrollContent: { paddingHorizontal: 20, gap: 10 },
   sectionTab: {
-    flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: Theme.bgCard,
-    borderWidth: 1, borderColor: Theme.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingHorizontal: 18, paddingVertical: 10, borderRadius: 100, backgroundColor: Theme.bgCard,
+    borderWidth: 1, borderColor: Theme.border, flexDirection: "row", alignItems: "center", gap: 8,
+    ...Theme.shadowSm,
   },
   activeSectionTab: { backgroundColor: Theme.primary, borderColor: Theme.primary, ...Theme.shadowMd },
   sectionTabText: { color: Theme.textSecondary, fontFamily: Fonts.bold, fontSize: 12 },
   activeSectionTabText: { color: "#fff" },
-  sectionTabBadge: { backgroundColor: Theme.bgMuted, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, minWidth: 28, alignItems: "center" },
+  sectionTabBadge: { backgroundColor: Theme.bgMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, minWidth: 22, alignItems: "center" },
   activeSectionTabBadge: { backgroundColor: "rgba(255,255,255,0.25)" },
-  sectionTabBadgeText: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 11 },
+  sectionTabBadgeText: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 10 },
+  activeSectionTabBadgeText: { color: "#fff" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { color: Theme.textSecondary, fontFamily: Fonts.medium, fontSize: 14, marginTop: 12 },
   gridContent: { paddingHorizontal: 20, paddingBottom: 100 },
-  gridRow: { gap: 15, marginBottom: 15 },
+  gridRow: { gap: 12, marginBottom: 12 }, // Use 12 to match GAP
   tableCard: {
-    flex: 1, position: "relative", borderRadius: 20, backgroundColor: Theme.bgCard,
-    borderWidth: 1.5, borderColor: Theme.border, minHeight: 140, ...Theme.shadowSm,
+    position: "relative",
+    borderRadius: 28, // Rounder for premium feel
+    backgroundColor: Theme.bgCard,
+    borderWidth: 1.5,
+    borderColor: Theme.border,
+    ...Theme.shadowSm,
   },
   lockedCard: { backgroundColor: Theme.warning + "10", borderColor: Theme.warning + "40" },
-  tableContent: { flex: 1, padding: 15, alignItems: "center", justifyContent: "center" },
+  tableContent: { flex: 1, padding: 12, alignItems: "center", justifyContent: "center" },
   tableIcon: {
-    width: 56, height: 56, borderRadius: 16, backgroundColor: Theme.bgMuted,
-    justifyContent: "center", alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: Theme.border,
+    width: 56, height: 56, borderRadius: 18, backgroundColor: Theme.bgMuted,
+    justifyContent: "center", alignItems: "center", marginBottom: 14, borderWidth: 1, borderColor: Theme.border,
   },
-  lockedIcon: { backgroundColor: Theme.danger + "15", borderColor: Theme.danger + "30" },
-  tableNumber: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 20, letterSpacing: 0.5 },
-  tableStatus: { color: Theme.textMuted, fontFamily: Fonts.bold, fontSize: 11, marginTop: 8, textTransform: "uppercase" },
+  lockedIcon: { backgroundColor: Theme.danger + "10", borderColor: Theme.danger + "20" },
+  tableNumber: { color: Theme.textPrimary, fontFamily: Fonts.black, letterSpacing: 0.8 },
+  tableStatus: { color: Theme.textMuted, fontFamily: Fonts.bold, marginTop: 10, textTransform: "uppercase", letterSpacing: 0.5 },
   lockedStatus: { color: Theme.danger },
   activeCard: { backgroundColor: Theme.success + "05", borderColor: Theme.success + "30" },
   activeIcon: { backgroundColor: Theme.success + "10", borderColor: Theme.success + "20" },
   activeStatus: { color: Theme.success },
   unlockBtn: {
     position: "absolute", 
-    top: -8, 
-    left: -8, 
+    top: -10, 
+    right: -10, 
     width: 32, 
     height: 32, 
     borderRadius: 16,
     backgroundColor: Theme.bgCard, 
     justifyContent: "center", 
     alignItems: "center", 
-    borderWidth: 1, 
+    borderWidth: 1.5, 
     borderColor: Theme.danger + "40",
     ...Theme.shadowMd,
     zIndex: 10,
   },
   footer: {
-    position: "absolute", bottom: 0, left: 0, right: 0, padding: 20,
+    position: "absolute", bottom: 0, left: 0, right: 0, padding: 15,
     backgroundColor: Theme.bgCard, borderTopWidth: 1, borderTopColor: Theme.border,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 15,
   },
   infoRow: { flexDirection: "row", justifyContent: "center", gap: 20 },
   infoBadge: { flexDirection: "row", alignItems: "center", gap: 8 },
