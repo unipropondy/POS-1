@@ -201,6 +201,7 @@ export default function CartScreen() {
 
   const tables = useTableStatusStore((s: any) => s.tables);
   const updateTableStatus = useTableStatusStore((s: any) => s.updateTableStatus);
+  const syncStatusWithBackend = useTableStatusStore((s: any) => s.syncStatusWithBackend);
 
   const activeOrder = useMemo(() => {
     if (!orderContext) return undefined;
@@ -346,13 +347,8 @@ export default function CartScreen() {
     if (context.orderType === "DINE_IN") {
       const tableId = currentTableData?.tableId;
       if (tableId) {
-        fetch(`${API_URL}/api/tables/${tableId}/status`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: 1 }),
-        });
+        syncStatusWithBackend(tableId, 1);
       }
-      updateTableStatus(tableId || "", context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
       router.replace(`/(tabs)/category?section=${context.section}`);
     } else if (context.orderType === "TAKEAWAY") {
@@ -460,13 +456,8 @@ export default function CartScreen() {
                     if (orderContext.orderType === "DINE_IN") {
                       const tableId = currentTableData?.tableId;
                       if (tableId) {
-                        fetch(`${API_URL}/api/tables/${tableId}/status`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ status: 2 }),
-                        });
+                        syncStatusWithBackend(tableId, 2);
                       }
-                      updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
                       router.replace(`/(tabs)/category?section=${orderContext.section}`);
@@ -504,13 +495,8 @@ export default function CartScreen() {
                       if (orderContext.orderType === "DINE_IN") {
                         const tableId = currentTableData?.tableId;
                         if (tableId) {
-                          fetch(`${API_URL}/api/tables/${tableId}/status`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: 3 }),
-                          });
+                          syncStatusWithBackend(tableId, 3);
                         }
-                        updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
                         router.replace(`/(tabs)/category?section=${orderContext.section}`);
                       } else {
                         router.push("/summary");
