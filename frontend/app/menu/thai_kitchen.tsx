@@ -323,7 +323,7 @@ export default function MenuScreen() {
         setIsInitialLoading(false);
       });
 
-    fetch(`${API_URL}/api/dishes/all`)
+    fetch(`${API_URL}/api/menu/dishes/all`)
       .then((res) => res.json())
       .then((data) => setAllDishes(Array.isArray(data) ? data : []))
       .catch((e) => console.log(e));
