@@ -93,24 +93,21 @@ export default function LockedTablesScreen() {
 
       setLockedTables(locked);
 
-      const availableTables: TableType[] = Array.isArray(tablesData)
-        ? tablesData.map((table: any) => {
-            const tId = table.id || table.TableId;
-            const tNum = table.label || table.TableNumber;
-            const isLocked = locked.some((t: any) => {
-              const lockedId = t.tableId || t.TableId;
-              const lockedNum = String(t.tableNumber || t.TableNumber || "");
-              return String(lockedId) === String(tId) || lockedNum === String(tNum);
-            });
+        const availableTables: TableType[] = Array.isArray(tablesData)
+          ? tablesData.map((table: any) => {
+              const tId = table.id || table.TableId;
+              const tNum = table.label || table.TableNumber;
+              const status = Number(table.Status) || 0;
+              const isLocked = status === 4;
 
-            return {
-              tableId: tId,
-              tableNumber: tNum,
-              diningSection: Number(table.DiningSection) || 1,
-              isLocked,
-            };
-          })
-        : [];
+              return {
+                tableId: tId,
+                tableNumber: tNum,
+                diningSection: Number(table.DiningSection) || 1,
+                isLocked,
+              };
+            })
+          : [];
 
       setAllTables(availableTables);
     } catch (err) {
@@ -268,7 +265,7 @@ export default function LockedTablesScreen() {
     const statusSize = Math.max(9, itemSize * 0.08);
 
     const cardBg = item.isLocked 
-      ? (IS_MOBILE ? SOLID_LIGHT_RED : Theme.danger + "10")
+      ? (IS_MOBILE ? SOLID_LIGHT_RED : "#F4433610")
       : isActive 
         ? (IS_MOBILE ? SOLID_LIGHT_GREEN : Theme.success + "05")
         : Theme.bgCard;
@@ -282,7 +279,7 @@ export default function LockedTablesScreen() {
           backgroundColor: cardBg,
           elevation: (item.isLocked || isActive) ? 0 : 2, // Fix fill artifacts
           borderWidth: (item.isLocked || isActive) ? 2 : 1.5,
-          borderColor: item.isLocked ? Theme.danger + "40" : isActive ? Theme.success + "30" : Theme.border
+          borderColor: item.isLocked ? "#F4433640" : isActive ? Theme.success + "30" : Theme.border
         }
       ]}>
         <TouchableOpacity
@@ -304,12 +301,12 @@ export default function LockedTablesScreen() {
             <Ionicons
               name={item.isLocked ? "lock-closed" : isActive ? "restaurant" : "lock-open-outline"}
               size={iconSize}
-              color={item.isLocked ? Theme.danger : isActive ? Theme.success : Theme.textMuted}
+              color={item.isLocked ? "#F44336" : isActive ? Theme.success : Theme.textMuted}
             />
           </View>
           <Text style={[styles.tableNumber, { fontSize: numberSize }]}>{item.tableNumber}</Text>
-          <Text style={[styles.tableStatus, item.isLocked && styles.lockedStatus, isActive && styles.activeStatus, { fontSize: statusSize }]}>
-            {item.isLocked ? "LOCKED" : isActive ? "IN USE" : "AVAILABLE"}
+          <Text style={[styles.tableStatus, item.isLocked && { color: "#F44336" }, isActive && styles.activeStatus, { fontSize: statusSize }]}>
+            {item.isLocked ? "RESERVED" : isActive ? "IN USE" : "AVAILABLE"}
           </Text>
         </TouchableOpacity>
 
@@ -319,7 +316,7 @@ export default function LockedTablesScreen() {
             onPress={() => unlockTable(item.tableId, item.tableNumber)}
             activeOpacity={0.7}
           >
-            <Ionicons name="close-circle" size={18} color={Theme.danger} />
+            <Ionicons name="close-circle" size={18} color="#F44336" />
           </TouchableOpacity>
         )}
       </View>

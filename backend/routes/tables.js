@@ -66,7 +66,8 @@ router.get("/all", async (req, res) => {
 
     let query = `
       SELECT TableId AS id, CAST(TableNumber AS VARCHAR(50)) AS label,
-      CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName
+      CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName,
+      Status
       FROM TableMaster
     `;
 
@@ -90,7 +91,7 @@ router.get("/locked", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT TableId as tableId, TableNumber as tableNumber, DiningSection, LockedByName as lockedByName
-      FROM TableMaster WHERE Status = 1
+      FROM TableMaster WHERE Status = 4
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -109,7 +110,7 @@ router.post("/lock-persistent", async (req, res) => {
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 
     await request.query(`
-      UPDATE TableMaster SET Status = 1, LockedByName = @lockedByName WHERE TableId = @tableId
+      UPDATE TableMaster SET Status = 4, LockedByName = @lockedByName WHERE TableId = @tableId
     `);
     res.json({ success: true });
   } catch (err) {
