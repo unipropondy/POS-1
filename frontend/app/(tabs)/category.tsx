@@ -28,8 +28,8 @@ import {
   useCartStore,
 } from "../../stores/cartStore";
 import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
-import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { setOrderContext } from "../../stores/orderContextStore";
+import { useTableStatusStore } from "../../stores/tableStatusStore";
 import { useAuthStore } from "../../stores/authStore";
 
 // --- MOBILE SOLID COLORS ---
@@ -188,7 +188,6 @@ type TableItem = {
   label: string;
   DiningSection: number;
   Status: number;
-  StartTime?: any;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];

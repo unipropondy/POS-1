@@ -331,7 +331,7 @@ export default function CartScreen() {
     setEditingItem(item);
   }, []);
 
-  const sendOrder = async () => {
+  const sendOrder = () => {
     const context = orderContext;
     if (!context || cart.length === 0) return;
 
@@ -346,11 +346,11 @@ export default function CartScreen() {
     if (context.orderType === "DINE_IN") {
       const tableId = currentTableData?.tableId;
       if (tableId) {
-        await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+        fetch(`${API_URL}/api/tables/${tableId}/status`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: 1 }),
-        }).catch(err => console.error("Failed to update table status to Dining:", err));
+        });
       }
       updateTableStatus(tableId || "", context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
@@ -453,18 +453,18 @@ export default function CartScreen() {
               <>
                 <Pressable
                   style={[styles.checkoutBtn, { backgroundColor: Theme.info }]}
-                  onPress={async () => {
+                  onPress={() => {
                     let targetOrderId = activeOrder?.orderId;
                     if (!targetOrderId) targetOrderId = getNextOrderId();
 
                     if (orderContext.orderType === "DINE_IN") {
                       const tableId = currentTableData?.tableId;
                       if (tableId) {
-                        await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+                        fetch(`${API_URL}/api/tables/${tableId}/status`, {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ status: 2 }),
-                        }).catch(err => console.error("Failed to update table status to Hold:", err));
+                        });
                       }
                       updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
@@ -508,7 +508,7 @@ export default function CartScreen() {
                             method: "PUT",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ status: 3 }),
-                          }).catch(err => console.error("Failed to update table status to Checkout:", err));
+                          });
                         }
                         updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
                         router.replace(`/(tabs)/category?section=${orderContext.section}`);
