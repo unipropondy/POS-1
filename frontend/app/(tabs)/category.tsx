@@ -48,12 +48,15 @@ const formatSectionGlobal = (sec: string) => {
 
 const getStatusUI = (status: number) => {
   const s = Number(status);
-  if (s === 1) return { text: "DINING", color: "#4CAF50", lightBg: "#F0FDF4" };
-  if (s === 2) return { text: "HOLD", color: "#2196F3", lightBg: "#F0F9FF" };
-  if (s === 3) return { text: "CHECKOUT", color: "#FF9800", lightBg: "#FFFBEB" };
-  if (s === 4) return { text: "RESERVED", color: "#F44336", lightBg: "#FEF2F2" };
-  if (s === 5) return { text: "OVERTIME", color: "#9C27B0", lightBg: "#F5F3FF" };
-  return { text: "AVAILABLE", color: Theme.textMuted, lightBg: Theme.bgCard };
+  switch (s) {
+    case 1: return { text: "DINING", color: "#4CAF50", lightBg: "#F0FDF4" };
+    case 2: return { text: "HOLD", color: "#2196F3", lightBg: "#F0F9FF" };
+    case 3: return { text: "CHECKOUT", color: "#FF9800", lightBg: "#FFFBEB" };
+    case 4: return { text: "RESERVED", color: "#F44336", lightBg: "#FEF2F2" };
+    case 5: return { text: "OVERTIME", color: "#9C27B0", lightBg: "#F5F3FF" };
+    case 0:
+    default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" };
+  }
 };
 
 // --- MEMOIZED TABLE COMPONENT ---
@@ -76,26 +79,20 @@ const TableItemComponent = React.memo(({
   smallFont: number;
   isTabletPortrait?: boolean;
 }) => {
-  const IS_MOBILE = Platform.OS !== 'web';
   const status = Number(item.Status);
   const ui = getStatusUI(status);
-  const isOccupied = status === 1 || status === 2 || status === 3 || status === 4 || status === 5;
-
-  let borderColor = isOccupied ? ui.color : Theme.border;
-  let bgColor = IS_MOBILE && isOccupied ? ui.lightBg : Theme.bgCard;
-  let textColor = isOccupied ? ui.color : Theme.textPrimary;
+  
+  // Use ONLY ui values derived from status
+  const borderColor = status === 0 ? Theme.border : ui.color;
+  const bgColor = (Platform.OS !== 'web' && status !== 0) ? ui.lightBg : Theme.bgCard;
+  const textColor = status === 0 ? Theme.textPrimary : ui.color;
+  
   let timeText = "";
   let billAmount = tableData?.billAmount || 0;
-  let statusLabel = ui.text;
-  let statusColor = ui.color;
 
-  if (tableData && tableData.startTime) {
+  if (tableData && tableData.startTime && status !== 0 && status !== 4) {
     const time = new Date(tableData.startTime);
-    const hours = time.getHours().toString().padStart(2, "0");
-    const mins = time.getMinutes().toString().padStart(2, "0");
-    if (status !== 4 && status !== 0) {
-      timeText = `${hours}:${mins}`;
-    }
+    timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
   }
 
   return (
@@ -108,59 +105,54 @@ const TableItemComponent = React.memo(({
           height: itemSize,
           borderColor,
           backgroundColor: bgColor,
-          borderWidth: isOccupied ? 2 : 1.5,
-          elevation: isOccupied ? 0 : 2, 
+          borderWidth: status !== 0 ? 2 : 1.5,
+          elevation: status !== 0 ? 0 : 2, 
         },
       ]}
       onPress={() => onPress(item, tableData)}
     >
       <View style={styles.tableContent}>
-        <Text style={[styles.tableNumber, { fontSize: numberFont, color: isOccupied ? textColor : Theme.textPrimary }]}>
+        <Text style={[styles.tableNumber, { fontSize: numberFont, color: Theme.textPrimary }]}>
           {item.label}
         </Text>
 
-        {isOccupied && status !== 4 && (
+        {status !== 0 && (
           <View style={styles.tableInfo}>
-            {statusLabel ? (
-              <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor }]}>
-                <Text style={[styles.statusChipText, { color: statusColor, fontSize: smallFont }]}>
-                  {statusLabel}
-                </Text>
-              </View>
-            ) : null}
-            <View style={styles.tableStats}>
-              {timeText ? (
-                <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
-                   <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
-                </Text>
-              ) : null}
-              {billAmount > 0 && (
-                <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
-                  ${billAmount.toFixed(2)}
-                </Text>
-              )}
+            <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
+              <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
+                {ui.text}
+              </Text>
             </View>
+            
+            {status !== 4 && (
+              <View style={styles.tableStats}>
+                {timeText ? (
+                  <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
+                    <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
+                  </Text>
+                ) : null}
+                {billAmount > 0 && (
+                  <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
+                    ${billAmount.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         )}
 
-        {isOccupied && status === 4 && (
+        {status === 4 && (
           <View style={styles.lockedOverlay}>
             <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={ui.color} />
-            <Text style={[styles.timeText, { fontSize: smallFont, color: ui.color, fontWeight: "bold" }]}>RESERVED</Text>
             {tableData?.lockedByName ? (
               <View style={{ 
                 backgroundColor: ui.color, 
                 paddingHorizontal: 6, 
                 paddingVertical: 2, 
                 borderRadius: 4, 
-                marginTop: 4,
-                marginBottom: isTabletPortrait ? 10 : 0 
+                marginTop: 2 
               }}>
-                <Text 
-                  style={[styles.lockedNameText, { fontSize: smallFont, color: "#FFF" }]} 
-                  numberOfLines={1} 
-                  ellipsizeMode="tail"
-                >
+                <Text style={{ fontSize: smallFont - 1, color: "#FFF", fontWeight: "bold" }} numberOfLines={1}>
                   {tableData.lockedByName}
                 </Text>
               </View>
@@ -414,10 +406,7 @@ export default function Category() {
     return false;
   });
 
-  const occupiedCount = currentTables.filter((t) => {
-    const td = tables.find((st: any) => st.section === activeTab && st.tableNo === t.label);
-    return !!td;
-  }).length;
+  const occupiedCount = currentTables.filter((t) => t.Status !== 0).length;
 
   // ──── STATUS HANDLERS (OPTIMISTIC) ────
   const updateTableStatus = async (tableId: string, status: number, lockedByName?: string) => {
@@ -602,9 +591,7 @@ export default function Category() {
                 if (section === "SECTION_3") return t.DiningSection === 3;
                 return false;
               });
-              const occupied = sectionTables.filter((t) =>
-                tables.some((st: any) => st.section === section && st.tableNo === t.label)
-              ).length;
+              const occupied = sectionTables.filter((t) => t.Status !== 0).length;
 
               return (
                 <TouchableOpacity

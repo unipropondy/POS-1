@@ -106,11 +106,12 @@ router.post("/lock-persistent", async (req, res) => {
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     const request = pool.request();
-    request.input("tableId", sql.UniqueIdentifier, tableId);
+    request.input("tableId", sql.VarChar(50), tableId.replace(/^\{|\}$/g, "").trim());
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 
     await request.query(`
-      UPDATE TableMaster SET Status = 4, LockedByName = @lockedByName WHERE TableId = @tableId
+      UPDATE TableMaster SET Status = 4, LockedByName = @lockedByName 
+      WHERE CAST(TableId AS VARCHAR(50)) = @tableId
     `);
     res.json({ success: true });
   } catch (err) {
@@ -125,7 +126,7 @@ router.post("/unlock-persistent", async (req, res) => {
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     await pool.request()
-      .input("tableId", sql.VarChar(50), tableId)
+      .input("tableId", sql.VarChar(50), tableId.replace(/^\{|\}$/g, "").trim())
       .query(`
         UPDATE TableMaster SET Status = 0, LockedByName = NULL 
         WHERE CAST(TableId AS VARCHAR(50)) = @tableId
@@ -145,7 +146,7 @@ router.put("/:tableId/status", async (req, res) => {
     if (status === undefined) return res.status(400).json({ error: "status is required" });
 
     const request = pool.request();
-    request.input("tableId", sql.VarChar(50), tableId);
+    request.input("tableId", sql.VarChar(50), tableId.replace(/^\{|\}$/g, "").trim());
     request.input("status", sql.Int, Number(status));
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 

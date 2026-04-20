@@ -29,6 +29,20 @@ type TableType = {
   tableNumber: string;
   isLocked?: boolean;
   diningSection?: number;
+  status: number;
+};
+
+const getStatusUI = (status: number) => {
+  const s = Number(status);
+  switch (s) {
+    case 1: return { text: "DINING", color: "#4CAF50", lightBg: "#F0FDF4" };
+    case 2: return { text: "HOLD", color: "#2196F3", lightBg: "#F0F9FF" };
+    case 3: return { text: "CHECKOUT", color: "#FF9800", lightBg: "#FFFBEB" };
+    case 4: return { text: "RESERVED", color: "#F44336", lightBg: "#FEF2F2" };
+    case 5: return { text: "OVERTIME", color: "#9C27B0", lightBg: "#F5F3FF" };
+    case 0:
+    default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" };
+  }
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
@@ -95,18 +109,19 @@ export default function LockedTablesScreen() {
 
         const availableTables: TableType[] = Array.isArray(tablesData)
           ? tablesData.map((table: any) => {
-              const tId = table.id || table.TableId;
-              const tNum = table.label || table.TableNumber;
-              const status = Number(table.Status) || 0;
-              const isLocked = status === 4;
+              const tId = String(table.id || table.TableId || "").replace(/^\{|\}$/g, "").trim();
+            const tNum = table.label || table.TableNumber;
+            const status = Number(table.Status) || 0;
+            const isLocked = status === 4;
 
-              return {
-                tableId: tId,
-                tableNumber: tNum,
-                diningSection: Number(table.DiningSection) || 1,
-                isLocked,
-              };
-            })
+            return {
+              tableId: tId,
+              tableNumber: tNum,
+              diningSection: Number(table.DiningSection) || 1,
+              status,
+              isLocked,
+            };
+          })
           : [];
 
       setAllTables(availableTables);
@@ -169,7 +184,8 @@ export default function LockedTablesScreen() {
   };
 
   const lockTable = (tableId: string, tableNumber: string) => {
-    setLockingTableId(tableId);
+    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+    setLockingTableId(cleanId);
     setLockingTableNumber(tableNumber);
     setLockModalName("");
     setLockModalVisible(true);
@@ -187,8 +203,8 @@ export default function LockedTablesScreen() {
 
       if (res.ok) {
         setLockModalVisible(false);
-        setAllTables((prev) => prev.map((t) => t.tableId === lockingTableId ? { ...t, isLocked: true } : t));
-        setLockedTables((prev) => [...prev, { tableId: lockingTableId, tableNumber: lockingTableNumber }]);
+        setAllTables((prev) => prev.map((t) => t.tableId === lockingTableId ? { ...t, isLocked: true, status: 4 } : t));
+        setLockedTables((prev) => [...prev, { tableId: lockingTableId, tableNumber: lockingTableNumber, status: 4 }]);
         fetchData();
       } else {
         const data = await res.json();
@@ -253,64 +269,65 @@ export default function LockedTablesScreen() {
   }, [allTables, activeSection]);
 
   const renderTableItem = ({ item }: { item: TableType }) => {
-    const tableStatus = useTableStatusStore.getState().tables.find(t => 
+    const tableStatusData = useTableStatusStore.getState().tables.find(t => 
       t.section === getSectionFromDiningSection(item.diningSection) && t.tableNo === item.tableNumber
     );
     
-    // Define "Active" as anything with an order that isn't EMPTY or LOCKED
-    const isActive = tableStatus && ['SENT', 'HOLD', 'BILL_REQUESTED'].includes(tableStatus.status);
-
+    const status = Number(item.status || (tableStatusData?.status === 'LOCKED' ? 4 : 0));
+    const ui = getStatusUI(status);
+    
     const iconSize = Math.max(22, itemSize * 0.18);
     const numberSize = Math.max(18, itemSize * 0.22);
     const statusSize = Math.max(9, itemSize * 0.08);
 
-    const cardBg = item.isLocked 
-      ? (IS_MOBILE ? SOLID_LIGHT_RED : "#F4433610")
-      : isActive 
-        ? (IS_MOBILE ? SOLID_LIGHT_GREEN : Theme.success + "05")
-        : Theme.bgCard;
+    const cardBg = (Platform.OS !== 'web' && status !== 0) ? ui.lightBg : Theme.bgCard;
+    const borderColor = status === 0 ? Theme.border : ui.color;
+    const lockedName = tableStatusData?.lockedByName || "";
 
     return (
       <View style={[
         styles.tableCard, 
         { 
           width: itemSize,
-          height: itemSize * 1.15, // Vertically bigger to avoid congestion
+          height: itemSize * 1.15, 
           backgroundColor: cardBg,
-          elevation: (item.isLocked || isActive) ? 0 : 2, // Fix fill artifacts
-          borderWidth: (item.isLocked || isActive) ? 2 : 1.5,
-          borderColor: item.isLocked ? "#F4433640" : isActive ? Theme.success + "30" : Theme.border
+          elevation: status !== 0 ? 0 : 2, 
+          borderWidth: status !== 0 ? 2 : 1.5,
+          borderColor: borderColor
         }
       ]}>
         <TouchableOpacity
           style={styles.tableContent}
           onPress={() => {
-            if (item.isLocked) {
+            if (status === 4) {
               Alert.alert("Locked Table", `Table ${item.tableNumber} is locked. Continue order processing?`, [
                 { text: "Cancel", style: "cancel" },
                 { text: "Continue Order", onPress: () => continueWithOrder(item.tableId, item.tableNumber, item.diningSection) },
               ]);
-            } else if (isActive) {
+            } else if (status !== 0) {
               Alert.alert("Table In Use", `Table ${item.tableNumber} currently has an active order and cannot be locked.`);
             } else {
               lockTable(item.tableId, item.tableNumber);
             }
           }}
         >
-          <View style={[styles.tableIcon, item.isLocked && styles.lockedIcon, isActive && styles.activeIcon, { width: itemSize * 0.4, height: itemSize * 0.4, borderRadius: itemSize * 0.12 }]}>
-            <Ionicons
-              name={item.isLocked ? "lock-closed" : isActive ? "restaurant" : "lock-open-outline"}
-              size={iconSize}
-              color={item.isLocked ? "#F44336" : isActive ? Theme.success : Theme.textMuted}
-            />
-          </View>
+          <Ionicons
+            name={status === 4 ? "lock-closed" : status !== 0 ? "restaurant" : "lock-open-outline"}
+            size={iconSize}
+            color={status === 0 ? Theme.textSecondary : ui.color}
+          />
           <Text style={[styles.tableNumber, { fontSize: numberSize }]}>{item.tableNumber}</Text>
-          <Text style={[styles.tableStatus, item.isLocked && { color: "#F44336" }, isActive && styles.activeStatus, { fontSize: statusSize }]}>
-            {item.isLocked ? "RESERVED" : isActive ? "IN USE" : "AVAILABLE"}
+          <Text style={[styles.tableStatus, status === 4 && { color: "#F44336" }, status !== 0 && styles.activeStatus, { fontSize: statusSize, color: status === 0 ? Theme.textMuted : ui.color }]}>
+            {ui.text}
           </Text>
+          {status === 4 && lockedName ? (
+            <Text style={{ fontSize: statusSize - 1, color: ui.color, fontWeight: 'bold', marginTop: 4 }} numberOfLines={1}>
+              {lockedName}
+            </Text>
+          ) : null}
         </TouchableOpacity>
 
-        {item.isLocked && (
+        {status === 4 && (
           <TouchableOpacity
             style={styles.unlockBtn}
             onPress={() => unlockTable(item.tableId, item.tableNumber)}
