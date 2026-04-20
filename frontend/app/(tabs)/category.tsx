@@ -19,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
 import { API_URL } from "../../constants/Config";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
 import {
@@ -199,6 +200,25 @@ const TableItemComponent = React.memo(({
     </TouchableOpacity>
   );
 });
+
+const TableGridSkeleton = ({ itemSize, columns, gap, padding, insets }: any) => {
+  const items = Array.from({ length: columns * 5 }); 
+  return (
+    <View style={{ 
+      paddingHorizontal: padding, 
+      paddingTop: padding,
+      paddingLeft: padding + insets.left,
+      paddingRight: padding + insets.right,
+      flexDirection: 'row', 
+      flexWrap: 'wrap', 
+      gap: gap 
+    }}>
+      {items.map((_, i) => (
+        <Skeleton key={i} width={itemSize} height={itemSize} borderRadius={12} />
+      ))}
+    </View>
+  );
+};
 
 type TableItem = {
   id: string;
@@ -530,10 +550,22 @@ export default function Category() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Theme.primary} />
-        <Text style={styles.loadingText}>Loading floor plan...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
+        {/* Placeholder Nav Bar */}
+        <View style={styles.topNavContainer}>
+          <Skeleton width={120} height={32} borderRadius={16} style={{ marginLeft: 20 }} />
+          <View style={{ flex: 1 }} />
+          <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 20 }} />
+        </View>
+        <TableGridSkeleton 
+          itemSize={itemSize} 
+          columns={columns} 
+          gap={GAP} 
+          padding={PADDING} 
+          insets={insets} 
+        />
+      </SafeAreaView>
     );
   }
 

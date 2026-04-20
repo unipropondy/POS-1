@@ -2,6 +2,7 @@ import { API_URL } from "@/constants/Config";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "../../components/ui/Skeleton";
 import {
   ActivityIndicator,
   FlatList,
@@ -175,6 +176,42 @@ const DishCard = React.memo(
       </TouchableOpacity>
     );
   },
+);
+
+const DishGridSkeleton = ({ cardWidth, columns, gap, isPhone }: any) => {
+  const items = Array.from({ length: columns * 4 });
+  return (
+    <View style={{ 
+      flexDirection: 'row', 
+      flexWrap: 'wrap', 
+      gap: gap, 
+      paddingBottom: 80 
+    }}>
+      {items.map((_, i) => (
+        <View key={i} style={[styles.card, { width: cardWidth, padding: isPhone ? 8 : 12, borderStyle: 'dashed' }]}>
+           <Skeleton circle width={isPhone ? 48 : 75} height={isPhone ? 48 : 75} style={{ marginBottom: 8 }} />
+           <Skeleton width="80%" height={14} style={{ marginBottom: 6 }} />
+           <Skeleton width="40%" height={14} />
+        </View>
+      ))}
+    </View>
+  );
+};
+
+const CategorySkeleton = () => (
+  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 15 }}>
+    {[1, 2, 3, 4].map((i) => (
+      <Skeleton key={i} width={100} height={36} borderRadius={12} />
+    ))}
+  </View>
+);
+
+const GroupSkeleton = () => (
+  <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+    {[1, 2, 3, 4, 5].map((i) => (
+      <Skeleton key={i} width={80} height={38} borderRadius={full} />
+    ))}
+  </View>
 );
 
 // --- SCREEN ---
@@ -533,33 +570,37 @@ export default function MenuScreen() {
       </ScrollView>
 
       <View style={isPhone && isLandscape ? { marginTop: 12 } : { marginTop: 15 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.groupScroll}
-        >
-          {groups.map((g) => (
-            <TouchableOpacity
-              key={g.DishGroupId}
-              style={[
-                styles.groupPill,
-                selectedGroup === g.DishGroupId && styles.groupPillActive,
-                isPhone && isLandscape && { height: 36, paddingHorizontal: 14 }
-              ]}
-              onPress={() => loadDishes(g.DishGroupId)}
-            >
-              <Text
+        {isInitialLoading ? (
+           <GroupSkeleton />
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.groupScroll}
+          >
+            {groups.map((g) => (
+              <TouchableOpacity
+                key={g.DishGroupId}
                 style={[
-                  styles.groupText,
-                  selectedGroup === g.DishGroupId && styles.groupTextActive,
-                  isPhone && isLandscape && { fontSize: 12 }
+                  styles.groupPill,
+                  selectedGroup === g.DishGroupId && styles.groupPillActive,
+                  isPhone && isLandscape && { height: 36, paddingHorizontal: 14 }
                 ]}
+                onPress={() => loadDishes(g.DishGroupId)}
               >
-                {g.DishGroupName}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Text
+                  style={[
+                    styles.groupText,
+                    selectedGroup === g.DishGroupId && styles.groupTextActive,
+                    isPhone && isLandscape && { fontSize: 12 }
+                  ]}
+                >
+                  {g.DishGroupName}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </View>
     </View>
   );
@@ -582,11 +623,8 @@ export default function MenuScreen() {
               {renderTopBar()}
               {renderCategoryNav()}
               <View style={styles.gridContainer}>
-                {isLoadingDishes ? (
-                  <ActivityIndicator
-                    color={Theme.primary}
-                    style={{ marginTop: 50 }}
-                  />
+                {isLoadingDishes || isInitialLoading ? (
+                  <DishGridSkeleton cardWidth={cardWidth} columns={columns} gap={gap} isPhone={isPhone} />
                 ) : (
                   <FlatList
                     data={filteredItems}
@@ -628,11 +666,8 @@ export default function MenuScreen() {
                 ]}
               >
                 <View style={styles.gridContainer}>
-                  {isLoadingDishes ? (
-                    <ActivityIndicator
-                      color={Theme.primary}
-                      style={{ marginTop: 50 }}
-                    />
+                  {isLoadingDishes || isInitialLoading ? (
+                    <DishGridSkeleton cardWidth={cardWidth} columns={columns} gap={gap} isPhone={isPhone} />
                   ) : (
                     <FlatList
                       data={filteredItems}
