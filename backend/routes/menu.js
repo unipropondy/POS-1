@@ -39,12 +39,10 @@ router.get("/dishes/all", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT d.DishId, d.Name, d.DishGroupId, ISNULL(p.Amount, 0) AS Price,
+      SELECT d.DishId, d.Name, d.DishGroupId, d.currentcost AS Price,
       d.DishCode, d.Description,
-      d.Imageid AS Image, CASE WHEN i.Imageid IS NOT NULL THEN 1 ELSE 0 END AS HasImage
+      d.Imageid AS Image, CASE WHEN d.Imageid IS NOT NULL THEN 1 ELSE 0 END AS HasImage
       FROM DishMaster d
-      INNER JOIN DishPriceList p ON d.DishId = p.DishId
-      LEFT JOIN ImageList i ON d.Imageid = i.Imageid
       WHERE d.IsActive = 1 ORDER BY d.Name ASC
     `);
     res.json(result.recordset);
