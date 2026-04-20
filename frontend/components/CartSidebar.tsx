@@ -196,7 +196,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     if (!orderContext) return;
     if (orderContext.orderType === "DINE_IN") {
       updateTableStatus(
-        tableData?.tableId || "",
         orderContext.section!,
         orderContext.tableNo!,
         activeOrder?.orderId || "PAYMENT",
@@ -218,7 +217,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     markItemsSent(targetOrderId);
     if (orderContext.orderType === "DINE_IN") {
       updateTableStatus(
-        tableData?.tableId || "",
         orderContext.section!,
         orderContext.tableNo!,
         targetOrderId,
@@ -230,7 +228,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       updateTableStatus(
-        tableData?.tableId || "",
         "TAKEAWAY",
         orderContext.takeawayNo!,
         targetOrderId,
@@ -658,7 +655,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   onPress={() => {
                     let targetOrderId = activeOrder?.orderId || getNextOrderId();
                     updateTableStatus(
-                      tableData?.tableId || "",
                       orderContext.section!,
                       orderContext.tableNo!,
                       targetOrderId,

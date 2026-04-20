@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { API_URL } from '../constants/Config';
 
-export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED' | 'OVERTIME';
+export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED';
 
 export type TableStatus = {
   tableId: string;
@@ -28,18 +27,13 @@ type TableStatusState = {
     lockedByName?: string,
     totalAmount?: number
   ) => void;
-  syncStatusWithBackend: (
-    tableId: string,
-    statusInt: number,
-    lockedByName?: string
-  ) => Promise<boolean>;
   clearTable: (section: string, tableNo: string) => void;
   lockTable: (tableId: string, lockedByName?: string) => void;
   unlockTable: (tableId: string) => void;
   isTableLocked: (tableId: string) => boolean;
   getLockedName: (tableNo: string, section?: string) => string | undefined;
   setLockedName: (tableNo: string, name: string) => void;
-  syncLockedTables: (lockedTables: Array<{ tableId: string; tableNo: string; section: string; lockedByName?: string }>) => void;
+  syncLockedTables: (lockedTables: Array<{ tableNo: string; section: string; lockedByName?: string }>) => void;
   getTables: () => TableStatus[];
 };
 
@@ -93,61 +87,6 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
         };
       }
     });
-  },
-
-  syncStatusWithBackend: async (tableId, statusInt, lockedByName) => {
-    const state = useTableStatusStore.getState();
-    const table = state.tables.find(t => t.tableId === tableId);
-    if (!tableId || !table) {
-      console.warn("syncStatusWithBackend: Missing tableId or table in store", { tableId });
-      return false;
-    }
-
-    const statusMap: Record<number, TableStatusType> = {
-      0: 'EMPTY',
-      1: 'SENT',
-      2: 'HOLD',
-      3: 'BILL_REQUESTED',
-      4: 'LOCKED',
-      5: 'OVERTIME'
-    };
-
-    const newStatus = statusMap[statusInt];
-    const previousStatus = table.status;
-
-    // 1. Update local state immediately (Optimistic)
-    state.updateTableStatus(
-      tableId,
-      table.section,
-      table.tableNo,
-      table.orderId,
-      newStatus,
-      undefined,
-      lockedByName
-    );
-
-    try {
-      const res = await fetch(`${API_URL}/api/tables/${tableId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: statusInt, lockedByName }),
-      });
-      if (!res.ok) throw new Error("Backend update failed");
-      return true;
-    } catch (err) {
-      console.error("Status sync failed, rolling back:", err);
-      // Rollback on failure
-      state.updateTableStatus(
-        tableId,
-        table.section,
-        table.tableNo,
-        table.orderId,
-        previousStatus,
-        undefined,
-        table.lockedByName
-      );
-      return false;
-    }
   },
 
   clearTable: (section, tableNo) => {
@@ -237,7 +176,6 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
         const exists = updatedTables.find(t => t.tableNo === lockedItem.tableNo && t.section === lockedItem.section);
         if (!exists) {
           updatedTables.push({
-            tableId: lockedItem.tableId,
             section: lockedItem.section,
             tableNo: lockedItem.tableNo,
             orderId: "RESERVED",

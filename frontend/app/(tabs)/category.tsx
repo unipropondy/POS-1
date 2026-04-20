@@ -27,9 +27,9 @@ import {
   setCartItemsGlobal,
   useCartStore,
 } from "../../stores/cartStore";
-import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
 import { setOrderContext } from "../../stores/orderContextStore";
+import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { useAuthStore } from "../../stores/authStore";
 
 // --- MOBILE SOLID COLORS ---
@@ -84,22 +84,15 @@ const TableItemComponent = React.memo(({
   
   // Use ONLY ui values derived from status
   const borderColor = status === 0 ? Theme.border : ui.color;
-  const bgColor = Theme.bgCard; // Match image: mostly white card
+  const bgColor = (Platform.OS !== 'web' && status !== 0) ? ui.lightBg : Theme.bgCard;
   const textColor = status === 0 ? Theme.textPrimary : ui.color;
   
   let timeText = "";
   let billAmount = tableData?.billAmount || 0;
 
-  // Use the StartTime directly from the polled item for better real-time display
-  if (item.StartTime && status !== 0) {
-    try {
-      const time = new Date(item.StartTime);
-      if (!isNaN(time.getTime())) {
-        timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
-      }
-    } catch (e) {
-      console.error("Time parse error", e);
-    }
+  if (tableData && tableData.startTime && status !== 0 && status !== 4) {
+    const time = new Date(tableData.startTime);
+    timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
   }
 
   return (
@@ -125,24 +118,26 @@ const TableItemComponent = React.memo(({
 
         {status !== 0 && (
           <View style={styles.tableInfo}>
-            <View style={[styles.statusChip, { borderColor: ui.color, backgroundColor: 'transparent' }]}>
-              <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont - 1, fontWeight: '900' }]}>
+            <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
+              <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
                 {ui.text}
               </Text>
             </View>
             
-            <View style={styles.tableStats}>
-              {status === 4 ? (
-                <Ionicons name="lock-closed" size={smallFont + 4} color={ui.color} style={{ marginTop: 4 }} />
-              ) : timeText ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                  <Ionicons name="time-outline" size={smallFont + 2} color={ui.color} />
-                  <Text style={[styles.timeText, { fontSize: smallFont, color: ui.color, fontWeight: '600' }]}>
-                    {timeText}
+            {status !== 4 && (
+              <View style={styles.tableStats}>
+                {timeText ? (
+                  <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
+                    <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
                   </Text>
-                </View>
-              ) : null}
-            </View>
+                ) : null}
+                {billAmount > 0 && (
+                  <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
+                    ${billAmount.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         )}
 
@@ -193,7 +188,7 @@ type TableItem = {
   label: string;
   DiningSection: number;
   Status: number;
-  StartTime?: string;
+  StartTime?: string | number | Date;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
@@ -231,7 +226,6 @@ export default function Category() {
   const sectionScrollRef = useRef<ScrollView>(null);
 
   const tables = useTableStatusStore((s: any) => s.tables);
-  const syncStatusWithBackend = useTableStatusStore((s: any) => s.syncStatusWithBackend);
   const getLockedName = useTableStatusStore((s: any) => s.getLockedName);
   const syncLockedTables = useTableStatusStore((s: any) => s.syncLockedTables);
   const activeOrders = useActiveOrdersStore((s: any) => s.activeOrders);
@@ -272,21 +266,14 @@ export default function Category() {
   // --- Real-time Sync (Polling every 3s) ---
   useEffect(() => {
     const interval = setInterval(() => {
-      // 3. Automated Overtime Transition
+      const now = Date.now();
+      const OVERTIME_LIMIT = 2 * 60 * 60 * 1000; // 2 hours
+
       allTables.forEach(table => {
         if (table.Status === 1 && table.StartTime) {
-          try {
-            const startTime = new Date(table.StartTime).getTime();
-            const now = Date.now();
-            if (!isNaN(startTime)) {
-              const diffMinutes = (now - startTime) / (1000 * 60);
-              // Move to Overtime after 120 minutes (2 hours)
-              if (diffMinutes >= 120) {
-                syncStatusWithBackend(table.id, 5);
-              }
-            }
-          } catch (e) {
-            console.error("Overtime check error", e);
+          const startTime = new Date(table.StartTime).getTime();
+          if (now - startTime > OVERTIME_LIMIT) {
+            updateTableStatus(table.id, 5); // Automatically move to Overtime
           }
         }
       });
@@ -417,11 +404,27 @@ export default function Category() {
   const insets = useSafeAreaInsets();
   const GAP = !isTablet && isLandscape ? 8 : 10;
   const PADDING = isTablet ? 24 : (isLandscape ? 12 : 16);
-  const numColumns = width > 1200 ? 10 : (isTablet ? 6 : 4);
+  // Subtract safe area insets to account for notches in landscape
   const availableGridWidth = width - PADDING * 2 - insets.left - insets.right - 2;
 
+  let columns = 3;
+  if (isTablet) {
+    if (width < 768) columns = 4;
+    else if (width < 1024) columns = 6;
+    else if (width < 1280) columns = 8;
+    else if (width < 1920) columns = 10;
+    else columns = 12;
+  } else {
+    if (isLandscape) {
+      // Aim for approx 110-120px boxes on mobile landscape
+      columns = Math.max(5, Math.floor(availableGridWidth / 115));
+    } else {
+      columns = 3;
+    }
+  }
+
   // Use Math.floor to be safe against sub-pixel overflow
-  const itemSize = Math.floor((availableGridWidth - GAP * (numColumns - 1)) / numColumns);
+  const itemSize = Math.floor((availableGridWidth - GAP * (columns - 1)) / columns);
 
   useEffect(() => {
     const index = SECTIONS.indexOf(activeTab);
@@ -443,12 +446,52 @@ export default function Category() {
 
   const occupiedCount = currentTables.filter((t) => t.Status !== 0).length;
 
-  const handleDining   = (id: string) => syncStatusWithBackend(id, 1);
-  const handleHold     = (id: string) => syncStatusWithBackend(id, 2);
-  const handleCheckout = (id: string) => syncStatusWithBackend(id, 3);
-  const handleReserved = (id: string, name: string) => syncStatusWithBackend(id, 4, name);
-  const handleOvertime = (id: string) => syncStatusWithBackend(id, 5);
-  const handleComplete = (id: string) => syncStatusWithBackend(id, 0);
+  // ──── STATUS HANDLERS (OPTIMISTIC) ────
+  const updateTableStatus = async (tableId: string, status: number, lockedByName?: string, totalAmount?: number) => {
+    // 1. Optimistic UI update
+    const previousTables = [...allTables];
+    setAllTables(prev => prev.map(t => t.id === tableId ? { ...t, Status: status } : t));
+
+    // Update global store
+    const table = allTables.find(t => t.id === tableId);
+    if (table) {
+      const statusStrMap: Record<number, TableStatusType> = {
+        0: 'EMPTY',
+        1: 'SENT',
+        2: 'HOLD',
+        3: 'BILL_REQUESTED',
+        4: 'LOCKED',
+        5: 'SENT' // Overtime is technically still an active order
+      };
+      
+      useTableStatusStore.getState().updateTableStatus(
+        tableId,
+        getSectionFromDiningSection(table.DiningSection),
+        table.label,
+        "SYNC", // Generic orderId
+        statusStrMap[status],
+        undefined,
+        lockedByName,
+        totalAmount
+      );
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, lockedByName }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      
+      // Successfully updated backend
+      if (status === 4) fetchLockedTables();
+    } catch (err) {
+      console.error("Status update failed:", err);
+      Alert.alert("Sync Error", "Could not sync status with server. Reverting UI.");
+      setAllTables(previousTables);
+    }
+  };
 
   const getSectionFromDiningSection = (ds: number) => {
     if (ds === 1) return "SECTION_1";
@@ -456,6 +499,13 @@ export default function Category() {
     if (ds === 3) return "SECTION_3";
     return "TAKEAWAY";
   };
+
+  const handleDining   = (id: string) => updateTableStatus(id, 1);
+  const handleHold     = (id: string) => updateTableStatus(id, 2);
+  const handleCheckout = (id: string) => updateTableStatus(id, 3);
+  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name);
+  const handleOvertime = (id: string) => updateTableStatus(id, 5);
+  const handleComplete = (id: string) => updateTableStatus(id, 0);
 
   const handleTablePress = React.useCallback((item: TableItem, tableData: any) => {
     const status = Number(item.Status);
@@ -476,7 +526,7 @@ export default function Category() {
     if (activeTab === "TAKEAWAY") {
       newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
     } else {
-      newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label };
+      newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label, tableId: item.id };
     }
 
     // REMOVED: handleDining(item.id); 
@@ -574,7 +624,7 @@ export default function Category() {
         </View>
         <TableGridSkeleton 
           itemSize={itemSize} 
-          columns={numColumns} 
+          columns={columns} 
           gap={GAP} 
           padding={PADDING} 
           insets={insets} 
@@ -859,8 +909,8 @@ export default function Category() {
       {/* ═══════════ TABLE GRID ═══════════ */}
       <FlatList
         data={currentTables}
-        key={numColumns}
-        numColumns={numColumns}
+        key={columns}
+        numColumns={columns}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         columnWrapperStyle={{ gap: GAP }}

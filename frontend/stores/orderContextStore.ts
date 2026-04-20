@@ -3,6 +3,7 @@ import { create } from "zustand";
 export type OrderContext = {
   orderType: "DINE_IN" | "TAKEAWAY";
   section?: string;
+  tableId?: string;
   tableNo?: string;
   takeawayNo?: string;
 };
