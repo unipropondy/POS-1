@@ -21,6 +21,14 @@ const dbConfig = {
   requestTimeout: 60000,
 };
 
+// Log configuration for debugging (mask password)
+console.log("📋 Database Configuration:");
+console.log(`   Server: ${dbConfig.server || "NOT SET"}`);
+console.log(`   Port: ${dbConfig.port || "NOT SET"}`);
+console.log(`   Database: ${dbConfig.database || "NOT SET"}`);
+console.log(`   User: ${dbConfig.user || "NOT SET"}`);
+console.log(`   Connection Timeout: ${dbConfig.connectionTimeout}ms`);
+
 let poolInstance = null;
 
 const poolPromise = new sql.ConnectionPool(dbConfig)
@@ -32,6 +40,13 @@ const poolPromise = new sql.ConnectionPool(dbConfig)
   })
   .catch((err) => {
     console.error("❌ Database Connection Failed:", err.message);
+    console.error("   Error Code:", err.code);
+    console.error("   Please verify your .env file contains:");
+    console.error("   - DB_SERVER: " + dbConfig.server);
+    console.error("   - DB_PORT: " + dbConfig.port);
+    console.error("   - DB_NAME: " + dbConfig.database);
+    console.error("   - DB_USER: " + dbConfig.user);
+    console.error("   - DB_PASSWORD: (hidden)");
     return null;
   });
 
