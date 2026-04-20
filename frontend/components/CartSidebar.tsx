@@ -154,10 +154,34 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
   if (!orderContext) {
     return (
-      <View style={[styles.container, { width }]}>
-        <View style={styles.emptySurface}>
-          <Ionicons name="cart-outline" size={64} color={Theme.border} />
-          <Text style={styles.emptyText}>No Active Order</Text>
+      <View
+        style={[
+          styles.container,
+          { width },
+          isPhone && isLandscape && styles.containerLandscapePhone,
+        ]}
+      >
+        <View style={styles.emptyCartSurface}>
+          <View style={[styles.emptyCartIconWrap, { opacity: 0.6 }]}>
+            <View
+              style={[
+                styles.emptyCartIconPulse,
+                { backgroundColor: Theme.border + "40" },
+              ]}
+            />
+            <View
+              style={[
+                styles.emptyCartIconContainer,
+                { borderColor: Theme.border },
+              ]}
+            >
+              <Ionicons name="cart-outline" size={48} color={Theme.textMuted} />
+            </View>
+          </View>
+          <Text style={styles.emptyCartTitle}>No Active Order</Text>
+          <Text style={styles.emptyCartSubtitle}>
+            Select a table or start a takeaway to begin an order.
+          </Text>
         </View>
       </View>
     );
@@ -221,6 +245,21 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       subtitle: "Kitchen has been notified.",
     });
   };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyCartSurface}>
+      <View style={styles.emptyCartIconWrap}>
+        <View style={styles.emptyCartIconPulse} />
+        <View style={styles.emptyCartIconContainer}>
+          <Ionicons name="fast-food-outline" size={48} color={Theme.primary} />
+        </View>
+      </View>
+      <Text style={styles.emptyCartTitle}>Empty Cart</Text>
+      <Text style={styles.emptyCartSubtitle}>
+        Select delicious dishes from the menu to start this order.
+      </Text>
+    </View>
+  );
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const isSent = "status" in item && item.status === "SENT";
@@ -568,101 +607,110 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         data={displayItems}
         keyExtractor={(i) => i.lineItemId}
         renderItem={renderItem}
+        ListEmptyComponent={renderEmptyState}
         style={{ flex: 1 }}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          displayItems.length === 0 && { flex: 1, justifyContent: "center" },
+        ]}
         showsVerticalScrollIndicator={false}
       />
 
       {/* FOOTER AREA */}
-      <View
-        style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}
-      >
+      {displayItems.length > 0 && (
         <View
-          style={[
-            styles.summary,
-            isPhone && isLandscape && { marginBottom: 8 },
-          ]}
+          style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}
         >
-          <View style={styles.summaryRow}>
-            <Text
-              style={[
-                styles.payableLabel,
-                isPhone && isLandscape && { fontSize: 13 },
-              ]}
-            >
-              Subtotal
-            </Text>
-            <Text
-              style={[
-                styles.payableValue,
-                isPhone && isLandscape && { fontSize: 14 },
-              ]}
-            >
-              ${subtotal.toFixed(2)}
-            </Text>
+          <View
+            style={[
+              styles.summary,
+              isPhone && isLandscape && { marginBottom: 8 },
+            ]}
+          >
+            <View style={styles.summaryRow}>
+              <Text
+                style={[
+                  styles.payableLabel,
+                  isPhone && isLandscape && { fontSize: 13 },
+                ]}
+              >
+                Subtotal
+              </Text>
+              <Text
+                style={[
+                  styles.payableValue,
+                  isPhone && isLandscape && { fontSize: 14 },
+                ]}
+              >
+                ${subtotal.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.actions}>
+            {cart.length > 0 ? (
+              <>
+                <TouchableOpacity
+                  style={styles.holdBtn}
+                  onPress={() => {
+                    let targetOrderId = activeOrder?.orderId || getNextOrderId();
+                    updateTableStatus(
+                      orderContext.section!,
+                      orderContext.tableNo!,
+                      targetOrderId,
+                      "HOLD",
+                    );
+                    holdOrder(targetOrderId, cart, orderContext);
+                    clearCartStandalone();
+                    router.replace(
+                      `/(tabs)/category?section=${orderContext.section}`,
+                    );
+                  }}
+                >
+                  <Ionicons name="pause-circle-outline" size={20} color="#fff" />
+                  {!isPhone && <Text style={styles.btnText}>Hold Cart</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.proceedBtn,
+                    { backgroundColor: Theme.success },
+                  ]}
+                  onPress={() => handleSendOrder()}
+                >
+                  <Ionicons name="send" size={20} color="#fff" />
+                  {!isPhone && <Text style={styles.btnText}>Send</Text>}
+                </TouchableOpacity>
+              </>
+            ) : currentTableStatus === "SENT" ? (
+              <TouchableOpacity
+                style={[
+                  styles.proceedBtn,
+                  { flex: 1, backgroundColor: "#F59E0B" },
+                ]}
+                onPress={() => handleCheckout()}
+              >
+                <Ionicons name="receipt-outline" size={20} color="#fff" />
+                <Text style={styles.btnText}>Checkout</Text>
+              </TouchableOpacity>
+            ) : currentTableStatus === "BILL_REQUESTED" ? (
+              <TouchableOpacity
+                style={[
+                  styles.proceedBtn,
+                  { flex: 1, backgroundColor: Theme.primary },
+                ]}
+                onPress={() => router.push("/summary")}
+              >
+                <Ionicons
+                  name="arrow-forward-circle-outline"
+                  size={20}
+                  color="#fff"
+                />
+                <Text style={styles.btnText}>Proceed to Pay</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
-
-        <View style={styles.actions}>
-          {cart.length > 0 ? (
-            <>
-              <TouchableOpacity
-                style={styles.holdBtn}
-                onPress={() => {
-                  let targetOrderId = activeOrder?.orderId || getNextOrderId();
-                  updateTableStatus(
-                    orderContext.section!,
-                    orderContext.tableNo!,
-                    targetOrderId,
-                    "HOLD",
-                  );
-                  holdOrder(targetOrderId, cart, orderContext);
-                  clearCartStandalone();
-                  router.replace(
-                    `/(tabs)/category?section=${orderContext.section}`,
-                  );
-                }}
-              >
-                <Ionicons name="pause-circle-outline" size={20} color="#fff" />
-                {!isPhone && <Text style={styles.btnText}>Hold Cart</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.proceedBtn, { backgroundColor: Theme.success }]}
-                onPress={() => handleSendOrder()}
-              >
-                <Ionicons name="send" size={20} color="#fff" />
-                {!isPhone && <Text style={styles.btnText}>Send</Text>}
-              </TouchableOpacity>
-            </>
-          ) : currentTableStatus === "SENT" ? (
-            <TouchableOpacity
-              style={[
-                styles.proceedBtn,
-                { flex: 1, backgroundColor: "#F59E0B" },
-              ]}
-              onPress={() => handleCheckout()}
-            >
-              <Ionicons name="receipt-outline" size={20} color="#fff" />
-              <Text style={styles.btnText}>Checkout</Text>
-            </TouchableOpacity>
-          ) : currentTableStatus === "BILL_REQUESTED" ? (
-            <TouchableOpacity
-              style={[
-                styles.proceedBtn,
-                { flex: 1, backgroundColor: Theme.primary },
-              ]}
-              onPress={() => router.push("/summary")}
-            >
-              <Ionicons
-                name="arrow-forward-circle-outline"
-                size={20}
-                color="#fff"
-              />
-              <Text style={styles.btnText}>Proceed to Pay</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+      )}
 
       {/* CANCEL PASSWORD MODAL - Stay for admin safety */}
       <Modal transparent visible={showCancelModal} animationType="fade">
@@ -735,24 +783,62 @@ const styles = StyleSheet.create({
   container: {
     height: "100%",
     backgroundColor: Theme.bgCard,
-    borderLeftWidth: 1,
+    borderLeftWidth: 1.5,
     borderLeftColor: Theme.border,
     padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: -8, height: 0 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  containerLandscapePhone: {
-    padding: 8,
-  },
-  emptySurface: {
+  emptyCartSurface: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    opacity: 0.5,
+    paddingHorizontal: 32,
   },
-  emptyText: {
-    fontFamily: Fonts.bold,
+  emptyCartIconWrap: {
+    width: 120,
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  emptyCartIconPulse: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Theme.primary + "10",
+  },
+  emptyCartIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    ...Theme.shadowMd,
+    borderWidth: 1,
+    borderColor: Theme.primary + "10",
+  },
+  emptyCartTitle: {
+    fontFamily: Fonts.extraBold,
+    fontSize: 22,
+    color: Theme.textPrimary,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  emptyCartSubtitle: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
     color: Theme.textMuted,
-    marginTop: 16,
-    fontSize: 18,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  containerLandscapePhone: {
+    padding: 8,
   },
   header: {
     flexDirection: "row",
@@ -780,13 +866,15 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 20 },
   itemContainer: {
     marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: Theme.border,
+    borderWidth: 1,
+    borderColor: Theme.border + "80", // Softer border
     borderRadius: 16,
     backgroundColor: "#fff",
     overflow: "hidden",
     flexDirection: "row",
     ...Theme.shadowSm,
+    borderBottomWidth: 2, // Slight dimensional feel
+    borderBottomColor: Theme.border + "40",
   },
   itemExpanded: {
     backgroundColor: Theme.bgMuted + "50",

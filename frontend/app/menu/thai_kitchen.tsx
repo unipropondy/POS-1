@@ -363,7 +363,10 @@ export default function MenuScreen() {
     // Search across all dishes if query exists
     return allDishes.filter((d) => {
       const name = (d.Name || d.DishName || "").toLowerCase();
-      return name.includes(query);
+      const code = (d.DishCode || "").toLowerCase();
+      const desc = (d.Description || "").toLowerCase();
+      
+      return name.includes(query) || code.includes(query) || desc.includes(query);
     });
   }, [searchText, items, allDishes]);
 
