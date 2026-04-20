@@ -67,7 +67,7 @@ router.get("/all", async (req, res) => {
     let query = `
       SELECT TableId AS id, CAST(TableNumber AS VARCHAR(50)) AS label,
       CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName,
-      Status
+      Status, StartTime
       FROM TableMaster
     `;
 
@@ -153,7 +153,12 @@ router.put("/:tableId/status", async (req, res) => {
     await request.query(`
       UPDATE TableMaster 
       SET Status = @status, 
-          LockedByName = CASE WHEN @status = 4 THEN @lockedByName ELSE NULL END
+          LockedByName = CASE WHEN @status = 4 THEN @lockedByName ELSE NULL END,
+          StartTime = CASE 
+            WHEN @status = 1 AND StartTime IS NULL THEN GETDATE() 
+            WHEN @status = 0 THEN NULL 
+            ELSE StartTime 
+          END
       WHERE CAST(TableId AS VARCHAR(50)) = @tableId
     `);
 

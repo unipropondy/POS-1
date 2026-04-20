@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED';
 
 export type TableStatus = {
+  tableId: string;
   section: string;
   tableNo: string;
   orderId: string;
@@ -17,6 +18,7 @@ type TableStatusState = {
   lockedTables: string[]; // Store table IDs that are locked
   lockedTableNames: Record<string, string>; // Map tableNo to locked person name
   updateTableStatus: (
+    tableId: string,
     section: string,
     tableNo: string,
     orderId: string,
@@ -40,7 +42,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
   lockedTables: [],
   lockedTableNames: {},
 
-  updateTableStatus: (section, tableNo, orderId, status, startTime, lockedByName, totalAmount) => {
+  updateTableStatus: (tableId, section, tableNo, orderId, status, startTime, lockedByName, totalAmount) => {
     set((state) => {
       const existingIndex = state.tables.findIndex(
         (t) => t.section === section && t.tableNo === tableNo
@@ -58,6 +60,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
         const updatedTables = [...state.tables];
         updatedTables[existingIndex] = {
           ...updatedTables[existingIndex],
+          tableId,
           orderId,
           status,
           startTime: startTime || updatedTables[existingIndex].startTime,
@@ -71,6 +74,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
           tables: [
             ...state.tables,
             {
+              tableId,
               section,
               tableNo,
               orderId,
@@ -204,6 +208,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
 // Legacy wrappers for compatibility if needed, but components should use useTableStatusStore
 export const getTables = () => useTableStatusStore.getState().getTables();
 export const updateTableStatus = (
+  tableId: string,
   section: string,
   tableNo: string,
   orderId: string,
@@ -211,23 +216,25 @@ export const updateTableStatus = (
   startTime?: number,
   lockedByName?: string,
   totalAmount?: number
-) => useTableStatusStore.getState().updateTableStatus(section, tableNo, orderId, status, startTime, lockedByName, totalAmount);
+) => useTableStatusStore.getState().updateTableStatus(tableId, section, tableNo, orderId, status, startTime, lockedByName, totalAmount);
 export const clearTable = (section: string, tableNo: string) => 
   useTableStatusStore.getState().clearTable(section, tableNo);
 
 export const setTableActive = (
+  tableId: string,
   section: string,
   tableNo: string,
   orderId: string,
 ) => {
-  updateTableStatus(section, tableNo, orderId, 'SENT', Date.now());
+  updateTableStatus(tableId, section, tableNo, orderId, 'SENT', Date.now());
 };
 
 export const setTableHold = (
+  tableId: string,
   section: string,
   tableNo: string,
   orderId: string,
 ) => {
-  updateTableStatus(section, tableNo, orderId, 'HOLD', Date.now());
+  updateTableStatus(tableId, section, tableNo, orderId, 'HOLD', Date.now());
 };
 

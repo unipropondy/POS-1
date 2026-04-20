@@ -28,8 +28,8 @@ import {
   useCartStore,
 } from "../../stores/cartStore";
 import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
+import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { setOrderContext } from "../../stores/orderContextStore";
-import { useTableStatusStore } from "../../stores/tableStatusStore";
 import { useAuthStore } from "../../stores/authStore";
 
 // --- MOBILE SOLID COLORS ---
@@ -188,6 +188,7 @@ type TableItem = {
   label: string;
   DiningSection: number;
   Status: number;
+  StartTime?: any;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
@@ -265,10 +266,22 @@ export default function Category() {
   // --- Real-time Sync (Polling every 3s) ---
   useEffect(() => {
     const interval = setInterval(() => {
+      const now = Date.now();
+      const OVERTIME_LIMIT = 2 * 60 * 60 * 1000; // 2 hours
+
+      allTables.forEach(table => {
+        if (table.Status === 1 && table.StartTime) {
+          const startTime = new Date(table.StartTime).getTime();
+          if (now - startTime > OVERTIME_LIMIT) {
+            updateTableStatus(table.id, 5); // Automatically move to Overtime
+          }
+        }
+      });
+
       fetchTables();
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [allTables]);
 
   const fetchLockedTables = async () => {
     try {
@@ -283,6 +296,7 @@ export default function Category() {
           else if (ds === 3) section = "SECTION_3";
           else if (ds === 4) section = "TAKEAWAY";
           return {
+            tableId: t.tableId || t.TableId,
             tableNo: t.tableNumber || t.TableNumber,
             section,
             lockedByName: t.lockedByName || "",
@@ -320,9 +334,24 @@ export default function Category() {
             label: item.TableNumber || item.label,
             DiningSection: Number(item.DiningSection) || 1,
             Status: Number(item.Status) || 0,
+            StartTime: item.StartTime,
           }))
           .filter((item) => item.id && item.label);
         setAllTables(convertedData);
+
+        // Sync with TableStatusStore
+        convertedData.forEach(t => {
+          if (t.Status !== 0) {
+            useTableStatusStore.getState().updateTableStatus(
+              t.id,
+              getSectionFromDiningSection(t.DiningSection),
+              t.label,
+              "SYNC",
+              t.Status === 4 ? 'LOCKED' : (t.Status === 1 || t.Status === 5 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
+              t.StartTime ? new Date(t.StartTime).getTime() : undefined
+            );
+          }
+        });
       } else {
         throw new Error("No tables returned from API");
       }
@@ -418,10 +447,34 @@ export default function Category() {
   const occupiedCount = currentTables.filter((t) => t.Status !== 0).length;
 
   // ──── STATUS HANDLERS (OPTIMISTIC) ────
-  const updateTableStatus = async (tableId: string, status: number, lockedByName?: string) => {
+  const updateTableStatus = async (tableId: string, status: number, lockedByName?: string, totalAmount?: number) => {
     // 1. Optimistic UI update
     const previousTables = [...allTables];
     setAllTables(prev => prev.map(t => t.id === tableId ? { ...t, Status: status } : t));
+
+    // Update global store
+    const table = allTables.find(t => t.id === tableId);
+    if (table) {
+      const statusStrMap: Record<number, TableStatusType> = {
+        0: 'EMPTY',
+        1: 'SENT',
+        2: 'HOLD',
+        3: 'BILL_REQUESTED',
+        4: 'LOCKED',
+        5: 'SENT' // Overtime is technically still an active order
+      };
+      
+      useTableStatusStore.getState().updateTableStatus(
+        tableId,
+        getSectionFromDiningSection(table.DiningSection),
+        table.label,
+        "SYNC", // Generic orderId
+        statusStrMap[status],
+        undefined,
+        lockedByName,
+        totalAmount
+      );
+    }
 
     try {
       const res = await fetch(`${API_URL}/api/tables/${tableId}/status`, {
@@ -438,6 +491,13 @@ export default function Category() {
       Alert.alert("Sync Error", "Could not sync status with server. Reverting UI.");
       setAllTables(previousTables);
     }
+  };
+
+  const getSectionFromDiningSection = (ds: number) => {
+    if (ds === 1) return "SECTION_1";
+    if (ds === 2) return "SECTION_2";
+    if (ds === 3) return "SECTION_3";
+    return "TAKEAWAY";
   };
 
   const handleDining   = (id: string) => updateTableStatus(id, 1);
@@ -469,9 +529,7 @@ export default function Category() {
       newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label };
     }
 
-    if (status === 0) {
-      handleDining(item.id);
-    }
+    // REMOVED: handleDining(item.id); 
 
     setOrderContext(newContext);
 

@@ -22,6 +22,7 @@ import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useToast } from "../components/Toast";
 
+import { API_URL } from "../constants/Config";
 import { OrderItem, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { CartItem, useCartStore } from "../stores/cartStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
@@ -330,7 +331,7 @@ export default function CartScreen() {
     setEditingItem(item);
   }, []);
 
-  const sendOrder = () => {
+  const sendOrder = async () => {
     const context = orderContext;
     if (!context || cart.length === 0) return;
 
@@ -343,11 +344,19 @@ export default function CartScreen() {
     markItemsSent(targetOrderId);
 
     if (context.orderType === "DINE_IN") {
-      updateTableStatus(context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
+      const tableId = currentTableData?.tableId;
+      if (tableId) {
+        await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: 1 }),
+        }).catch(err => console.error("Failed to update table status to Dining:", err));
+      }
+      updateTableStatus(tableId || "", context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
       router.replace(`/(tabs)/category?section=${context.section}`);
     } else if (context.orderType === "TAKEAWAY") {
-      updateTableStatus("TAKEAWAY", context.takeawayNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
+      updateTableStatus("", "TAKEAWAY", context.takeawayNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
       router.replace(`/(tabs)/category?section=TAKEAWAY`);
     } else {
@@ -444,17 +453,25 @@ export default function CartScreen() {
               <>
                 <Pressable
                   style={[styles.checkoutBtn, { backgroundColor: Theme.info }]}
-                  onPress={() => {
+                  onPress={async () => {
                     let targetOrderId = activeOrder?.orderId;
                     if (!targetOrderId) targetOrderId = getNextOrderId();
 
                     if (orderContext.orderType === "DINE_IN") {
-                      updateTableStatus(orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
+                      const tableId = currentTableData?.tableId;
+                      if (tableId) {
+                        await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ status: 2 }),
+                        }).catch(err => console.error("Failed to update table status to Hold:", err));
+                      }
+                      updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
                       router.replace(`/(tabs)/category?section=${orderContext.section}`);
                     } else if (orderContext.orderType === "TAKEAWAY") {
-                      updateTableStatus("TAKEAWAY", orderContext.takeawayNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
+                      updateTableStatus("", "TAKEAWAY", orderContext.takeawayNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
                       router.replace(`/(tabs)/category?section=TAKEAWAY`);
@@ -485,7 +502,15 @@ export default function CartScreen() {
                     style={[styles.checkoutBtn, { backgroundColor: Theme.warning }]}
                     onPress={() => {
                       if (orderContext.orderType === "DINE_IN") {
-                        updateTableStatus(orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
+                        const tableId = currentTableData?.tableId;
+                        if (tableId) {
+                          fetch(`${API_URL}/api/tables/${tableId}/status`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: 3 }),
+                          }).catch(err => console.error("Failed to update table status to Checkout:", err));
+                        }
+                        updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
                         router.replace(`/(tabs)/category?section=${orderContext.section}`);
                       } else {
                         router.push("/summary");
