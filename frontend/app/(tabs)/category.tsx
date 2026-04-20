@@ -27,9 +27,9 @@ import {
   setCartItemsGlobal,
   useCartStore,
 } from "../../stores/cartStore";
+import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
 import { setOrderContext } from "../../stores/orderContextStore";
-import { useTableStatusStore } from "../../stores/tableStatusStore";
 import { useAuthStore } from "../../stores/authStore";
 
 // --- MOBILE SOLID COLORS ---
@@ -188,6 +188,7 @@ type TableItem = {
   label: string;
   DiningSection: number;
   Status: number;
+  StartTime?: string;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];

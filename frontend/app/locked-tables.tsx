@@ -156,6 +156,7 @@ export default function LockedTablesScreen() {
       // 2. Mark table as Active/HOLD in the store to turn it green
       const section = getSectionFromDiningSection(diningSection);
       useTableStatusStore.getState().updateTableStatus(
+        cleanId,
         section,
         tableNumber,
         `ORD-${Date.now().toString().slice(-6)}`, // Temporary ID

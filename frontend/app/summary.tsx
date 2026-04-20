@@ -81,6 +81,7 @@ export default function SummaryScreen() {
   const updateOrderDiscount = useActiveOrdersStore((s) => s.updateOrderDiscount);
   const closeActiveOrder = useActiveOrdersStore((s) => s.closeActiveOrder);
   const updateTableStatus = useTableStatusStore((s) => s.updateTableStatus);
+  const tables = useTableStatusStore((s) => s.tables);
 
   const handleFOC = () => {
     const discountData = {
@@ -130,7 +131,8 @@ export default function SummaryScreen() {
         closeActiveOrder(activeOrder.orderId);
         clearCart();
         if (context.orderType === "DINE_IN" && context.section && context.tableNo) {
-          updateTableStatus(context.section, context.tableNo, "", "EMPTY");
+          const tableData = tables.find(t => t.section === context.section && t.tableNo === context.tableNo);
+          updateTableStatus(tableData?.tableId || "", context.section, context.tableNo, "", "EMPTY");
         }
       }
 

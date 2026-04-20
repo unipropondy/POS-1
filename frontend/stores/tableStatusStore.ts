@@ -33,7 +33,7 @@ type TableStatusState = {
   isTableLocked: (tableId: string) => boolean;
   getLockedName: (tableNo: string, section?: string) => string | undefined;
   setLockedName: (tableNo: string, name: string) => void;
-  syncLockedTables: (lockedTables: Array<{ tableNo: string; section: string; lockedByName?: string }>) => void;
+  syncLockedTables: (lockedTables: Array<{ tableId: string; tableNo: string; section: string; lockedByName?: string }>) => void;
   getTables: () => TableStatus[];
 };
 
@@ -176,6 +176,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
         const exists = updatedTables.find(t => t.tableNo === lockedItem.tableNo && t.section === lockedItem.section);
         if (!exists) {
           updatedTables.push({
+            tableId: lockedItem.tableId,
             section: lockedItem.section,
             tableNo: lockedItem.tableNo,
             orderId: "RESERVED",
