@@ -49,13 +49,13 @@ const formatSectionGlobal = (sec: string) => {
 const getStatusUI = (status: number) => {
   const s = Number(status);
   switch (s) {
-    case 0: return { text: "AVAILABLE", color: "#22c55e", lightBg: "#F0FDF4" };
-    case 1: return { text: "DINING", color: "#3b82f6", lightBg: "#F0F9FF" };
-    case 2: return { text: "HOLD", color: "#f59e0b", lightBg: "#FFFBEB" };
-    case 3: return { text: "CHECKOUT", color: "#ef4444", lightBg: "#FEF2F2" };
-    case 4: return { text: "RESERVED", color: "#8b5cf6", lightBg: "#F5F3FF" };
-    case 5: return { text: "OVERTIME", color: "#dc2626", lightBg: "#FEF2F2" };
-    default: return { text: "UNKNOWN", color: "#6b7280", lightBg: "transparent" };
+    case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
+    case 2: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
+    case 3: return { text: "CHECKOUT", color: "#f59e0b", lightBg: "#FFFBEB" };
+    case 4: return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
+    case 5: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 0:
+    default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" };
   }
 };
 
@@ -770,11 +770,11 @@ export default function Category() {
                     <Text style={[styles.menuUserRole, { marginBottom: 10, color: Theme.textPrimary }]}>Table Legend</Text>
                     <View style={{ gap: 8 }}>
                       {[
-                        { color: Theme.tableSent.border, label: "Dining" },
-                        { color: Theme.tableHold.border, label: "Hold" },
-                        { color: Theme.tableBillRequest.border, label: "Checkout" },
-                        { color: Theme.tableLocked.border, label: "Reserved" },
-                        { color: "#7C3AED", label: "Overtime" },
+                        { color: "#22c55e", label: "Dining" },
+                        { color: "#3b82f6", label: "Hold" },
+                        { color: "#f59e0b", label: "Checkout" },
+                        { color: "#ef4444", label: "Reserved" },
+                        { color: "#8b5cf6", label: "Overtime" },
                       ].map((item) => (
                         <View key={item.label} style={styles.legendItem}>
                           <View style={[styles.legendDot, { backgroundColor: item.color, width: 10, height: 10 }]} />
@@ -832,11 +832,11 @@ export default function Category() {
           {isTablet && (
             <View style={styles.legend}>
             {[
-              { color: Theme.tableSent.border, label: "Dining" },
-              { color: Theme.tableHold.border, label: "Hold" },
-              { color: Theme.tableBillRequest.border, label: "Checkout" },
-              { color: Theme.tableLocked.border, label: "Reserved" },
-              { color: "#7C3AED", label: "Overtime" },
+              { color: "#22c55e", label: "Dining" },
+              { color: "#3b82f6", label: "Hold" },
+              { color: "#f59e0b", label: "Checkout" },
+              { color: "#ef4444", label: "Reserved" },
+              { color: "#8b5cf6", label: "Overtime" },
             ].map((item) => (
               <View key={item.label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: item.color }]} />
