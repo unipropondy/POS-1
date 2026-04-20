@@ -156,6 +156,7 @@ export default function LockedTablesScreen() {
       // 2. Mark table as Active/HOLD in the store to turn it green
       const section = getSectionFromDiningSection(diningSection);
       useTableStatusStore.getState().updateTableStatus(
+        tableId,
         section,
         tableNumber,
         `ORD-${Date.now().toString().slice(-6)}`, // Temporary ID
@@ -168,6 +169,7 @@ export default function LockedTablesScreen() {
         orderType: "DINE_IN",
         section: section,
         tableNo: tableNumber,
+        tableId: tableId,
       });
       router.push("/menu/thai_kitchen");
     } catch (err) {

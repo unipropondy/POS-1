@@ -331,7 +331,7 @@ export default function CartScreen() {
     setEditingItem(item);
   }, []);
 
-  const sendOrder = () => {
+  const sendOrder = async () => {
     const context = orderContext;
     if (!context || cart.length === 0) return;
 
@@ -346,11 +346,15 @@ export default function CartScreen() {
     if (context.orderType === "DINE_IN") {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
-        fetch(`${API_URL}/api/tables/${tableId}/status`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: 1 }),
-        });
+        try {
+          await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: 1 }),
+          });
+        } catch (err) {
+          console.error("Failed to update status on server:", err);
+        }
       }
       updateTableStatus(tableId || "", context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
@@ -454,18 +458,22 @@ export default function CartScreen() {
               <>
                 <Pressable
                   style={[styles.checkoutBtn, { backgroundColor: Theme.info }]}
-                  onPress={() => {
+                  onPress={async () => {
                     let targetOrderId = activeOrder?.orderId;
                     if (!targetOrderId) targetOrderId = getNextOrderId();
 
                     if (orderContext.orderType === "DINE_IN") {
                       const tableId = orderContext.tableId || currentTableData?.tableId;
                       if (tableId) {
-                        fetch(`${API_URL}/api/tables/${tableId}/status`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ status: 2 }),
-                        });
+                        try {
+                          await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: 2 }),
+                          });
+                        } catch (err) {
+                          console.error("Failed to update status on server:", err);
+                        }
                       }
                       updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
@@ -501,18 +509,22 @@ export default function CartScreen() {
                 {(!currentTableData || currentTableData.status === 'SENT' || currentTableData.status === 'HOLD') ? (
                   <Pressable
                     style={[styles.checkoutBtn, { backgroundColor: Theme.warning }]}
-                    onPress={() => {
+                    onPress={async () => {
                       if (orderContext.orderType === "DINE_IN") {
                         const tableId = orderContext.tableId || currentTableData?.tableId;
                         if (tableId) {
-                          fetch(`${API_URL}/api/tables/${tableId}/status`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: 3 }),
-                          });
+                          try {
+                            await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ status: 3 }),
+                            });
+                          } catch (err) {
+                            console.error("Failed to update status on server:", err);
+                          }
                         }
                         updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
-                        router.replace(`/(tabs)/category?section=${orderContext.section}`);
+                        router.push("/summary");
                       } else {
                         router.push("/summary");
                       }

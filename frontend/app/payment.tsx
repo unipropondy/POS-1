@@ -413,10 +413,16 @@ export default function PaymentScreen() {
         },
       });
 
-      if (activeOrder) closeActiveOrder(activeOrder.orderId);
       if (context) {
         if (context.orderType === "DINE_IN" && context.section && context.tableNo) {
           clearTable(context.section, context.tableNo);
+          if (context.tableId) {
+            fetch(`${API_URL}/api/tables/${context.tableId}/status`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: 0 }),
+            });
+          }
         } else if (context.orderType === "TAKEAWAY" && context.takeawayNo) {
           clearTable("TAKEAWAY", context.takeawayNo);
         }

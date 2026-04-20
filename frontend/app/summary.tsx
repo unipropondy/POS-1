@@ -130,7 +130,15 @@ export default function SummaryScreen() {
         closeActiveOrder(activeOrder.orderId);
         clearCart();
         if (context.orderType === "DINE_IN" && context.section && context.tableNo) {
-          updateTableStatus(context.section, context.tableNo, "", "EMPTY");
+          updateTableStatus(context.tableId || "", context.section, context.tableNo, "", "EMPTY");
+          
+          if (context.tableId) {
+            fetch(`${API_URL}/api/tables/${context.tableId}/status`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: 0 }),
+            });
+          }
         }
       }
 
