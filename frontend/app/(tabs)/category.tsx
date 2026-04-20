@@ -46,6 +46,23 @@ const formatSectionGlobal = (sec: string) => {
   return sec.replace("_", " ").replace("-", " ").replace("SECTION", "Section");
 };
 
+const getStatusUI = (status: number) => {
+  switch (status) {
+    case 1:
+      return { text: "DINING", color: "#4CAF50", lightBg: "#F0FDF4" };
+    case 2:
+      return { text: "ON HOLD", color: "#2196F3", lightBg: "#F0F9FF" };
+    case 3:
+      return { text: "CHECKOUT", color: "#FF9800", lightBg: "#FFFBEB" };
+    case 4:
+      return { text: "RESERVED", color: "#F44336", lightBg: "#FEF2F2" };
+    case 5:
+      return { text: "OVERTIME", color: "#9C27B0", lightBg: "#F5F3FF" };
+    default:
+      return { text: "", color: Theme.textMuted, lightBg: Theme.bgCard };
+  }
+};
+
 // --- MEMOIZED TABLE COMPONENT ---
 const TableItemComponent = React.memo(({ 
   item, 
@@ -67,64 +84,22 @@ const TableItemComponent = React.memo(({
   isTabletPortrait?: boolean;
 }) => {
   const IS_MOBILE = Platform.OS !== 'web';
-  let borderColor = Theme.border;
-  let bgColor = Theme.bgCard;
-  let textColor = Theme.textPrimary;
+  const ui = getStatusUI(item.Status || 0);
+  const isOccupied = (item.Status || 0) > 0;
+
+  let borderColor = isOccupied ? ui.color : Theme.border;
+  let bgColor = IS_MOBILE && isOccupied ? ui.lightBg : Theme.bgCard;
+  let textColor = isOccupied ? ui.color : Theme.textPrimary;
   let timeText = "";
-  let billAmount = (tableData?.billAmount || 0);
-  let statusLabel = "";
-  let statusColor = Theme.textMuted;
+  let billAmount = tableData?.billAmount || 0;
+  let statusLabel = ui.text;
+  let statusColor = ui.color;
 
-  if (tableData) {
-    const elapsedMs = Date.now() - tableData.startTime;
-    const elapsedMinutes = Math.floor(elapsedMs / 60000);
-
-    switch (tableData.status) {
-      case "LOCKED":
-        bgColor = IS_MOBILE ? SOLID_LIGHT_RED : Theme.tableLocked.bg;
-        borderColor = Theme.tableLocked.border;
-        textColor = "#B91C1C";
-        statusLabel = "RESERVED";
-        statusColor = "#B91C1C";
-        break;
-      case "HOLD":
-        bgColor = IS_MOBILE ? SOLID_LIGHT_BLUE : Theme.tableHold.bg;
-        borderColor = Theme.tableHold.border;
-        textColor = "#1D4ED8";
-        statusLabel = "ON HOLD";
-        statusColor = "#1D4ED8";
-        break;
-      case "SENT":
-        if (elapsedMinutes >= 60) {
-          bgColor = IS_MOBILE ? SOLID_LIGHT_VIOLET : "#F5F3FF"; // Violet background
-          borderColor = "#7C3AED"; // Violet border
-          textColor = "#5B21B6"; // Violet text
-          statusLabel = "OVERTIME";
-          statusColor = "#5B21B6";
-        } else {
-          bgColor = IS_MOBILE ? SOLID_LIGHT_GREEN : Theme.tableSent.bg;
-          borderColor = Theme.tableSent.border;
-          textColor = "#15803D";
-          statusLabel = "DINING";
-          statusColor = "#15803D";
-        }
-        break;
-      case "BILL_REQUESTED":
-        bgColor = IS_MOBILE ? SOLID_LIGHT_AMBER : Theme.tableBillRequest.bg;
-        borderColor = Theme.tableBillRequest.border;
-        textColor = "#B45309";
-        statusLabel = "CHECKOUT";
-        statusColor = "#B45309";
-        break;
-      default:
-        bgColor = Theme.tableEmpty.bg;
-        borderColor = Theme.tableEmpty.border;
-    }
-
+  if (tableData && tableData.startTime) {
     const time = new Date(tableData.startTime);
     const hours = time.getHours().toString().padStart(2, "0");
     const mins = time.getMinutes().toString().padStart(2, "0");
-    if (tableData.status !== "LOCKED") {
+    if (item.Status !== 4) {
       timeText = `${hours}:${mins}`;
     }
   }
@@ -139,18 +114,18 @@ const TableItemComponent = React.memo(({
           height: itemSize,
           borderColor,
           backgroundColor: bgColor,
-          borderWidth: tableData ? 2 : 1.5,
-          elevation: tableData ? 0 : 2, // Remove elevation on active tables to fix fill artifacts
+          borderWidth: isOccupied ? 2 : 1.5,
+          elevation: isOccupied ? 0 : 2, 
         },
       ]}
       onPress={() => onPress(item, tableData)}
     >
       <View style={styles.tableContent}>
-        <Text style={[styles.tableNumber, { fontSize: numberFont, color: tableData ? textColor : Theme.textPrimary }]}>
+        <Text style={[styles.tableNumber, { fontSize: numberFont, color: isOccupied ? textColor : Theme.textPrimary }]}>
           {item.label}
         </Text>
 
-        {tableData && tableData.status !== "LOCKED" && (
+        {isOccupied && item.Status !== 4 && (
           <View style={styles.tableInfo}>
             {statusLabel ? (
               <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor }]}>
@@ -160,9 +135,11 @@ const TableItemComponent = React.memo(({
               </View>
             ) : null}
             <View style={styles.tableStats}>
-              <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
-                 <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
-              </Text>
+              {timeText ? (
+                <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
+                   <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
+                </Text>
+              ) : null}
               {billAmount > 0 && (
                 <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
                   ${billAmount.toFixed(2)}
@@ -172,13 +149,13 @@ const TableItemComponent = React.memo(({
           </View>
         )}
 
-        {tableData && tableData.status === "LOCKED" && (
+        {isOccupied && item.Status === 4 && (
           <View style={styles.lockedOverlay}>
-            <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={Theme.danger} />
-            <Text style={[styles.timeText, { fontSize: smallFont, color: "#B91C1C", fontWeight: "bold" }]}>RESERVED</Text>
-            {tableData.lockedByName ? (
+            <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={ui.color} />
+            <Text style={[styles.timeText, { fontSize: smallFont, color: ui.color, fontWeight: "bold" }]}>RESERVED</Text>
+            {tableData?.lockedByName ? (
               <View style={{ 
-                backgroundColor: "#B91C1C", 
+                backgroundColor: ui.color, 
                 paddingHorizontal: 6, 
                 paddingVertical: 2, 
                 borderRadius: 4, 
@@ -224,6 +201,7 @@ type TableItem = {
   id: string;
   label: string;
   DiningSection: number;
+  Status: number;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
@@ -346,6 +324,7 @@ export default function Category() {
             id: item.TableId || item.id,
             label: item.TableNumber || item.label,
             DiningSection: Number(item.DiningSection) || 1,
+            Status: Number(item.Status) || 0,
           }))
           .filter((item) => item.id && item.label);
         setAllTables(convertedData);
@@ -447,7 +426,7 @@ export default function Category() {
   }).length;
 
   const handleTablePress = React.useCallback((item: TableItem, tableData: any) => {
-    if (tableData && tableData.status === "LOCKED") {
+    if (item.Status === 4) {
       Alert.alert(
         "Table Locked",
         `Table ${item.label} is reserved. What would you like to do?`,
