@@ -1048,7 +1048,7 @@ const styles = StyleSheet.create({
   holdBtn: {
     flex: 1,
     height: 50,
-    backgroundColor: "#F97316",
+    backgroundColor: "#2563EB",
     borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
