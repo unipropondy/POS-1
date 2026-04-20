@@ -136,6 +136,33 @@ router.post("/unlock-persistent", async (req, res) => {
   }
 });
 
+router.put("/:tableId/status", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { tableId } = req.params;
+    const { status, lockedByName } = req.body;
+
+    if (status === undefined) return res.status(400).json({ error: "status is required" });
+
+    const request = pool.request();
+    request.input("tableId", sql.VarChar(50), tableId);
+    request.input("status", sql.Int, Number(status));
+    request.input("lockedByName", sql.NVarChar, lockedByName || null);
+
+    await request.query(`
+      UPDATE TableMaster 
+      SET Status = @status, 
+          LockedByName = CASE WHEN @status = 4 THEN @lockedByName ELSE NULL END
+      WHERE CAST(TableId AS VARCHAR(50)) = @tableId
+    `);
+
+    res.json({ success: true, status: Number(status) });
+  } catch (err) {
+    console.error("UPDATE STATUS ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/diagnostic", async (req, res) => {
     try {
       const pool = await poolPromise;

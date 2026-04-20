@@ -47,20 +47,13 @@ const formatSectionGlobal = (sec: string) => {
 };
 
 const getStatusUI = (status: number) => {
-  switch (status) {
-    case 1:
-      return { text: "DINING", color: "#4CAF50", lightBg: "#F0FDF4" };
-    case 2:
-      return { text: "ON HOLD", color: "#2196F3", lightBg: "#F0F9FF" };
-    case 3:
-      return { text: "CHECKOUT", color: "#FF9800", lightBg: "#FFFBEB" };
-    case 4:
-      return { text: "RESERVED", color: "#F44336", lightBg: "#FEF2F2" };
-    case 5:
-      return { text: "OVERTIME", color: "#9C27B0", lightBg: "#F5F3FF" };
-    default:
-      return { text: "", color: Theme.textMuted, lightBg: Theme.bgCard };
-  }
+  const s = Number(status);
+  if (s === 1) return { text: "DINING", color: "#4CAF50", lightBg: "#F0FDF4" };
+  if (s === 2) return { text: "HOLD", color: "#2196F3", lightBg: "#F0F9FF" };
+  if (s === 3) return { text: "CHECKOUT", color: "#FF9800", lightBg: "#FFFBEB" };
+  if (s === 4) return { text: "RESERVED", color: "#F44336", lightBg: "#FEF2F2" };
+  if (s === 5) return { text: "OVERTIME", color: "#9C27B0", lightBg: "#F5F3FF" };
+  return { text: "AVAILABLE", color: Theme.textMuted, lightBg: Theme.bgCard };
 };
 
 // --- MEMOIZED TABLE COMPONENT ---
@@ -84,8 +77,9 @@ const TableItemComponent = React.memo(({
   isTabletPortrait?: boolean;
 }) => {
   const IS_MOBILE = Platform.OS !== 'web';
-  const ui = getStatusUI(item.Status || 0);
-  const isOccupied = (item.Status || 0) > 0;
+  const status = Number(item.Status);
+  const ui = getStatusUI(status);
+  const isOccupied = status === 1 || status === 2 || status === 3 || status === 4 || status === 5;
 
   let borderColor = isOccupied ? ui.color : Theme.border;
   let bgColor = IS_MOBILE && isOccupied ? ui.lightBg : Theme.bgCard;
@@ -99,7 +93,7 @@ const TableItemComponent = React.memo(({
     const time = new Date(tableData.startTime);
     const hours = time.getHours().toString().padStart(2, "0");
     const mins = time.getMinutes().toString().padStart(2, "0");
-    if (item.Status !== 4) {
+    if (status !== 4 && status !== 0) {
       timeText = `${hours}:${mins}`;
     }
   }
@@ -125,7 +119,7 @@ const TableItemComponent = React.memo(({
           {item.label}
         </Text>
 
-        {isOccupied && item.Status !== 4 && (
+        {isOccupied && status !== 4 && (
           <View style={styles.tableInfo}>
             {statusLabel ? (
               <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor }]}>
@@ -149,7 +143,7 @@ const TableItemComponent = React.memo(({
           </View>
         )}
 
-        {isOccupied && item.Status === 4 && (
+        {isOccupied && status === 4 && (
           <View style={styles.lockedOverlay}>
             <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={ui.color} />
             <Text style={[styles.timeText, { fontSize: smallFont, color: ui.color, fontWeight: "bold" }]}>RESERVED</Text>
@@ -425,13 +419,44 @@ export default function Category() {
     return !!td;
   }).length;
 
+  // ──── STATUS HANDLERS (OPTIMISTIC) ────
+  const updateTableStatus = async (tableId: string, status: number, lockedByName?: string) => {
+    // 1. Optimistic UI update
+    const previousTables = [...allTables];
+    setAllTables(prev => prev.map(t => t.id === tableId ? { ...t, Status: status } : t));
+
+    try {
+      const res = await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, lockedByName }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      
+      // Successfully updated backend
+      if (status === 4) fetchLockedTables();
+    } catch (err) {
+      console.error("Status update failed:", err);
+      Alert.alert("Sync Error", "Could not sync status with server. Reverting UI.");
+      setAllTables(previousTables);
+    }
+  };
+
+  const handleDining   = (id: string) => updateTableStatus(id, 1);
+  const handleHold     = (id: string) => updateTableStatus(id, 2);
+  const handleCheckout = (id: string) => updateTableStatus(id, 3);
+  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name);
+  const handleOvertime = (id: string) => updateTableStatus(id, 5);
+  const handleComplete = (id: string) => updateTableStatus(id, 0);
+
   const handleTablePress = React.useCallback((item: TableItem, tableData: any) => {
-    if (item.Status === 4) {
+    const status = Number(item.Status);
+    if (status === 4) {
       Alert.alert(
         "Table Locked",
         `Table ${item.label} is reserved. What would you like to do?`,
         [
-          { text: "Unlock Table", style: "destructive", onPress: () => confirmUnlock(item.id, item.label) },
+          { text: "Unlock Table", style: "destructive", onPress: () => handleComplete(item.id) },
           { text: "Go to Lock Tables", onPress: () => router.push("/locked-tables") },
           { text: "Cancel", style: "cancel" },
         ]
