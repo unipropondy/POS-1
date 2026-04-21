@@ -145,22 +145,23 @@ export default function LockedTablesScreen() {
 
   const continueWithOrder = async (tableId: string, tableNumber: string, diningSection?: number) => {
     try {
-      // 1. Release the persistent lock in backend
       const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
-      await fetch(`${API_URL}/api/tables/unlock-persistent`, {
+      
+      // Hit the official 'send' API to transition from Locked (4) to Dining (1)
+      await fetch(`${API_URL}/api/orders/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tableId: cleanId }),
       });
 
-      // 2. Mark table as Active/HOLD in the store to turn it green
+      // Update store immediately
       const section = getSectionFromDiningSection(diningSection);
       useTableStatusStore.getState().updateTableStatus(
         tableId,
         section,
         tableNumber,
-        `ORD-${Date.now().toString().slice(-6)}`, // Temporary ID
-        'HOLD',
+        "SYNC", 
+        'SENT',
         Date.now()
       );
 
@@ -174,12 +175,13 @@ export default function LockedTablesScreen() {
       router.push("/menu/thai_kitchen");
     } catch (err) {
       console.error("Failed to transition locked table:", err);
-      // Still attempt to navigate if API fails, as user wants to proceed
+      // Fallback
       const section = getSectionFromDiningSection(diningSection);
       setOrderContext({
         orderType: "DINE_IN",
         section: section,
         tableNo: tableNumber,
+        tableId: tableId,
       });
       router.push("/menu/thai_kitchen");
     }

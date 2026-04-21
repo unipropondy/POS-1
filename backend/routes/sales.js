@@ -618,6 +618,10 @@ router.post("/save", async (req, res) => {
       }
 
         console.log(`[SAVE SALE] Step 5: Inserting PaymentDetailCur...`);
+        const paymodeRow = await transaction.request()
+          .input("PayModeCode", sql.VarChar(50), (paymentMethod || "CAS").trim())
+          .query(`SELECT TOP 1 ISNULL(Position, 1) AS Position FROM [dbo].[Paymode] WHERE LTRIM(RTRIM(PayMode)) = @PayModeCode`);
+        const paymodePosition = paymodeRow.recordset.length > 0 ? paymodeRow.recordset[0].Position : 1;
 
         await transaction.request()
           .input("PaymentId", sql.UniqueIdentifier, settlementId)
@@ -625,7 +629,7 @@ router.post("/save", async (req, res) => {
           .input("BilledFor", sql.Int, 1)
           .input("PaymentCollectedOn", sql.DateTime, new Date())
           .input("PaymentType", sql.Int, 1)
-          .input("Paymode", sql.Int, 1) // Default to 1 for simplicity if lookup is removed, or re-add it if needed
+          .input("Paymode", sql.Int, paymodePosition)
           .input("Amount", sql.Decimal(18, 2), totalAmount || 0)
           .input("ReferenceNumber", sql.VarChar(100), null)
           .input("Remarks", sql.VarChar(500), paymentMethod || "")

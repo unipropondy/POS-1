@@ -515,10 +515,10 @@ export default function Category() {
     return "TAKEAWAY";
   };
 
-  const handleDining   = (id: string) => updateTableStatus(id, 2); // Dining
-  const handleHold     = (id: string) => updateTableStatus(id, 3); // Hold
-  const handleCheckout = (id: string) => updateTableStatus(id, 0); // Available (Complete)
-  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Delivery/Locked
+  const handleDining   = (id: string) => updateTableStatus(id, 1); // Dining
+  const handleHold     = (id: string) => updateTableStatus(id, 2); // Hold
+  const handleCheckout = (id: string) => updateTableStatus(id, 3); // Checkout
+  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Reserved
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 
   const handleTablePress = React.useCallback((item: TableItem, tableData: any) => {

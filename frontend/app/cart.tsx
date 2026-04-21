@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -393,7 +394,6 @@ export default function CartScreen() {
     if (context.orderType === "DINE_IN") {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
-      if (tableId) {
         try {
           // ✅ Use new synchronized status API
           await fetch(`${API_URL}/api/orders/send`, {
@@ -404,9 +404,8 @@ export default function CartScreen() {
         } catch (err) {
           console.error("Failed to update status on server:", err);
         }
+        updateTableStatus(tableId, context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       }
-      }
-      updateTableStatus(tableId || "", context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
       router.replace(`/(tabs)/category?section=${context.section}`);
     } else if (context.orderType === "TAKEAWAY") {
@@ -557,33 +556,72 @@ export default function CartScreen() {
             {unsentCount === 0 && (activeOrder || cart.length > 0) && (
               <>
                 {(!currentTableData || currentTableData.status === 'SENT' || currentTableData.status === 'HOLD') ? (
-                  <Pressable
-                    style={[styles.checkoutBtn, { backgroundColor: Theme.warning }]}
-                    onPress={async () => {
-                      if (orderContext.orderType === "DINE_IN") {
-                        const tableId = orderContext.tableId || currentTableData?.tableId;
-                        if (tableId) {
-                          try {
-                            // Hit the synchronized Checkout status endpoint
-                            await fetch(`${API_URL}/api/orders/checkout`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ tableId }),
-                            });
-                          } catch (err) {
-                            console.error("Failed to update checkout status:", err);
-                          }
+                    <Pressable
+                      style={[styles.checkoutBtn, { backgroundColor: Theme.warning }]}
+                      onPress={async () => {
+                        console.log("🛒 [Checkout] Action triggered");
+                        
+                        // 1. Context check
+                        if (orderContext.orderType !== "DINE_IN") {
+                          console.log("🛒 [Checkout] Non-Dine-In order, proceeding to summary");
+                          router.push("/summary");
+                          return;
                         }
-                        updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
-                        router.push("/summary");
-                      } else {
-                        router.push("/summary");
-                      }
-                    }}
-                  >
-                    <Ionicons name="receipt-outline" size={18} color="#fff" />
-                    <Text style={styles.checkoutBtnText}>Checkout</Text>
-                  </Pressable>
+
+                        // 2. Resolve Table ID
+                        const tableId = orderContext.tableId || currentTableData?.tableId;
+                        console.log("🛒 [Checkout] Table ID resolved:", tableId);
+
+                        if (!tableId) {
+                          Alert.alert("Checkout Error", "Could not identify the table ID. Please try selecting the table again.");
+                          return;
+                        }
+
+                        try {
+                          // 3. Inform user
+                          showToast({
+                            type: "info",
+                            message: "Processing Checkout...",
+                            subtitle: `Updating Table ${orderContext.tableNo}`
+                          });
+
+                          // 4. Hit synchronized API
+                          const response = await fetch(`${API_URL}/api/orders/checkout`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tableId }),
+                          });
+
+                          if (!response.ok) {
+                            const errorBody = await response.json();
+                            throw new Error(errorBody.error || "Server failed to process checkout");
+                          }
+
+                          console.log("🛒 [Checkout] API Success, status set to 3");
+
+                          // 5. Update local store immediately for local UI feedback
+                          updateTableStatus(
+                            tableId, 
+                            orderContext.section!, 
+                            orderContext.tableNo!, 
+                            activeOrder?.orderId || "SYNC", 
+                            'BILL_REQUESTED', 
+                            undefined, 
+                            undefined, 
+                            payableAmount
+                          );
+
+                          // 6. Navigate
+                          router.push("/summary");
+                        } catch (err: any) {
+                          console.error("🛒 [Checkout] Error:", err);
+                          Alert.alert("Checkout Failed", err.message || "Failed to update table status. Please check your connection.");
+                        }
+                      }}
+                    >
+                      <Ionicons name="receipt-outline" size={18} color="#fff" />
+                      <Text style={styles.checkoutBtnText}>Checkout</Text>
+                    </Pressable>
                 ) : (
                   <Pressable
                     style={[styles.checkoutBtn, { backgroundColor: Theme.primary }]}

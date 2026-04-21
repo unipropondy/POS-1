@@ -8,6 +8,7 @@ const { poolPromise } = require("../config/db");
  * Sets TableMaster Status and emits socket event
  */
 async function updateTableStatus(req, tableId, status) {
+  if (!tableId) throw new Error("tableId is required for status update");
   const pool = await poolPromise;
   const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
   
