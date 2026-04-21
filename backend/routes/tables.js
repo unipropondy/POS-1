@@ -146,7 +146,8 @@ router.put("/:tableId/status", async (req, res) => {
     if (status === undefined) return res.status(400).json({ error: "status is required" });
 
     const request = pool.request();
-    request.input("tableId", sql.VarChar(50), tableId.replace(/^\{|\}$/g, "").trim());
+    const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
+    request.input("tableId", sql.VarChar(50), cleanTableId);
     request.input("status", sql.Int, Number(status));
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 
@@ -155,12 +156,20 @@ router.put("/:tableId/status", async (req, res) => {
       SET Status = @status, 
           LockedByName = CASE WHEN @status = 4 THEN @lockedByName ELSE NULL END,
           StartTime = CASE 
-            WHEN @status = 1 AND StartTime IS NULL THEN GETDATE() 
+            -- Status 1 (Cart) or 2 (Dining) starts the timer
+            WHEN (@status = 1 OR @status = 2) AND StartTime IS NULL THEN GETDATE() 
+            -- Status 0 (Available) resets the timer
             WHEN @status = 0 THEN NULL 
             ELSE StartTime 
           END
       WHERE CAST(TableId AS VARCHAR(50)) = @tableId
     `);
+
+    // 🔥 Emit socket event for real-time sync across devices
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("table_status_updated", { tableId: cleanTableId, status: Number(status) });
+    }
 
     res.json({ success: true, status: Number(status) });
   } catch (err) {

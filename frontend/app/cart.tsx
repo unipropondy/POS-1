@@ -311,7 +311,15 @@ export default function CartScreen() {
       // Logic for canceling the entire order
       if (activeOrder) {
         closeActiveOrder(activeOrder.orderId);
-        socket.emit("order_status_update", { orderId: activeOrder.orderId, action: "CLOSE" });
+        // ✅ Sync status with DB via new API
+        const tableId = orderContext?.tableId || currentTableData?.tableId;
+        if (tableId) {
+          fetch(`${API_URL}/api/orders/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tableId }),
+          }).catch(err => console.error("Sync Error:", err));
+        }
       }
       clearCart();
       if (
@@ -385,15 +393,18 @@ export default function CartScreen() {
     if (context.orderType === "DINE_IN") {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
+      if (tableId) {
         try {
-          await fetch(`${API_URL}/api/tables/${tableId}/status`, {
-            method: "PUT",
+          // ✅ Use new synchronized status API
+          await fetch(`${API_URL}/api/orders/send`, {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: 1 }),
+            body: JSON.stringify({ tableId }),
           });
         } catch (err) {
           console.error("Failed to update status on server:", err);
         }
+      }
       }
       updateTableStatus(tableId || "", context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       clearCart();
@@ -505,10 +516,10 @@ export default function CartScreen() {
                       const tableId = orderContext.tableId || currentTableData?.tableId;
                       if (tableId) {
                         try {
-                          await fetch(`${API_URL}/api/tables/${tableId}/status`, {
-                            method: "PUT",
+                          await fetch(`${API_URL}/api/orders/hold`, {
+                            method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: 2 }),
+                            body: JSON.stringify({ tableId }),
                           });
                         } catch (err) {
                           console.error("Failed to update status on server:", err);
@@ -553,13 +564,14 @@ export default function CartScreen() {
                         const tableId = orderContext.tableId || currentTableData?.tableId;
                         if (tableId) {
                           try {
-                            await fetch(`${API_URL}/api/tables/${tableId}/status`, {
-                              method: "PUT",
+                            // Hit the synchronized Checkout status endpoint
+                            await fetch(`${API_URL}/api/orders/checkout`, {
+                              method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ status: 3 }),
+                              body: JSON.stringify({ tableId }),
                             });
                           } catch (err) {
-                            console.error("Failed to update status on server:", err);
+                            console.error("Failed to update checkout status:", err);
                           }
                         }
                         updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);

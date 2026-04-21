@@ -417,11 +417,11 @@ export default function PaymentScreen() {
         if (context.orderType === "DINE_IN" && context.section && context.tableNo) {
           clearTable(context.section, context.tableNo);
           if (context.tableId) {
-            fetch(`${API_URL}/api/tables/${context.tableId}/status`, {
-              method: "PUT",
+            fetch(`${API_URL}/api/orders/complete`, {
+              method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: 0 }),
-            });
+              body: JSON.stringify({ tableId: context.tableId }),
+            }).catch(err => console.error("Sync Error:", err));
           }
         } else if (context.orderType === "TAKEAWAY" && context.takeawayNo) {
           clearTable("TAKEAWAY", context.takeawayNo);

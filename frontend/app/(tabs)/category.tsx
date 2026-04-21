@@ -49,11 +49,11 @@ const formatSectionGlobal = (sec: string) => {
 const getStatusUI = (status: number) => {
   const s = Number(status);
   switch (s) {
-    case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
-    case 2: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
-    case 3: return { text: "CHECKOUT", color: "#f59e0b", lightBg: "#FFFBEB" };
-    case 4: return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
-    case 5: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 1: return { text: "DINING", color: "#28a745", lightBg: "#F0FDF4" };
+    case 2: return { text: "HOLD", color: "#007bff", lightBg: "#EFF6FF" };
+    case 3: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
+    case 4: return { text: "RESERVED", color: "#dc3545", lightBg: "#FEF2F2" };
+    case 5: return { text: "OVERTIME", color: "#6f42c1", lightBg: "#FAF5FF" };
     case 0:
     default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" };
   }
@@ -214,6 +214,8 @@ const SECTION_ICONS: Record<string, string> = {
   TAKEAWAY: "bag-handle-outline",
 };
 
+import { socket } from "../../constants/socket";
+
 export default function Category() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
@@ -241,6 +243,19 @@ export default function Category() {
   const canAccessTimeEntry   = useAuthStore((s: any) => s.canAccessTimeEntry);
   const canAccessLockTables  = useAuthStore((s: any) => s.canAccessLockTables);
   const canAccessKDS         = useAuthStore((s: any) => s.canAccessKDS);
+
+  // 🔔 Real-time sync listener for table status
+  useEffect(() => {
+    const handleTableUpdate = (data: { tableId: string; status: number }) => {
+      console.log(`📡 [Real-time] Table ${data.tableId} changed to status ${data.status}`);
+      fetchTables(); // Refresh everything from DB
+    };
+
+    socket.on("table_status_updated", handleTableUpdate);
+    return () => {
+      socket.off("table_status_updated", handleTableUpdate);
+    };
+  }, []);
 
   // ── Route guard: redirect to login if not authenticated ──
   useFocusEffect(
@@ -500,12 +515,11 @@ export default function Category() {
     return "TAKEAWAY";
   };
 
-  const handleDining   = (id: string) => updateTableStatus(id, 1);
-  const handleHold     = (id: string) => updateTableStatus(id, 2);
-  const handleCheckout = (id: string) => updateTableStatus(id, 3);
-  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name);
-  const handleOvertime = (id: string) => updateTableStatus(id, 5);
-  const handleComplete = (id: string) => updateTableStatus(id, 0);
+  const handleDining   = (id: string) => updateTableStatus(id, 2); // Dining
+  const handleHold     = (id: string) => updateTableStatus(id, 3); // Hold
+  const handleCheckout = (id: string) => updateTableStatus(id, 0); // Available (Complete)
+  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Delivery/Locked
+  const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 
   const handleTablePress = React.useCallback((item: TableItem, tableData: any) => {
     const status = Number(item.Status);
@@ -523,13 +537,20 @@ export default function Category() {
     }
 
     let newContext: any;
-    if (activeTab === "TAKEAWAY") {
-      newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
-    } else {
+    if (activeTab !== "TAKEAWAY") {
       newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label, tableId: item.id };
+      
+      // ✅ If table is Available, mark it as "Dining" (status 1) in DB
+      if (status === 0) {
+        fetch(`${API_URL}/api/orders/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tableId: item.id }),
+        }).catch(err => console.error("Failed to sync status:", err));
+      }
+    } else {
+      newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
     }
-
-    // REMOVED: handleDining(item.id); 
 
     setOrderContext(newContext);
 

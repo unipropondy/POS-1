@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-
-export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED';
+export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED' | 'CART' | 'DELIVERY';
 
 export type TableStatus = {
   tableId: string;
@@ -8,8 +7,8 @@ export type TableStatus = {
   tableNo: string;
   orderId: string;
   startTime: number;
-  status: TableStatusType;
-  lockedByName?: string;  // Name of person/customer who locked the table
+  status: TableStatusType | number;
+  lockedByName?: string;
   totalAmount?: number;
 };
 

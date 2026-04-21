@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 /* ================= TYPES ================= */
 
-export type UserRole = "ADMIN" | "CASHIER" | "MANAGER" | "SUPERVISOR";
+export type UserRole = "ADMIN" | "CASHIER" | "MANAGER" | "SUPERVISOR" | "KDS";
 
 export type AuthUser = {
   userId: string;

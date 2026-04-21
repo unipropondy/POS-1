@@ -1,17 +1,20 @@
 import { Tabs, usePathname } from "expo-router";
 import React from "react";
-
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const user = useAuthStore((state) => state.user);
 
   // ✅ Show tabs ONLY inside /(tabs) screens (NOT login "/")
-  const showTabs = pathname.startsWith("/(tabs)");
+  // 🛑 ALSO hide tabs if user is KDS role
+  const isKDS = user?.role === "KDS";
+  const showTabs = pathname.startsWith("/(tabs)") && !isKDS;
 
   return (
     <Tabs
