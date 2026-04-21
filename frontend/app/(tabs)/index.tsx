@@ -113,11 +113,17 @@ export default function LoginScreen() {
             setPermissions(permData);
           }
         } catch {
-          // Permissions fetch failed — non-fatal, admin still has full access via role check
+          // Permissions fetch failed — non-fatal
           setPermissions({});
         }
 
-        router.replace("/(tabs)/category");
+        // Role-based navigation: KDS goes to kitchen screen, all others to POS
+        const role = (data.user.role || "").toUpperCase();
+        if (role === "KDS") {
+          router.replace("/kds" as any);
+        } else {
+          router.replace("/(tabs)/category");
+        }
       } else {
         setError(data.message || "Login failed. Please try again.");
         shakeError();
@@ -339,3 +345,4 @@ const styles = StyleSheet.create({
 
   footerText: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: Fonts.medium, marginTop: 24 },
 });
+

@@ -16,8 +16,43 @@ const memberRoutes = require("./routes/members");
 const attendanceRoutes = require("./routes/attendance");
 const adminRoutes = require("./routes/admin");
 
+const http = require("http");
+const { Server } = require("socket.io");
+
 const app = express();
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
 const PORT = process.env.PORT || 3000;
+
+// Expose io to routes
+app.set("io", io);
+
+// Socket.io Connection
+io.on("connection", (socket) => {
+    console.log("🔌 New client connected:", socket.id);
+    
+    // Broadcast new orders to other clients (e.g. KDS screens)
+    socket.on("new_order", (data) => {
+        console.log("📦 [Server] New order event received:", data.orderId);
+        socket.broadcast.emit("new_order", data);
+    });
+
+    // Broadcast status updates (e.g. order completed, items voided)
+    socket.on("order_status_update", (data) => {
+        console.log("🔄 [Server] Order status update received:", data.orderId);
+        socket.broadcast.emit("order_status_update", data);
+    });
+
+    socket.on("disconnect", () => {
+        console.log("🔌 Client disconnected:", socket.id);
+    });
+});
 
 // ✅ Global Middleware
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"], allowedHeaders: ["Content-Type"] }));
@@ -51,7 +86,7 @@ app.get("/modifiers/:id", (req, res) => res.redirect(`/api/menu/modifiers/${req.
 app.get("/image/:id", (req, res) => res.redirect(`/api/menu/image/${req.params.id}`));
 
 /* ================= START SERVER ================= */
-app.listen(PORT, async () => {
+httpServer.listen(PORT, async () => {
     console.log(`🚀 Modular Server running on port ${PORT}`);
     
     try {

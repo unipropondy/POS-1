@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useActiveOrdersStore } from "../stores/activeOrdersStore";
+import { useKdsSocket } from "../hooks/useKdsSocket";
 
 // ─── Urgency thresholds (minutes) ───────────────────────────────────────────
 const URGENCY_FRESH = 15; // 0–15 min  → green
@@ -75,6 +76,9 @@ export default function KDSScreen() {
   const isMobile = !isTablet;
   const router = useRouter();
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
+
+  // Connect to backend Socket.IO for real-time order updates
+  useKdsSocket();
 
   const [time, setTime] = useState(Date.now());
   const blinkAnim = useRef(new Animated.Value(1)).current;

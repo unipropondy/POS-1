@@ -30,6 +30,7 @@ import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { holdOrder } from "../stores/heldOrdersStore";
 import EditDishModal from "../components/EditDishModal";
+import { socket } from "../constants/socket";
 
 // Premium Cart Item Card
 const CartItemCard = React.memo(
@@ -293,6 +294,14 @@ export default function CartScreen() {
     if (itemToVoid && activeOrder) {
       // Logic for voiding a single item
       voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+      
+      // 🔥 EMIT SOCKET EVENT FOR KDS
+      socket.emit("order_status_update", {
+        orderId: activeOrder.orderId,
+        action: "VOID",
+        lineItemId: itemToVoid.lineItemId
+      });
+
       showToast({
         type: "success",
         message: "Item Voided",
@@ -300,7 +309,10 @@ export default function CartScreen() {
       });
     } else {
       // Logic for canceling the entire order
-      if (activeOrder) closeActiveOrder(activeOrder.orderId);
+      if (activeOrder) {
+        closeActiveOrder(activeOrder.orderId);
+        socket.emit("order_status_update", { orderId: activeOrder.orderId, action: "CLOSE" });
+      }
       clearCart();
       if (
         orderContext.orderType === "DINE_IN" &&
@@ -362,6 +374,13 @@ export default function CartScreen() {
 
     appendOrder(targetOrderId, context, cart);
     markItemsSent(targetOrderId);
+
+    // 🔥 EMIT SOCKET EVENT FOR KDS
+    socket.emit("new_order", {
+      orderId: targetOrderId,
+      context,
+      items: cart
+    });
 
     if (context.orderType === "DINE_IN") {
       const tableId = context.tableId || currentTableData?.tableId;
