@@ -26,6 +26,7 @@ export type CartItem = {
   discount?: number;
   basePrice?: number;
   isTakeaway?: boolean;
+  categoryName?: string; // 🔥 Added for KDS grouping
 };
 
 export type DiscountInfo = {

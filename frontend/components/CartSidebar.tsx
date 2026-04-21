@@ -31,6 +31,7 @@ import { holdOrder } from "../stores/heldOrdersStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
+import { socket } from "../constants/socket";
 
 if (
   Platform.OS === "android" &&
@@ -227,6 +228,13 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         undefined,
         payableAmount,
       );
+
+      // 🔥 Sync with KDS: Remove order from kitchen display when bill is requested
+      socket.emit("order_status_update", {
+        orderId: activeOrder?.orderId || "PAYMENT",
+        action: "CLOSE"
+      });
+
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       router.push("/summary");

@@ -386,27 +386,31 @@ export default function MenuScreen() {
         setModifiers(data);
         setShowModifier(true);
       } else {
+        const currentKitchenName = kitchens.find(k => k.CategoryId === selectedKitchenId)?.KitchenTypeName || "Kitchen";
         addToCartGlobal({
           id: dish.DishId,
           name: dish.Name,
           price: dish.Price || 0,
+          categoryName: currentKitchenName,
         });
         setModifiers([]);
         setShowModifier(false);
       }
     } catch (err) {
       console.error(err);
+      const currentKitchenName = kitchens.find(k => k.CategoryId === selectedKitchenId)?.KitchenTypeName || "Kitchen";
       addToCartGlobal({
         id: dish.DishId,
         name: dish.Name,
         price: dish.Price || 0,
+        categoryName: currentKitchenName,
       });
       setModifiers([]);
       setShowModifier(false);
     } finally {
       setLoadingModifiers(false);
     }
-  }, []);
+  }, [selectedKitchenId, kitchens]); // Adding dependencies for safety
 
   const renderDishItem = React.useCallback(
     ({ item }: { item: any }) => {
@@ -479,12 +483,15 @@ export default function MenuScreen() {
       const extra = modsToAdd.reduce((sum, m) => sum + (m.Price || 0), 0);
       const finalPrice = (selectedDish.Price || 0) + extra;
 
+      const currentKitchenName = kitchens.find(k => k.CategoryId === selectedKitchenId)?.KitchenTypeName || "Kitchen";
+
       addToCartGlobal({
         id: selectedDish.DishId,
         name: selectedDish.Name,
         price: finalPrice,
         modifiers: modsToAdd as any,
         basePrice: selectedDish.Price || 0,
+        categoryName: currentKitchenName, // 🔥 Now grouping by Kitchen Name
       });
     }
     setShowModifier(false);
