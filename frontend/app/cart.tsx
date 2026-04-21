@@ -568,7 +568,10 @@ export default function CartScreen() {
                             const response = await fetch(`${API_URL}/api/orders/checkout`, {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ tableId: cleanId }),
+                              body: JSON.stringify({ 
+                                tableId: cleanId,
+                                orderId: activeOrder?.orderId || null 
+                              }),
                             });
 
                             if (!response.ok) {

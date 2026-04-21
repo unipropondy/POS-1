@@ -16,6 +16,7 @@ const memberRoutes = require("./routes/members");
 const attendanceRoutes = require("./routes/attendance");
 const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/orders");
+const cartRoutes = require("./routes/cart");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -72,6 +73,7 @@ app.use("/api/members", memberRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 
 // Root Endpoints
 app.get("/", (req, res) => res.send("POS Backend Modular Running"));

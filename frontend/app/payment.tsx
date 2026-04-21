@@ -420,7 +420,10 @@ export default function PaymentScreen() {
             fetch(`${API_URL}/api/orders/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tableId: context.tableId }),
+              body: JSON.stringify({ 
+                tableId: context.tableId,
+                orderId: realOrderId || activeOrder?.orderId || ""
+              }),
             }).catch(err => console.error("Sync Error:", err));
           }
         } else if (context.orderType === "TAKEAWAY" && context.takeawayNo) {

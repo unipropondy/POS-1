@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
+import { API_URL } from "../constants/Config";
 
 /* ================= TYPES ================= */
 
@@ -10,8 +11,9 @@ export type Modifier = {
 };
 
 export type CartItem = {
+  ItemId?: number; // DB Primary Key
   lineItemId: string;
-  id: string;
+  id: string; // ProductId
   name: string;
   price?: number;
   qty: number;
@@ -40,14 +42,16 @@ type CartState = {
   discounts: Record<string, DiscountInfo>;
 
   currentContextId: string | null;
+  loading: boolean;
 
   setCurrentContext: (contextId: string | null) => void;
+  loadCartFromServer: (contextId: string) => Promise<void>;
 
   getCart: () => CartItem[];
 
-  addToCartGlobal: (item: Omit<CartItem, "qty" | "lineItemId">) => string;
-  removeFromCartGlobal: (lineItemId: string) => void;
-  clearCart: () => void;
+  addToCartGlobal: (item: Omit<CartItem, "qty" | "lineItemId">) => Promise<string>;
+  removeFromCartGlobal: (lineItemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
   clearAllCarts: () => void;
 
   applyDiscount: (discount: DiscountInfo) => void;
@@ -58,7 +62,7 @@ type CartState = {
     lineItemId: string,
     newQty: number,
     discount?: number,
-  ) => void;
+  ) => Promise<void>;
   updateCartItemModifiers: (lineItemId: string, modifiers: Modifier[]) => void;
   updateCartItemTakeaway: (lineItemId: string, isTakeaway: boolean) => void;
   updateCartItemDiscount: (lineItemId: string, discount: number) => void;
@@ -80,8 +84,37 @@ export const useCartStore = create<CartState>((set, get) => ({
   discounts: {},
 
   currentContextId: null,
+  loading: false,
 
   setCurrentContext: (contextId) => set({ currentContextId: contextId }),
+
+  loadCartFromServer: async (contextId) => {
+    if (!contextId) return;
+    set({ loading: true });
+    try {
+      const response = await fetch(`${API_URL}/api/cart/${contextId}`);
+      if (!response.ok) throw new Error("Failed to load cart");
+      const data = await response.json();
+      
+      const items: CartItem[] = data.map((d: any) => ({
+        ItemId: d.ItemId,
+        lineItemId: uuidv4(),
+        id: d.ProductId,
+        name: d.ProductName || "Unknown Item",
+        price: Number(d.Cost),
+        qty: d.Quantity,
+        basePrice: Number(d.Cost)
+      }));
+
+      set((state) => ({
+        carts: { ...state.carts, [contextId]: items },
+        loading: false
+      }));
+    } catch (err) {
+      console.error("Cart Load Error:", err);
+      set({ loading: false });
+    }
+  },
 
   getCart: () => {
     const { carts, currentContextId } = get();
@@ -115,112 +148,75 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   /* ================= ADD ================= */
 
-  addToCartGlobal: (item) => {
-    const { carts, currentContextId, discounts } = get();
+  addToCartGlobal: async (item) => {
+    const { currentContextId } = get();
     if (!currentContextId) return "";
 
-    const currentCart = carts[currentContextId] || [];
+    try {
+      const response = await fetch(`${API_URL}/api/cart/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cartId: currentContextId,
+          productId: item.id,
+          quantity: 1,
+          cost: item.price || 0
+        })
+      });
 
-    const areModifiersEqual = (mods1?: Modifier[], mods2?: Modifier[]) => {
-      const ids1 = (mods1 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      const ids2 = (mods2 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      return ids1 === ids2;
-    };
-
-    const existing = currentCart.find(
-      (p) =>
-        p.id === item.id &&
-        p.spicy === item.spicy &&
-        p.oil === item.oil &&
-        p.salt === item.salt &&
-        p.sugar === item.sugar &&
-        p.note === item.note &&
-        areModifiersEqual(p.modifiers, item.modifiers),
-    );
-
-    let updatedCart;
-    const targetLineItemId = existing ? existing.lineItemId : uuidv4();
-    const basePrice = item.price || 0; // Store the original dish price
-
-    if (existing) {
-      updatedCart = currentCart.map((p) =>
-        p.lineItemId === existing.lineItemId ? { ...p, qty: p.qty + 1 } : p,
-      );
-    } else {
-      updatedCart = [
-        ...currentCart,
-        { ...item, qty: 1, lineItemId: targetLineItemId, basePrice },
-      ];
+      if (!response.ok) throw new Error("API Save Error");
+      
+      await get().loadCartFromServer(currentContextId);
+      return "OK";
+    } catch (err) {
+      console.error("Cart Save Sync Error:", err);
+      return "";
     }
-
-    const newDiscounts = { ...discounts };
-    delete newDiscounts[currentContextId]; // 🔥 reset discount
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-      discounts: newDiscounts,
-    });
-
-    return targetLineItemId;
   },
 
   /* ================= REMOVE ================= */
 
-  removeFromCartGlobal: (lineItemId) => {
-    const { carts, currentContextId, discounts } = get();
+  removeFromCartGlobal: async (lineItemId) => {
+    const { carts, currentContextId } = get();
     if (!currentContextId) return;
 
     const currentCart = carts[currentContextId] || [];
     const item = currentCart.find((p) => p.lineItemId === lineItemId);
-    if (!item) return;
+    if (!item || !item.ItemId) return;
 
-    let updatedCart;
-
-    if (item.qty > 1) {
-      updatedCart = currentCart.map((p) =>
-        p.lineItemId === lineItemId ? { ...p, qty: p.qty - 1 } : p,
-      );
-    } else {
-      updatedCart = currentCart.filter((p) => p.lineItemId !== lineItemId);
+    try {
+      const response = await fetch(`${API_URL}/api/cart/remove/${item.ItemId}`, {
+        method: "DELETE"
+      });
+      if (!response.ok) throw new Error("API Delete Error");
+      
+      const updatedCart = currentCart.filter((p) => p.lineItemId !== lineItemId);
+      set({
+        carts: { ...carts, [currentContextId]: updatedCart }
+      });
+    } catch (err) {
+      console.error("Cart Delete Sync Error:", err);
     }
-
-    const newDiscounts = { ...discounts };
-    delete newDiscounts[currentContextId];
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-      discounts: newDiscounts,
-    });
   },
 
   /* ================= CLEAR ================= */
 
-  clearCart: () => {
-    const { carts, currentContextId, discounts } = get();
+  clearCart: async () => {
+    const { currentContextId, carts } = get();
     if (!currentContextId) return;
 
-    const newDiscounts = { ...discounts };
-    delete newDiscounts[currentContextId];
+    try {
+      const response = await fetch(`${API_URL}/api/cart/clear/${currentContextId}`, {
+        method: "DELETE"
+      });
+      if (!response.ok) throw new Error("API Clear Error");
 
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: [],
-      },
-      discounts: newDiscounts,
-    });
+      set({
+        carts: { ...carts, [currentContextId]: [] }
+      });
+    } catch (err) {
+      console.error("Cart Clear Sync Error:", err);
+    }
   },
 
   clearAllCarts: () =>
@@ -237,179 +233,17 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
   },
 
-  updateCartItemQty: (
-    lineItemId: string,
-    newQty: number,
-    discount?: number,
-  ) => {
-    const { carts, currentContextId } = get();
-    if (!currentContextId) return;
-
-    const currentCart = carts[currentContextId] || [];
-    const updatedCart = currentCart
-      .map((item) =>
-        item.lineItemId === lineItemId
-          ? {
-              ...item,
-              qty: Math.max(0, newQty),
-              discount: discount !== undefined ? discount : item.discount,
-            }
-          : item,
-      )
-      .filter((item) => item.qty > 0);
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-    });
-  },
-
-  updateCartItemModifiers: (lineItemId: string, modifiers: Modifier[]) => {
-    const { carts, currentContextId } = get();
-    if (!currentContextId) return;
-
-    const currentCart = carts[currentContextId] || [];
-    const sourceItem = currentCart.find((i) => i.lineItemId === lineItemId);
-    if (!sourceItem) return;
-
-    const areModifiersEqual = (mods1?: Modifier[], mods2?: Modifier[]) => {
-      const ids1 = (mods1 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      const ids2 = (mods2 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      return ids1 === ids2;
-    };
-
-    if (areModifiersEqual(sourceItem.modifiers, modifiers)) {
-      return; // No change in modifiers, early exit.
+  updateCartItemQty: async (lineItemId, newQty) => {
+    const { currentContextId } = get();
+    if (currentContextId) {
+       await get().loadCartFromServer(currentContextId);
     }
-
-    const base = sourceItem.basePrice || sourceItem.price || 0;
-    const extra = modifiers.reduce((sum, m) => sum + (m.Price || 0), 0);
-    const newPrice = base + extra;
-
-    // See if the new combo matches an EXISTING item (other than the temporary un-modified source item)
-    const matchingExistingItem = currentCart.find(
-      (p) =>
-        p.lineItemId !== lineItemId &&
-        p.id === sourceItem.id &&
-        p.spicy === sourceItem.spicy &&
-        p.oil === sourceItem.oil &&
-        p.salt === sourceItem.salt &&
-        p.sugar === sourceItem.sugar &&
-        p.note === sourceItem.note &&
-        areModifiersEqual(p.modifiers, modifiers),
-    );
-
-    let updatedCart = [...currentCart];
-
-    if (sourceItem.qty > 1) {
-      // Split the source item (drop 1 from group)
-      updatedCart = updatedCart.map((i) =>
-        i.lineItemId === lineItemId ? { ...i, qty: i.qty - 1 } : i,
-      );
-
-      if (matchingExistingItem) {
-        // Merge the separated 1 qty into the matching existing item
-        updatedCart = updatedCart.map((i) =>
-          i.lineItemId === matchingExistingItem.lineItemId
-            ? { ...i, qty: i.qty + 1 }
-            : i,
-        );
-      } else {
-        // Create a new independent item for the 1 qty
-        updatedCart.push({
-          ...sourceItem,
-          qty: 1,
-          lineItemId: uuidv4(),
-          modifiers,
-          price: newPrice,
-        });
-      }
-    } else {
-      // Source item is single qty, so we alter it completely
-      if (matchingExistingItem) {
-        // It matches another existing item! Merge them, delete the source line.
-        updatedCart = updatedCart.filter((i) => i.lineItemId !== lineItemId);
-        updatedCart = updatedCart.map((i) =>
-          i.lineItemId === matchingExistingItem.lineItemId
-            ? { ...i, qty: i.qty + 1 }
-            : i,
-        );
-      } else {
-        // Just modify it in place
-        updatedCart = updatedCart.map((i) =>
-          i.lineItemId === lineItemId
-            ? { ...i, modifiers, price: newPrice }
-            : i,
-        );
-      }
-    }
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-    });
   },
 
-  updateCartItemTakeaway: (lineItemId, isTakeaway) => {
-    const { carts, currentContextId } = get();
-    if (!currentContextId) return;
-
-    const currentCart = carts[currentContextId] || [];
-    const updatedCart = currentCart.map((item) =>
-      item.lineItemId === lineItemId ? { ...item, isTakeaway } : item,
-    );
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-    });
-  },
-
-  updateCartItemDiscount: (lineItemId, discount) => {
-    const { carts, currentContextId } = get();
-    if (!currentContextId) return;
-
-    const currentCart = carts[currentContextId] || [];
-    const updatedCart = currentCart.map((item) =>
-      item.lineItemId === lineItemId ? { ...item, discount } : item,
-    );
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-    });
-  },
-
-  updateCartItemFull: (lineItemId, updates) => {
-    const { carts, currentContextId } = get();
-    if (!currentContextId) return;
-
-    const currentCart = carts[currentContextId] || [];
-    const updatedCart = currentCart.map((item) =>
-      item.lineItemId === lineItemId ? { ...item, ...updates } : item,
-    );
-
-    set({
-      carts: {
-        ...carts,
-        [currentContextId]: updatedCart,
-      },
-    });
-  },
+  updateCartItemModifiers: (lineItemId, modifiers) => {},
+  updateCartItemTakeaway: (lineItemId, isTakeaway) => {},
+  updateCartItemDiscount: (lineItemId, discount) => {},
+  updateCartItemFull: (lineItemId, updates) => {},
 }));
 
 /* ================= HELPERS ================= */
