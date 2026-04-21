@@ -4,14 +4,17 @@ const sql = require("mssql");
 const { poolPromise } = require("../config/db");
 
 /**
- * Update Table Status Helper
- * Sets TableMaster Status and emits socket event
+ * Update Table and Order Status Helper
+ * Sets TableMaster Status and [Order] StatusCode
  */
 async function updateTableStatus(req, tableId, status) {
   const pool = await poolPromise;
   const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
   
-  await pool.request()
+  console.log(`[DEBUG] Attempting status update for Table: ${cleanId} to ${status}`);
+
+  // 1. Update TableMaster
+  const tableResult = await pool.request()
     .input("tableId", sql.VarChar(50), cleanId)
     .input("status", sql.Int, status)
     .query(`
@@ -22,8 +25,32 @@ async function updateTableStatus(req, tableId, status) {
             WHEN @status = 0 THEN NULL
             ELSE StartTime
           END
-      WHERE CAST(TableId AS VARCHAR(50)) = @tableId
+      WHERE CAST(TableId AS VARCHAR(50)) = @tableId 
+         OR LTRIM(RTRIM(CAST(TableId AS VARCHAR(50)))) = LTRIM(RTRIM(@tableId))
+         OR TableId = @tableId;
+      SELECT @@ROWCOUNT AS affected;
     `);
+
+  console.log(`[DEBUG] TableMaster update for ${cleanId} affected ${tableResult.recordset[0].affected} rows.`);
+
+  // 2. Update [dbo].[Order] table (Mapping Table Status to Order StatusCode: 1->1, 2->2, 3->3)
+  if (status > 0) {
+    try {
+      const orderResult = await pool.request()
+        .input("tableId", sql.VarChar(50), cleanId)
+        .input("status", sql.Int, status)
+        .query(`
+          UPDATE [dbo].[Order]
+          SET StatusCode = @status
+          WHERE (CAST(TableId AS VARCHAR(50)) = @tableId OR TableId = @tableId)
+          AND StatusCode < @status; 
+          SELECT @@ROWCOUNT AS affected;
+        `);
+      console.log(`[DEBUG] [Order] table update for ${cleanId} affected ${orderResult.recordset[0].affected} rows.`);
+    } catch (err) {
+      console.warn(`[DEBUG] Could not update [Order] table for ${cleanId}: ${err.message}`);
+    }
+  }
 
   const io = req.app.get("io");
   if (io) {

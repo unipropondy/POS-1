@@ -564,14 +564,23 @@ export default function CartScreen() {
                         const tableId = orderContext.tableId || currentTableData?.tableId;
                         if (tableId) {
                           try {
-                            // Hit the synchronized Checkout status endpoint
-                            await fetch(`${API_URL}/api/orders/checkout`, {
+                            const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+                            const response = await fetch(`${API_URL}/api/orders/checkout`, {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ tableId }),
+                              body: JSON.stringify({ tableId: cleanId }),
                             });
-                          } catch (err) {
-                            console.error("Failed to update checkout status:", err);
+
+                            if (!response.ok) {
+                              const errData = await response.json();
+                              throw new Error(errData.error || "Server failed to update checkout status");
+                            }
+
+                            console.log("✅ Checkout status synced to database");
+                          } catch (err: any) {
+                            console.error("❌ Checkout Sync Error:", err.message);
+                            alert(`Checkout Sync Failed: ${err.message}. Please try again.`);
+                            return; // Stop navigation if sync failed
                           }
                         }
                         updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, activeOrder.orderId, 'BILL_REQUESTED', undefined, undefined, payableAmount);
