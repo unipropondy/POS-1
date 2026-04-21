@@ -90,6 +90,26 @@ app.get("/modifiers/:id", (req, res) => res.redirect(`/api/menu/modifiers/${req.
 app.get("/image/:id", (req, res) => res.redirect(`/api/menu/image/${req.params.id}`));
 
 /* ================= START SERVER ================= */
+process.on("uncaughtException", (err) => {
+    console.error("💥 CRITICAL: Uncaught Exception:", err);
+    // Give time for logs to flush
+    setTimeout(() => process.exit(1), 500);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("💥 CRITICAL: Unhandled Rejection at:", promise, "reason:", reason);
+    setTimeout(() => process.exit(1), 500);
+});
+
+httpServer.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ ERROR: Port ${PORT} is already in use. Please kill the other process or use a different port.`);
+        process.exit(1);
+    } else {
+        console.error("❌ Server Error:", err);
+    }
+});
+
 httpServer.listen(PORT, async () => {
     console.log(`🚀 Modular Server running on port ${PORT}`);
     
