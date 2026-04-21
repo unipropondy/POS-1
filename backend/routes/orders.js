@@ -12,7 +12,9 @@ async function updateTableStatus(req, tableId, status) {
   const pool = await poolPromise;
   const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
   
-  await pool.request()
+  console.log(`🛠️ [DB] Attempting status update: Table=${cleanId}, Status=${status}`);
+
+  const result = await pool.request()
     .input("tableId", sql.VarChar(50), cleanId)
     .input("status", sql.Int, status)
     .query(`
@@ -23,12 +25,16 @@ async function updateTableStatus(req, tableId, status) {
             WHEN @status = 0 THEN NULL
             ELSE StartTime
           END
-      WHERE CAST(TableId AS VARCHAR(50)) = @tableId
+      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 
-  const io = req.app.get("io");
-  if (io) {
-    io.emit("table_status_updated", { tableId: cleanId, status });
+  console.log(`✅ [DB] Update result: ${result.rowsAffected[0]} row(s) affected`);
+
+  if (result.rowsAffected[0] > 0) {
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("table_status_updated", { tableId: cleanId, status });
+    }
   }
 }
 

@@ -106,12 +106,13 @@ router.post("/lock-persistent", async (req, res) => {
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
+    const request = pool.request(); // ✅ Fixed: request was not defined
     request.input("tableId", sql.VarChar(50), cleanTableId);
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 
     await request.query(`
       UPDATE TableMaster SET Status = 4, LockedByName = @lockedByName 
-      WHERE CAST(TableId AS VARCHAR(50)) = @tableId
+      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 
     // 🔥 Emit socket event
@@ -137,7 +138,7 @@ router.post("/unlock-persistent", async (req, res) => {
       .input("tableId", sql.VarChar(50), cleanTableId)
       .query(`
         UPDATE TableMaster SET Status = 0, LockedByName = NULL 
-        WHERE CAST(TableId AS VARCHAR(50)) = @tableId
+        WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
       `);
 
     // 🔥 Emit socket event
@@ -177,7 +178,7 @@ router.put("/:tableId/status", async (req, res) => {
             WHEN @status = 0 THEN NULL 
             ELSE StartTime 
           END
-      WHERE CAST(TableId AS VARCHAR(50)) = @tableId
+      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 
     // 🔥 Emit socket event for real-time sync across devices

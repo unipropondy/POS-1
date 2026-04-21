@@ -78,6 +78,7 @@ app.get("/", (req, res) => res.send("POS Backend Modular Running"));
 app.get("/test", (req, res) => res.send("TEST OK"));
 
 // Legacy support (redirects to ensure existing frontend calls don't break)
+app.post("/api/checkout", (req, res) => res.redirect(307, "/api/orders/checkout"));
 app.get("/tables", (req, res) => res.redirect("/api/tables/all"));
 app.get("/kitchens", (req, res) => res.redirect("/api/menu/kitchens"));
 app.get("/dishgroups/:id", (req, res) => res.redirect(`/api/menu/dishgroups/${req.params.id}`));

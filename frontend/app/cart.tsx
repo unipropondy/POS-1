@@ -578,23 +578,26 @@ export default function CartScreen() {
                         }
 
                         try {
+                          const targetUrl = `${API_URL}/api/orders/checkout`;
+                          console.log("🛒 [Checkout] Action triggered at:", targetUrl);
+                          
                           // 3. Inform user
                           showToast({
                             type: "info",
                             message: "Processing Checkout...",
-                            subtitle: `Updating Table ${orderContext.tableNo}`
+                            subtitle: `Target: ${API_URL}`
                           });
 
                           // 4. Hit synchronized API
-                          const response = await fetch(`${API_URL}/api/orders/checkout`, {
+                          const response = await fetch(targetUrl, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ tableId }),
                           });
 
                           if (!response.ok) {
-                            const errorBody = await response.json();
-                            throw new Error(errorBody.error || "Server failed to process checkout");
+                            const errorBody = await response.json().catch(() => ({}));
+                            throw new Error(errorBody.error || `Server returned ${response.status}`);
                           }
 
                           console.log("🛒 [Checkout] API Success, status set to 3");
@@ -614,8 +617,12 @@ export default function CartScreen() {
                           // 6. Navigate
                           router.push("/summary");
                         } catch (err: any) {
+                          const targetUrl = `${API_URL}/api/orders/checkout`;
                           console.error("🛒 [Checkout] Error:", err);
-                          Alert.alert("Checkout Failed", err.message || "Failed to update table status. Please check your connection.");
+                          Alert.alert(
+                            "Checkout Failed", 
+                            `Target URL: ${targetUrl}\n\nError: ${err.message || "Please check your connection."}`
+                          );
                         }
                       }}
                     >
