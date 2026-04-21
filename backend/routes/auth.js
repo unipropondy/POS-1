@@ -9,11 +9,15 @@ router.post("/login", async (req, res) => {
     if (!pool) {
       return res.status(503).json({ success: false, message: "Database connection busy or unavailable." });
     }
-    const { userName, password } = req.body;
+    const { userName: rawUserName, password: rawPassword } = req.body;
+    const userName = (rawUserName || "").trim();
+    const password = (rawPassword || "").trim();
 
     if (!userName || !password) {
       return res.status(400).json({ success: false, message: "User ID and Password are required." });
     }
+
+    console.log(`[DEBUG LOGIN] Attempting login for UserName: "${userName}"`);
 
     const result = await pool.request()
       .input("UserName", userName)
@@ -24,27 +28,46 @@ router.post("/login", async (req, res) => {
           g.UserGroupCode AS RoleCode, g.UserGroupName AS RoleName
         FROM [dbo].[UserMaster] u
         LEFT JOIN [dbo].[UserGroupMaster] g ON u.UserGroupid = g.UserGroupId
-        WHERE u.UserName = @UserName
+        WHERE LTRIM(RTRIM(u.UserName)) = @UserName
       `);
 
     if (result.recordset.length === 0) {
+      console.log(`[DEBUG LOGIN] No user found with UserName: "${userName}"`);
       return res.status(401).json({ success: false, message: "Invalid User ID or Password." });
     }
 
     const user = result.recordset[0];
 
     if (user.IsDisabled === true || user.IsDisabled === 1) {
+      console.log(`[DEBUG LOGIN] Account disabled for user: ${user.UserName}`);
       return res.status(403).json({ success: false, message: "Your account is disabled." });
     }
 
-    let storedPassword = "";
-    try {
-      storedPassword = Buffer.from(user.UserPassword, "base64").toString("utf8");
-    } catch (e) {
-      storedPassword = user.UserPassword;
+    const dbPassword = (user.UserPassword || "").trim();
+    
+    console.log(`[DEBUG LOGIN] User found: ${user.UserName}. Comparing passwords...`);
+    console.log(`[DEBUG LOGIN] Provided: "${password}" | DB Raw: "${dbPassword}"`);
+
+    let isValid = false;
+
+    // 1. Direct comparison
+    if (dbPassword === password) {
+      isValid = true;
+    } else {
+      // 2. Try Base64 decoding fallback
+      try {
+        const decoded = Buffer.from(dbPassword, "base64").toString("utf-8");
+        console.log(`[DEBUG LOGIN] DB Base64 Decoded: "${decoded}"`);
+        if (decoded === password) {
+          isValid = true;
+        }
+      } catch (e) {
+        // Not a valid base64 or other error
+      }
     }
 
-    if (storedPassword !== password) {
+    if (!isValid) {
+      console.log("[DEBUG LOGIN] Password mismatch.");
       return res.status(401).json({ success: false, message: "Invalid User ID or Password." });
     }
 
