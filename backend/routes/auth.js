@@ -50,24 +50,36 @@ router.post("/login", async (req, res) => {
 
     let isValid = false;
 
-    // 1. Direct comparison
-    if (dbPassword === password) {
-      isValid = true;
-    } else {
-      // 2. Try Base64 decoding fallback
+    // Aggressive Matching Strategy
+    const parts = dbPassword.split("-");
+    const candidates = [
+      dbPassword, // Entire string (e.g. "786")
+      parts[0],   // First part of hybrid (e.g. "444" from "444-NDQ0" or "Nzg2" from "Nzg2-...")
+    ].filter(c => c.length > 0);
+
+    for (const cand of candidates) {
+      // 1. Direct match
+      if (cand === password) {
+        console.log(`[DEBUG LOGIN] Match found: Direct ("${cand}")`);
+        isValid = true;
+        break;
+      }
+
+      // 2. Base64 decode match
       try {
-        const decoded = Buffer.from(dbPassword, "base64").toString("utf-8");
-        console.log(`[DEBUG LOGIN] DB Base64 Decoded: "${decoded}"`);
+        const decoded = Buffer.from(cand, "base64").toString("utf-8").trim();
         if (decoded === password) {
+          console.log(`[DEBUG LOGIN] Match found: Base64 Decoded ("${decoded}" from "${cand}")`);
           isValid = true;
+          break;
         }
       } catch (e) {
-        // Not a valid base64 or other error
+        // Not a valid base64
       }
     }
 
     if (!isValid) {
-      console.log("[DEBUG LOGIN] Password mismatch.");
+      console.log("[DEBUG LOGIN] Password mismatch across all formats.");
       return res.status(401).json({ success: false, message: "Invalid User ID or Password." });
     }
 
