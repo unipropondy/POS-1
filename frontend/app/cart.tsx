@@ -228,6 +228,10 @@ export default function CartScreen() {
     return [...sentItems, ...cart].filter(Boolean); // Filter out any null values
   }, [activeOrder, cart]);
 
+  const unsentCount = useMemo(() => {
+    return cart.filter((i: any) => !i.status || i.status === 'NEW').length;
+  }, [cart]);
+
   const subtotal = useMemo(() => {
     return displayItems.reduce((sum, item) => {
       if (!item || item.status === "VOIDED") return sum;
@@ -243,7 +247,23 @@ export default function CartScreen() {
 
   const currentTableData = useMemo(() => {
     if (orderContext?.orderType !== "DINE_IN") return undefined;
-    return tables.find((t: any) => t.section === orderContext.section && t.tableNo === orderContext.tableNo);
+    const table = tables.find((t: any) => t.section === orderContext.section && t.tableNo === orderContext.tableNo);
+    if (!table) return undefined;
+
+    // Normalize status to string if it's an integer
+    if (typeof table.status === 'number' || typeof (table as any).Status === 'number') {
+      const s = typeof table.status === 'number' ? table.status : (table as any).Status;
+      const statusMap: Record<number, string> = {
+        0: 'EMPTY',
+        1: 'SENT',
+        2: 'HOLD',
+        3: 'BILL_REQUESTED',
+        4: 'LOCKED',
+        5: 'SENT'
+      };
+      return { ...table, status: statusMap[s] };
+    }
+    return table;
   }, [orderContext, tables]);
 
   React.useEffect(() => {
@@ -453,8 +473,8 @@ export default function CartScreen() {
             <Text style={styles.subtotalAmount}>${subtotal.toFixed(2)}</Text>
           </View>
 
-          <View style={styles.checkoutRow}>
-            {cart.length > 0 && (
+           <View style={styles.checkoutRow}>
+            {unsentCount > 0 && (
               <>
                 <Pressable
                   style={[styles.checkoutBtn, { backgroundColor: Theme.info }]}
@@ -504,7 +524,7 @@ export default function CartScreen() {
               </>
             )}
 
-            {cart.length === 0 && activeOrder && (
+            {unsentCount === 0 && (activeOrder || cart.length > 0) && (
               <>
                 {(!currentTableData || currentTableData.status === 'SENT' || currentTableData.status === 'HOLD') ? (
                   <Pressable

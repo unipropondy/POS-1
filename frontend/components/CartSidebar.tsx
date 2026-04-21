@@ -104,7 +104,29 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     );
   }, [tables, orderContext]);
 
-  const currentTableStatus = tableData?.status || "EMPTY";
+  const unsentCount = useMemo(() => {
+    return cart.filter((i: any) => !i.status || i.status === 'NEW').length;
+  }, [cart]);
+
+  const currentTableStatus = useMemo(() => {
+    if (!tableData) return "EMPTY";
+    
+    // Normalize status if it comes from the database as a number
+    const s = tableData.status;
+    if (typeof s === 'number' || typeof (tableData as any).Status === 'number') {
+      const val = typeof s === 'number' ? s : (tableData as any).Status;
+      const statusMap: Record<number, string> = {
+        0: 'EMPTY',
+        1: 'SENT',
+        2: 'HOLD',
+        3: 'BILL_REQUESTED',
+        4: 'LOCKED',
+        5: 'SENT'
+      };
+      return statusMap[val] || "EMPTY";
+    }
+    return s || "EMPTY";
+  }, [tableData]);
 
   const activeOrder = useMemo(() => {
     if (!orderContext) return undefined;
@@ -196,6 +218,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     if (!orderContext) return;
     if (orderContext.orderType === "DINE_IN") {
       updateTableStatus(
+        orderContext.tableId || "",
         orderContext.section!,
         orderContext.tableNo!,
         activeOrder?.orderId || "PAYMENT",
@@ -217,6 +240,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     markItemsSent(targetOrderId);
     if (orderContext.orderType === "DINE_IN") {
       updateTableStatus(
+        orderContext.tableId || "",
         orderContext.section!,
         orderContext.tableNo!,
         targetOrderId,
@@ -228,6 +252,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       updateTableStatus(
+        "",
         "TAKEAWAY",
         orderContext.takeawayNo!,
         targetOrderId,
@@ -647,14 +672,15 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             </View>
           </View>
 
-          <View style={styles.actions}>
-            {cart.length > 0 ? (
+           <View style={styles.actions}>
+            {unsentCount > 0 ? (
               <>
                 <TouchableOpacity
                   style={styles.holdBtn}
                   onPress={() => {
                     let targetOrderId = activeOrder?.orderId || getNextOrderId();
                     updateTableStatus(
+                      orderContext.tableId || "",
                       orderContext.section!,
                       orderContext.tableNo!,
                       targetOrderId,
@@ -681,7 +707,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   {!isPhone && <Text style={styles.btnText}>Send</Text>}
                 </TouchableOpacity>
               </>
-            ) : currentTableStatus === "SENT" ? (
+            ) : (currentTableStatus === "SENT" || currentTableStatus === "HOLD") ? (
               <TouchableOpacity
                 style={[
                   styles.proceedBtn,
