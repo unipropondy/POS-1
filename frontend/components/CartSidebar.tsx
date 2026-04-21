@@ -31,7 +31,6 @@ import { holdOrder } from "../stores/heldOrdersStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
-import { API_URL } from "../constants/Config";
 
 if (
   Platform.OS === "android" &&
@@ -75,14 +74,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   );
   const addToCartGlobal = useCartStore((state) => state.addToCartGlobal);
   const updateCartItemQty = useCartStore((state) => state.updateCartItemQty);
-  const loadCartFromServer = useCartStore((state) => state.loadCartFromServer);
-  const loading = useCartStore((state) => (state as any).loading);
-
-  React.useEffect(() => {
-    if (currentContextId) {
-      loadCartFromServer(currentContextId);
-    }
-  }, [currentContextId]);
 
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
@@ -223,63 +214,56 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     setExpandedItemId(expandedItemId === id ? null : id);
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!orderContext) return;
-    
-    // 🔥 NEW: Persist checkout status to DB across Order and TableMaster tables
-    try {
-      const response = await fetch(`${API_URL}/api/orders/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tableId: orderContext.tableId || "",
-          orderId: activeOrder?.orderId || "PAYMENT"
-        })
-      });
-      
-      if (!response.ok) throw new Error("Checkout sync failed");
-      
-      console.log("✅ Checkout synced to DB");
-      
-      if (orderContext.orderType === "DINE_IN") {
-        router.replace(`/(tabs)/category?section=${orderContext.section}`);
-      } else {
-        router.push("/summary");
-      }
-    } catch (err: any) {
-      console.error("Checkout Error:", err.message);
-      showToast({ type: "error", message: "Checkout Failed", subtitle: err.message });
+    if (orderContext.orderType === "DINE_IN") {
+      updateTableStatus(
+        orderContext.tableId || "",
+        orderContext.section!,
+        orderContext.tableNo!,
+        activeOrder?.orderId || "PAYMENT",
+        "BILL_REQUESTED",
+        undefined,
+        undefined,
+        payableAmount,
+      );
+      router.replace(`/(tabs)/category?section=${orderContext.section}`);
+    } else {
+      router.push("/summary");
     }
   };
 
-  const handleSendOrder = async () => {
+  const handleSendOrder = () => {
     if (cart.length === 0) return;
     let targetOrderId = activeOrder?.orderId || getNextOrderId();
-    
-    // 1. Sync status to DB
-    try {
-      await fetch(`${API_URL}/api/orders/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tableId: orderContext.tableId || "",
-          orderId: targetOrderId
-        })
-      });
-    } catch (err) {
-      console.warn("Status sync failed, proceeding locally:", err);
-    }
-
     appendOrder(targetOrderId, orderContext, cart);
     markItemsSent(targetOrderId);
-    
     if (orderContext.orderType === "DINE_IN") {
+      updateTableStatus(
+        orderContext.tableId || "",
+        orderContext.section!,
+        orderContext.tableNo!,
+        targetOrderId,
+        "SENT",
+        undefined,
+        undefined,
+        payableAmount,
+      );
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
+      updateTableStatus(
+        "",
+        "TAKEAWAY",
+        orderContext.takeawayNo!,
+        targetOrderId,
+        "SENT",
+        undefined,
+        undefined,
+        payableAmount,
+      );
       router.replace(`/(tabs)/category?section=TAKEAWAY`);
     }
-    
-    await clearCartStandalone();
+    clearCartStandalone();
     showToast({
       type: "success",
       message: "Order Sent",

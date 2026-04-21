@@ -16,7 +16,6 @@ const memberRoutes = require("./routes/members");
 const attendanceRoutes = require("./routes/attendance");
 const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/orders");
-const cartRoutes = require("./routes/cart");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -73,7 +72,6 @@ app.use("/api/members", memberRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/cart", cartRoutes);
 
 // Root Endpoints
 app.get("/", (req, res) => res.send("POS Backend Modular Running"));
@@ -90,26 +88,6 @@ app.get("/modifiers/:id", (req, res) => res.redirect(`/api/menu/modifiers/${req.
 app.get("/image/:id", (req, res) => res.redirect(`/api/menu/image/${req.params.id}`));
 
 /* ================= START SERVER ================= */
-process.on("uncaughtException", (err) => {
-    console.error("💥 CRITICAL: Uncaught Exception:", err);
-    // Give time for logs to flush
-    setTimeout(() => process.exit(1), 500);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-    console.error("💥 CRITICAL: Unhandled Rejection at:", promise, "reason:", reason);
-    setTimeout(() => process.exit(1), 500);
-});
-
-httpServer.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`❌ ERROR: Port ${PORT} is already in use. Please kill the other process or use a different port.`);
-        process.exit(1);
-    } else {
-        console.error("❌ Server Error:", err);
-    }
-});
-
 httpServer.listen(PORT, async () => {
     console.log(`🚀 Modular Server running on port ${PORT}`);
     
