@@ -1,11 +1,11 @@
 const sql = require("mssql");
 
 async function initDB(pool) {
-  if (!pool) return;
-  console.log("🔄 Running schema check and initialization...");
-  try {
-    // 1. Table: SettlementItemDetail
-    await pool.request().query(`
+    if (!pool) return;
+    console.log("🔄 Running schema check and initialization...");
+    try {
+        // 1. Table: SettlementItemDetail
+        await pool.request().query(`
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SettlementItemDetail]') AND type in (N'U'))
             BEGIN
                 CREATE TABLE [dbo].[SettlementItemDetail](
@@ -38,8 +38,8 @@ async function initDB(pool) {
             ALTER TABLE [dbo].[SettlementItemDetail] ADD OrderDateTime DATETIME NULL;
         `);
 
-    // 2. Table: MemberMaster
-    await pool.request().query(`
+        // 2. Table: MemberMaster
+        await pool.request().query(`
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND type in (N'U'))
             BEGIN
                 CREATE TABLE [dbo].[MemberMaster](
@@ -55,8 +55,8 @@ async function initDB(pool) {
             END
         `);
 
-    // 3. Table: DailyAttendance
-    await pool.request().query(`
+        // 3. Table: DailyAttendance
+        await pool.request().query(`
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DailyAttendance]') AND type in (N'U'))
             BEGIN
                 CREATE TABLE [dbo].[DailyAttendance](
@@ -78,8 +78,8 @@ async function initDB(pool) {
             END
         `);
 
-    // 4. Schema updates for TableMaster
-    await pool.request().query(`
+        // 4. Schema updates for TableMaster
+        await pool.request().query(`
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'IsLocked')
             ALTER TABLE [dbo].[TableMaster] ADD IsLocked BIT DEFAULT 0;
 
@@ -90,8 +90,8 @@ async function initDB(pool) {
             ALTER TABLE [dbo].[TableMaster] ADD TableNumber NVARCHAR(50);
         `);
 
-    // 5. Schema updates for SettlementHeader
-    await pool.request().query(`
+        // 5. Schema updates for SettlementHeader
+        await pool.request().query(`
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementHeader]') AND name = 'BillNo')
             ALTER TABLE [dbo].[SettlementHeader] ADD BillNo NVARCHAR(50);
 
@@ -102,10 +102,33 @@ async function initDB(pool) {
             ALTER TABLE [dbo].[SettlementHeader] ADD CancellationReason NVARCHAR(255);
         `);
 
-    console.log("✅ Database schema is up to date.");
-  } catch (err) {
-    console.error("❌ initDB ERROR:", err.message);
-  }
+        // 6. Table: CartItems (New for persistent cart)
+        await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[CartItems](
+                    [ItemId] [int] IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    [CartId] [nvarchar](100) NOT NULL,
+                    [ProductId] [uniqueidentifier] NOT NULL,
+                    [Quantity] [int] DEFAULT 1,
+                    [Cost] [decimal](18, 2) DEFAULT 0,
+                    [OrderNo] [nvarchar](50) NULL,
+                    [MobileNo] [nvarchar](20) NULL,
+                    [DateCreated] [datetime] DEFAULT GETDATE()
+                )
+            END
+        `);
+
+        // 7. Additional columns for TableMaster
+        await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'StartTime')
+            ALTER TABLE [dbo].[TableMaster] ADD StartTime DATETIME NULL;
+        `);
+
+        console.log("✅ Database schema is up to date.");
+    } catch (err) {
+        console.error("❌ initDB ERROR:", err.message);
+    }
 }
 
 module.exports = { initDB };
