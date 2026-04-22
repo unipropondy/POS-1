@@ -122,4 +122,57 @@ router.post("/modifiers/validate", async (req, res) => {
   }
 });
 
+/* 🔥 ADD THIS BELOW 👇 */
+router.post("/order/add", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const { dishId, name, price, qty } = req.body;
+
+    const orderDetailId = require("crypto").randomUUID();
+    const orderId = require("crypto").randomUUID();
+
+    await pool
+      .request()
+      .input("OrderDetailId", orderDetailId)
+      .input("OrderId", orderId)
+      .input("DishId", dishId)
+      .input("DishName", name)
+      .input("Quantity", qty)
+      .input("PricePerUnit", price)
+      .input("BaseAmount", price * qty)
+      .input("TotalDetailLineAmount", price * qty)
+      .input("CreatedOn", new Date()).query(`
+        INSERT INTO RestaurantOrderDetailCur (
+          OrderDetailId,
+          OrderId,
+          DishId,
+          DishName,
+          Quantity,
+          PricePerUnit,
+          BaseAmount,
+          TotalDetailLineAmount,
+          CreatedOn
+        )
+        VALUES (
+          @OrderDetailId,
+          @OrderId,
+          @DishId,
+          @DishName,
+          @Quantity,
+          @PricePerUnit,
+          @BaseAmount,
+          @TotalDetailLineAmount,
+          @CreatedOn
+        )
+      `);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* LAST LINE */
 module.exports = router;
