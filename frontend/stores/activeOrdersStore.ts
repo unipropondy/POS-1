@@ -5,8 +5,9 @@ import { OrderContext } from "./orderContextStore";
 /* ================= TYPES ================= */
 
 export type OrderItem = CartItem & {
-  status: "NEW" | "SENT" | "VOIDED";
+  status: "NEW" | "SENT" | "VOIDED" | "READY" | "SERVED";
   sentAt?: number;
+  readyAt?: number;
 };
 
 
@@ -33,6 +34,8 @@ type ActiveOrdersState = {
   // 🔥 NEW FUNCTIONS
   updateOrderDiscount: (context: OrderContext, discount: DiscountInfo) => void;
   voidOrderItem: (orderId: string, lineItemId: string) => void;
+  markItemReady: (orderId: string, lineItemId: string) => void;
+  markItemServed: (orderId: string, lineItemId: string) => void;
 };
 
 /* ================= STORE ================= */
@@ -199,6 +202,52 @@ export const useActiveOrdersStore = create<ActiveOrdersState>((set, get) => ({
           items: order.items.map((item) => {
             if (item.lineItemId === lineItemId) {
               return { ...item, status: "VOIDED" };
+            }
+            return item;
+          }),
+        };
+      }),
+    });
+  },
+  /* ================= MARK ITEM READY ================= */
+  markItemReady: (orderId, lineItemId) => {
+    const { activeOrders } = get();
+    const now = Date.now();
+
+    set({
+      activeOrders: activeOrders.map((order) => {
+        if (order.orderId !== orderId) return order;
+
+        return {
+          ...order,
+          items: order.items.map((item) => {
+            if (item.lineItemId === lineItemId) {
+              return { 
+                ...item, 
+                status: "READY",
+                readyAt: now 
+              };
+            }
+            return item;
+          }),
+        };
+      }),
+    });
+  },
+
+  /* ================= MARK ITEM SERVED ================= */
+  markItemServed: (orderId, lineItemId) => {
+    const { activeOrders } = get();
+
+    set({
+      activeOrders: activeOrders.map((order) => {
+        if (order.orderId !== orderId) return order;
+
+        return {
+          ...order,
+          items: order.items.map((item) => {
+            if (item.lineItemId === lineItemId) {
+              return { ...item, status: "SERVED" };
             }
             return item;
           }),

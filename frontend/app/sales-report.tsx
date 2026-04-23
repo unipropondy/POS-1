@@ -353,21 +353,21 @@ export default function SalesReport() {
   const filteredMetrics = useMemo(() => {
     const filtered = filteredSales;
     return {
-      TotalSales: filtered.reduce((acc, s) => acc + s.SysAmount, 0),
+      TotalSales: filtered.reduce((acc: number, s: any) => acc + s.SysAmount, 0),
       TotalTransactions: filtered.length,
-      TotalItems: filtered.reduce((acc, s) => acc + (s.ReceiptCount || 0), 0),
+      TotalItems: filtered.reduce((acc: number, s: any) => acc + (s.ReceiptCount || 0), 0),
       Cash: filtered
-        .filter((s) => s.PayMode === "CASH")
-        .reduce((acc, s) => acc + s.SysAmount, 0),
+        .filter((s: any) => s.PayMode === "CASH")
+        .reduce((acc: number, s: any) => acc + s.SysAmount, 0),
       Card: filtered
-        .filter((s) => s.PayMode === "CARD")
-        .reduce((acc, s) => acc + s.SysAmount, 0),
+        .filter((s: any) => s.PayMode === "CARD")
+        .reduce((acc: number, s: any) => acc + s.SysAmount, 0),
       Nets: filtered
-        .filter((s) => s.PayMode === "NETS")
-        .reduce((acc, s) => acc + s.SysAmount, 0),
+        .filter((s: any) => s.PayMode === "NETS")
+        .reduce((acc: number, s: any) => acc + s.SysAmount, 0),
       PayNow: filtered
-        .filter((s) => s.PayMode === "PAYNOW")
-        .reduce((acc, s) => acc + s.SysAmount, 0),
+        .filter((s: any) => s.PayMode === "PAYNOW")
+        .reduce((acc: number, s: any) => acc + s.SysAmount, 0),
     };
   }, [filteredSales]);
 

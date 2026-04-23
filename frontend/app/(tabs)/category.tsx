@@ -284,7 +284,7 @@ export default function Category() {
       const now = Date.now();
       const OVERTIME_LIMIT = 2 * 60 * 60 * 1000; // 2 hours
 
-      allTables.forEach(table => {
+      allTables.forEach((table: TableItem) => {
         if (table.Status === 1 && table.StartTime) {
           const startTime = new Date(table.StartTime).getTime();
           if (now - startTime > OVERTIME_LIMIT) {
@@ -451,7 +451,7 @@ export default function Category() {
   const numberFont = Math.max(12, Math.min(isTablet ? 24 : 20, itemSize * 0.32));
   const smallFont = Math.max(8, Math.min(isTablet ? 14 : 11, itemSize * 0.18));
 
-  const currentTables = allTables.filter((table) => {
+  const currentTables = allTables.filter((table: TableItem) => {
     if (activeTab === "TAKEAWAY") return table.DiningSection === 4;
     else if (activeTab === "SECTION_1") return table.DiningSection === 1;
     else if (activeTab === "SECTION_2") return table.DiningSection === 2;
@@ -459,16 +459,16 @@ export default function Category() {
     return false;
   });
 
-  const occupiedCount = currentTables.filter((t) => t.Status !== 0).length;
+  const occupiedCount = currentTables.filter((t: TableItem) => t.Status !== 0).length;
 
   // ──── STATUS HANDLERS (OPTIMISTIC) ────
   const updateTableStatus = async (tableId: string, status: number, lockedByName?: string, totalAmount?: number) => {
     // 1. Optimistic UI update
     const previousTables = [...allTables];
-    setAllTables(prev => prev.map(t => t.id === tableId ? { ...t, Status: status } : t));
+    setAllTables((prev: TableItem[]) => prev.map((t: TableItem) => t.id === tableId ? { ...t, Status: status } : t));
 
     // Update global store
-    const table = allTables.find(t => t.id === tableId);
+    const table = allTables.find((t: TableItem) => t.id === tableId);
     if (table) {
       const statusStrMap: Record<number, TableStatusType> = {
         0: 'EMPTY',
@@ -676,14 +676,14 @@ export default function Category() {
           <View style={[styles.tabsWrapper, { gap: isTablet ? 8 : 6 }]}>
             {SECTIONS.map((section) => {
               const isActive = activeTab === section;
-              const sectionTables = allTables.filter((t) => {
+              const sectionTables = allTables.filter((t: TableItem) => {
                 if (section === "TAKEAWAY") return t.DiningSection === 3 || t.DiningSection === 4;
                 if (section === "SECTION_1") return t.DiningSection === 1;
                 if (section === "SECTION_2") return t.DiningSection === 2;
                 if (section === "SECTION_3") return t.DiningSection === 3;
                 return false;
               });
-              const occupied = sectionTables.filter((t) => t.Status !== 0).length;
+              const occupied = sectionTables.filter((t: TableItem) => t.Status !== 0).length;
 
               return (
                 <TouchableOpacity
@@ -841,6 +841,16 @@ export default function Category() {
                 </TouchableOpacity>
               )}
 
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => { setIsMenuVisible(false); router.push("/kitchen-status"); }}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: Theme.success + '10' }]}>
+                  <Ionicons name="restaurant-outline" size={18} color={Theme.success} />
+                </View>
+                <Text style={styles.menuItemText}>Kitchen Status</Text>
+              </TouchableOpacity>
+
               {/* Legend in Menu for Mobile */}
               {!isTablet && (
                 <>
@@ -932,7 +942,7 @@ export default function Category() {
         data={currentTables}
         key={columns}
         numColumns={columns}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: TableItem) => item.id}
         renderItem={renderItem}
         columnWrapperStyle={{ gap: GAP }}
         contentContainerStyle={{

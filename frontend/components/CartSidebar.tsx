@@ -55,13 +55,6 @@ interface CartSidebarProps {
 }
 
 export default function CartSidebar({ width = 400 }: CartSidebarProps) {
-  useEffect(() => {
-    fetch(`${API_URL}/api/order/get`)
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("DB data:", data);
-      });
-  }, []);
 
   const router = useRouter();
   const { showToast } = useToast();

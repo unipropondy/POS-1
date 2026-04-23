@@ -433,8 +433,8 @@ export default function MenuScreen() {
             categoryName: currentKitchenName,
           });
 
-          // 🔥 ADD THIS LINE (DB INSERT)
-          fetch(`${API_URL}/api/order/add`, {
+          // 🔥 FIXED ROUTE: /api/menu/order/add
+          fetch(`${API_URL}/api/menu/order/add`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -451,7 +451,7 @@ export default function MenuScreen() {
           setShowModifier(false);
         }
       } catch (err) {
-        fetch(`${API_URL}/api/order/add`, {
+        fetch(`${API_URL}/api/menu/order/add`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -553,9 +553,9 @@ export default function MenuScreen() {
       );
 
       const modsToAdd = selectedMods.map((m) => ({
-        ModifierId: m.ModifierID || m.ModifierId,
+        ModifierId: String(m.ModifierID || m.ModifierId || ""),
         ModifierName: m.ModifierName,
-        Price: m.Price || 0,
+        Price: Number(m.Price || 0),
       }));
 
       const extra = modsToAdd.reduce((sum, m) => sum + (m.Price || 0), 0);
@@ -574,7 +574,8 @@ export default function MenuScreen() {
         categoryName: currentKitchenName, // 🔥 Now grouping by Kitchen Name
       });
 
-      fetch(`${API_URL}/api/order/add`, {
+      // 🔥 FIXED ROUTE: /api/menu/order/add
+      fetch(`${API_URL}/api/menu/order/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
