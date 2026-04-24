@@ -50,8 +50,8 @@ const getStatusUI = (status: number) => {
   const s = Number(status);
   switch (s) {
     case 1: return { text: "DINING", color: "#28a745", lightBg: "#F0FDF4" };
-    case 2: return { text: "HOLD", color: "#007bff", lightBg: "#EFF6FF" };
-    case 3: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
+    case 2: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
+    case 3: return { text: "HOLD", color: "#007bff", lightBg: "#EFF6FF" };
     case 4: return { text: "RESERVED", color: "#dc3545", lightBg: "#FEF2F2" };
     case 5: return { text: "OVERTIME", color: "#6f42c1", lightBg: "#FAF5FF" };
     case 0:
@@ -473,8 +473,8 @@ export default function Category() {
       const statusStrMap: Record<number, TableStatusType> = {
         0: 'EMPTY',
         1: 'SENT',
-        2: 'HOLD',
-        3: 'BILL_REQUESTED',
+        2: 'BILL_REQUESTED',
+        3: 'HOLD',
         4: 'LOCKED',
         5: 'SENT' // Overtime is technically still an active order
       };
@@ -500,6 +500,7 @@ export default function Category() {
       if (!res.ok) throw new Error("Failed to update status");
       
       // Successfully updated backend
+      fetchTables(); // 🔥 refresh after update
       if (status === 4) fetchLockedTables();
     } catch (err) {
       console.error("Status update failed:", err);
@@ -516,8 +517,8 @@ export default function Category() {
   };
 
   const handleDining   = (id: string) => updateTableStatus(id, 1); // Dining
-  const handleHold     = (id: string) => updateTableStatus(id, 2); // Hold
-  const handleCheckout = (id: string) => updateTableStatus(id, 3); // Checkout
+  const handleCheckout = (id: string) => updateTableStatus(id, 2); // Checkout
+  const handleHold     = (id: string) => updateTableStatus(id, 3); // Hold
   const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Reserved
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 

@@ -172,8 +172,8 @@ router.put("/:tableId/status", async (req, res) => {
       SET Status = @status, 
           LockedByName = CASE WHEN @status = 4 THEN @lockedByName ELSE NULL END,
           StartTime = CASE 
-            -- Status 1 (Cart) or 2 (Dining) starts the timer
-            WHEN (@status = 1 OR @status = 2) AND StartTime IS NULL THEN GETDATE() 
+            -- Status 1 (Dining) or 3 (Hold) starts the timer
+            WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
             -- Status 0 (Available) resets the timer
             WHEN @status = 0 THEN NULL 
             ELSE StartTime 

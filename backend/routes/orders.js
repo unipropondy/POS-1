@@ -21,7 +21,7 @@ async function updateTableStatus(req, tableId, status) {
       UPDATE TableMaster 
       SET Status = @status,
           StartTime = CASE 
-            WHEN (@status = 1 OR @status = 2) AND StartTime IS NULL THEN GETDATE()
+            WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE()
             WHEN @status = 0 THEN NULL
             ELSE StartTime
           END
@@ -57,8 +57,8 @@ router.post("/hold", async (req, res) => {
     const { tableId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
-    await updateTableStatus(req, tableId, 2); // 2 = Hold
-    res.json({ success: true, status: 2 });
+    await updateTableStatus(req, tableId, 3); // 3 = Hold
+    res.json({ success: true, status: 3 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -70,8 +70,8 @@ router.post("/checkout", async (req, res) => {
     const { tableId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
-    await updateTableStatus(req, tableId, 3); // 3 = Checkout
-    res.json({ success: true, status: 3 });
+    await updateTableStatus(req, tableId, 2); // 2 = Checkout
+    res.json({ success: true, status: 2 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
