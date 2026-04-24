@@ -22,6 +22,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import CartSidebar from "../../components/CartSidebar";
+import KdsSidebar from "../../components/KdsSidebar";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
@@ -38,49 +39,7 @@ const IMAGE_BASE_URL = `${API_URL}/api/menu/image/`;
 
 // --- COMPONENTS ---
 
-const NavRail = () => {
-  const router = useRouter();
-  const navItems = [
-    { id: "home", icon: "home-outline", label: "Home", active: true },
-  ];
 
-  return (
-    <View style={styles.rail}>
-      <View style={styles.railTop}>
-        {navItems.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={[styles.railItem, item.active && styles.railItemActive]}
-          >
-            <Ionicons
-              name={item.icon as any}
-              size={22}
-              color={item.active ? Theme.primary : Theme.textSecondary}
-            />
-            <Text
-              style={[styles.railLabel, item.active && styles.railLabelActive]}
-            >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.railBottom}>
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={() => router.replace("/")}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={22}
-            color={Theme.textSecondary}
-          />
-          <Text style={styles.railLabel}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
 
 const DishCard = React.memo(
   ({ dish, width, cartQty, onPress, isPhone, isTablet, isLandscape }: any) => {
@@ -307,17 +266,18 @@ export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const usableWidth = width - insets.left - insets.right;
 
-  // Sidebar width should be more responsive
+  // Sidebar widths should be more responsive
   const cartWidth = isTablet
     ? width > 1024
-      ? 380
-      : 330
+      ? 350
+      : 300
     : isLandscape
-      ? usableWidth * 0.38
+      ? usableWidth * 0.35
       : width * 0.62;
 
-  const mainWidth =
-    (isLandscape && !isTablet ? usableWidth : width) - cartWidth;
+  const kdsWidth = isLandscape ? cartWidth : 0;
+
+  const mainWidth = (isLandscape ? usableWidth : width) - cartWidth - kdsWidth;
 
   const columns = isTablet
     ? isLandscape
@@ -770,7 +730,10 @@ export default function MenuScreen() {
       <View style={{ flex: 1 }}>
         {isLandscape ? (
           <View style={styles.layout}>
-            {/* DESKTOP LAYOUT - Full height sidebar */}
+            {/* KDS SIDEBAR (LEFT) */}
+            <KdsSidebar width={kdsWidth} currentTableNo={orderContext.tableNo} />
+
+            {/* MAIN CONTENT (CENTER) */}
             <View style={[styles.main, { width: mainWidth }]}>
               {renderTopBar()}
               {renderCategoryNav()}
@@ -801,7 +764,8 @@ export default function MenuScreen() {
                 )}
               </View>
             </View>
-            {isLarge && <CartSidebar width={cartWidth} />}
+            {/* CART SIDEBAR (RIGHT) */}
+            <CartSidebar width={cartWidth} />
           </View>
         ) : (
           <View style={{ flex: 1, backgroundColor: Theme.bgMain }}>
@@ -996,33 +960,34 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Theme.bgMain },
   layout: { flex: 1, flexDirection: "row" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  rail: {
-    width: 90,
+  main: { flex: 1, padding: 12 },
+  headerCartBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: "#fff",
-    borderRightWidth: 1,
-    borderRightColor: Theme.border,
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  railTop: { flex: 1, gap: 20 },
-  railItem: {
-    width: 64,
-    height: 64,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 16,
+    ...Theme.shadowSm,
   },
-  railItemActive: { backgroundColor: Theme.bgMain },
-  railLabel: {
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: Theme.danger,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  cartBadgeText: {
+    color: "#fff",
     fontSize: 10,
-    fontFamily: Fonts.bold,
-    color: Theme.textSecondary,
-    marginTop: 4,
+    fontFamily: Fonts.black,
   },
-  railLabelActive: { color: Theme.primary },
-  railBottom: { gap: 20, alignItems: "center" },
-  logoutBtn: { alignItems: "center" },
-  main: { flex: 1, padding: 12 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -1162,37 +1127,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.black,
     color: Theme.primary,
     marginTop: 4,
-  },
-  headerCartBtn: {
-    width: 48,
-    height: 48,
-    backgroundColor: Theme.bgMain,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 10,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    position: "relative",
-  },
-  cartBadge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    backgroundColor: Theme.danger,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  cartBadgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontFamily: Fonts.black,
   },
   title: { fontSize: 24, fontFamily: Fonts.black },
   modalOverlay: {

@@ -272,6 +272,17 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         undefined,
         payableAmount,
       );
+
+      // 🔥 Update Backend Status to Dining (1)
+      fetch(`${API_URL}/api/tables/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          tableId: orderContext.tableId, 
+          status: 1 // 1 = Dining
+        }),
+      }).catch(err => console.error("Send Order Sync Error:", err));
+
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       updateTableStatus(

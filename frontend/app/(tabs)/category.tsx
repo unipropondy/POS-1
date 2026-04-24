@@ -118,12 +118,27 @@ const TableItemComponent = React.memo(({
 
         {status !== 0 && (
           <View style={styles.tableInfo}>
-            {/* ✅ Show ONLY one status badge */}
-            <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
-              <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
-                {ui.text}
-              </Text>
-            </View>
+            {/* Show badge ONLY if not showing the checkout button, OR if it's status 2 */}
+            {(status === 2 || status === 4) ? (
+              <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
+                <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
+                  {ui.text}
+                </Text>
+              </View>
+            ) : (status === 1 || status === 3 || status === 5) ? (
+              <View style={styles.tableStats}>
+                {timeText ? (
+                  <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
+                    <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
+                  </Text>
+                ) : null}
+                {billAmount > 0 && (
+                  <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
+                    ${billAmount.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+            ) : null}
           </View>
         )}
         
@@ -357,16 +372,12 @@ export default function Category() {
         // Sync with TableStatusStore
         convertedData.forEach(t => {
           if (t.Status !== 0) {
-            const statusStr = t.Status === 4 ? 'LOCKED' : 
-                             (t.Status === 1 || t.Status === 5) ? 'SENT' : 
-                             (t.Status === 2) ? 'BILL_REQUESTED' : 
-                             (t.Status === 3) ? 'HOLD' : 'SENT';
             useTableStatusStore.getState().updateTableStatus(
               t.id,
               getSectionFromDiningSection(t.DiningSection),
               t.label,
               "SYNC",
-              statusStr,
+              t.Status === 4 ? 'LOCKED' : (t.Status === 1 || t.Status === 5 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
               t.StartTime ? new Date(t.StartTime).getTime() : undefined
             );
           }
@@ -415,19 +426,24 @@ export default function Category() {
   };
 
   useEffect(() => {
-    fetchTables();
-    fetchLockedTables();
-    
-    // 🔥 Auto-refresh every 3 seconds to keep UI in sync
-    const interval = setInterval(fetchTables, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     if (urlSection && SECTIONS.includes(urlSection)) {
       setActiveTab(urlSection);
     }
   }, [urlSection]);
+
+  // 🔥 Real-time Sync
+  useEffect(() => {
+    const { socket } = require("../../constants/socket");
+    
+    socket.on("table_status_updated", (data: any) => {
+      console.log("🔄 [SOCKET] Table status updated, refreshing grid...", data);
+      fetchTables();
+    });
+
+    return () => {
+      socket.off("table_status_updated");
+    };
+  }, []);
 
   const insets = useSafeAreaInsets();
   const GAP = !isTablet && isLandscape ? 8 : 10;
@@ -533,7 +549,7 @@ export default function Category() {
   const handleCheckout = async (id: string) => {
     await updateTableStatus(id, 2);
     
-    // Set context and navigate to cart
+    // Set context and navigate to summary
     const table = allTables.find(t => t.id === id);
     if (table) {
       const section = getSectionFromDiningSection(table.DiningSection);
@@ -543,7 +559,7 @@ export default function Category() {
         tableNo: table.label, 
         tableId: id 
       });
-      router.push("/cart");
+      router.push("/summary");
     }
   };
 
@@ -560,7 +576,7 @@ export default function Category() {
     }
 
     if (status === 2 || status === 3 || status === 5) {
-      // For occupied tables, set context and go to cart
+      // For occupied tables, set context and go to summary/menu
       const section = getSectionFromDiningSection(item.DiningSection);
       setOrderContext({ 
         orderType: "DINE_IN", 
@@ -568,7 +584,7 @@ export default function Category() {
         tableNo: item.label, 
         tableId: item.id 
       });
-      router.push("/cart");
+      router.push("/summary");
       return;
     }
 
@@ -588,15 +604,6 @@ export default function Category() {
     let newContext: any;
     if (activeTab !== "TAKEAWAY") {
       newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label, tableId: item.id };
-      
-      // âœ… If table is Available, mark it as "Dining" (status 1) in DB
-      if (status === 0) {
-        fetch(`${API_URL}/api/orders/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tableId: item.id }),
-        }).catch(err => console.error("Failed to sync status:", err));
-      }
     } else {
       newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
     }
