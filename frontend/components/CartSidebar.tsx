@@ -256,7 +256,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     }
   };
 
-  const handleSendOrder = () => {
+  const handleSendOrder = async () => {
     if (cart.length === 0) return;
     let targetOrderId = activeOrder?.orderId || getNextOrderId();
     appendOrder(targetOrderId, orderContext, cart);
@@ -273,25 +273,30 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         payableAmount,
       );
 
-      // ✅ Sync Status to Occupied (1) only after SEND
+      // ✅ 1. Sync Status to Occupied (1) in background
       fetch(`${API_URL}/api/tables/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tableId: orderContext.tableId, status: 1 }),
       }).catch(err => console.error("Status Sync Error:", err));
 
-      router.replace(`/(tabs)/category?section=${orderContext.section}`);
+      // ✅ 2. Persistent Save to cartitems table (WAIT for this)
+      try {
+        await fetch(`${API_URL}/api/orders/save-cart`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            tableId: orderContext.tableId, 
+            orderId: targetOrderId, 
+            items: cart 
+          }),
+        });
+      } catch (err) {
+        console.error("Cart Save Error:", err);
+      }
 
-      // ✅ Persistent Save to cartitems table
-      fetch(`${API_URL}/api/orders/save-cart`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          tableId: orderContext.tableId, 
-          orderId: targetOrderId, 
-          items: cart 
-        }),
-      }).catch(err => console.error("Cart Save Error:", err));
+      // ✅ 3. Navigate away
+      router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       updateTableStatus(
         "",
