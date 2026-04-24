@@ -1,4 +1,4 @@
-﻿import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -118,26 +118,12 @@ const TableItemComponent = React.memo(({
 
         {status !== 0 && (
           <View style={styles.tableInfo}>
+            {/* ✅ Show ONLY one status badge */}
             <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
               <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
                 {ui.text}
               </Text>
             </View>
-            
-            {status !== 4 && (
-              <View style={styles.tableStats}>
-                {timeText ? (
-                  <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
-                    <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
-                  </Text>
-                ) : null}
-                {billAmount > 0 && (
-                  <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
-                    ${billAmount.toFixed(2)}
-                  </Text>
-                )}
-              </View>
-            )}
           </View>
         )}
         
@@ -371,12 +357,16 @@ export default function Category() {
         // Sync with TableStatusStore
         convertedData.forEach(t => {
           if (t.Status !== 0) {
+            const statusStr = t.Status === 4 ? 'LOCKED' : 
+                             (t.Status === 1 || t.Status === 5) ? 'SENT' : 
+                             (t.Status === 2) ? 'BILL_REQUESTED' : 
+                             (t.Status === 3) ? 'HOLD' : 'SENT';
             useTableStatusStore.getState().updateTableStatus(
               t.id,
               getSectionFromDiningSection(t.DiningSection),
               t.label,
               "SYNC",
-              t.Status === 4 ? 'LOCKED' : (t.Status === 1 || t.Status === 5 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
+              statusStr,
               t.StartTime ? new Date(t.StartTime).getTime() : undefined
             );
           }
@@ -423,6 +413,15 @@ export default function Category() {
       },
     ]);
   };
+
+  useEffect(() => {
+    fetchTables();
+    fetchLockedTables();
+    
+    // 🔥 Auto-refresh every 3 seconds to keep UI in sync
+    const interval = setInterval(fetchTables, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (urlSection && SECTIONS.includes(urlSection)) {
@@ -531,7 +530,23 @@ export default function Category() {
   };
 
   const handleDining   = (id: string) => updateTableStatus(id, 1); // Dining
-  const handleCheckout = (id: string) => updateTableStatus(id, 2); // Checkout
+  const handleCheckout = async (id: string) => {
+    await updateTableStatus(id, 2);
+    
+    // Set context and navigate to cart
+    const table = allTables.find(t => t.id === id);
+    if (table) {
+      const section = getSectionFromDiningSection(table.DiningSection);
+      setOrderContext({ 
+        orderType: "DINE_IN", 
+        section: section, 
+        tableNo: table.label, 
+        tableId: id 
+      });
+      router.push("/cart");
+    }
+  };
+
   const handleHold     = (id: string) => updateTableStatus(id, 3); // Hold
   const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Reserved
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
@@ -541,6 +556,19 @@ export default function Category() {
 
     if (isCheckoutAction) {
       handleCheckout(item.id);
+      return;
+    }
+
+    if (status === 2 || status === 3 || status === 5) {
+      // For occupied tables, set context and go to cart
+      const section = getSectionFromDiningSection(item.DiningSection);
+      setOrderContext({ 
+        orderType: "DINE_IN", 
+        section: section, 
+        tableNo: item.label, 
+        tableId: item.id 
+      });
+      router.push("/cart");
       return;
     }
 

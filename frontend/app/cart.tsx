@@ -635,7 +635,7 @@ export default function CartScreen() {
                     onPress={() => router.push("/summary")}
                   >
                     <Ionicons name="arrow-forward-circle-outline" size={18} color="#fff" />
-                    <Text style={styles.checkoutBtnText}>Proceed</Text>
+                    <Text style={styles.checkoutBtnText}>Process to Pay</Text>
                   </Pressable>
                 )}
               </>
