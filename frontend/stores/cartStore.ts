@@ -1,7 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ================= TYPES ================= */
 
@@ -78,47 +76,49 @@ type CartState = {
 
 /* ================= STORE ================= */
 
-export const useCartStore = create<CartState>()(
-  persist(
-    (set, get) => ({
-      carts: {},
-      discounts: {},
-      currentContextId: null,
+export const useCartStore = create<CartState>((set, get) => ({
+  carts: {},
+  discounts: {},
 
-      setCurrentContext: (contextId) => set({ currentContextId: contextId }),
+  currentContextId: null,
 
-      getCart: () => {
-        const { carts, currentContextId } = get();
-        if (!currentContextId) return [];
-        return carts[currentContextId] || [];
+  setCurrentContext: (contextId) => set({ currentContextId: contextId }),
+
+  getCart: () => {
+    const { carts, currentContextId } = get();
+    if (!currentContextId) return [];
+    return carts[currentContextId] || [];
+  },
+
+  /* ================= DISCOUNT ================= */
+
+  applyDiscount: (discount) => {
+    const { currentContextId, discounts } = get();
+    if (!currentContextId) return;
+
+    set({
+      discounts: {
+        ...discounts,
+        [currentContextId]: discount,
       },
+    });
+  },
 
-      /* ================= DISCOUNT ================= */
+  clearDiscount: () => {
+    const { currentContextId, discounts } = get();
+    if (!currentContextId) return;
 
-      applyDiscount: (discount) => {
-        const { currentContextId, discounts } = get();
-        if (!currentContextId) return;
+    const updated = { ...discounts };
+    delete updated[currentContextId];
 
-        set({
-          discounts: {
-            ...discounts,
-            [currentContextId]: discount,
-          },
-        });
-      },
+    set({ discounts: updated });
+  },
 
-      clearDiscount: () => {
-        const { currentContextId, discounts } = get();
-        if (!currentContextId) return;
+  /* ================= ADD ================= */
 
-        const updated = { ...discounts };
-        delete updated[currentContextId];
-        set({ discounts: updated });
-      },
-
-      addToCartGlobal: (item) => {
-        const { carts, currentContextId, discounts } = get();
-        if (!currentContextId) return "";
+  addToCartGlobal: (item) => {
+    const { carts, currentContextId, discounts } = get();
+    if (!currentContextId) return "";
 
     const currentCart = carts[currentContextId] || [];
 
@@ -397,13 +397,7 @@ export const useCartStore = create<CartState>()(
       },
     });
   },
-    }),
-    {
-      name: "cart-storage",
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+}));
 
 /* ================= HELPERS ================= */
 

@@ -1,7 +1,4 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 
 /* ================= TYPES ================= */
 
@@ -88,55 +85,47 @@ type AuthState = {
 
 /* ================= STORE ================= */
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isLoggedIn: false,
-      permissions: {},
-      permissionsLoaded: false,
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  isLoggedIn: false,
+  permissions: {},
+  permissionsLoaded: false,
 
-      setUser: (user) => set({ user, isLoggedIn: true }),
+  setUser: (user) => set({ user, isLoggedIn: true }),
 
-      setPermissions: (permissions) => set({ permissions, permissionsLoaded: true }),
+  setPermissions: (permissions) => set({ permissions, permissionsLoaded: true }),
 
-      logout: () => set({ user: null, isLoggedIn: false, permissions: {}, permissionsLoaded: false }),
+  logout: () => set({ user: null, isLoggedIn: false, permissions: {}, permissionsLoaded: false }),
 
-      /* ─── Low-level: check if user can READ a given FormCode ─── */
-      can: (formCode) => {
-        const { permissions, user } = get();
-        // ADMIN always has full access (fallback if permissions are still loading)
-        if (user?.role === "ADMIN") return true;
-        const perm = permissions[formCode];
-        return perm?.canRead === true;
-      },
+  /* ─── Low-level: check if user can READ a given FormCode ─── */
+  can: (formCode) => {
+    const { permissions, user } = get();
+    // ADMIN always has full access (fallback if permissions are still loading)
+    if (user?.role === "ADMIN") return true;
+    const perm = permissions[formCode];
+    return perm?.canRead === true;
+  },
 
-      canDelete: (formCode) => {
-        const { permissions, user } = get();
-        if (user?.role === "ADMIN") return true;
-        const perm = permissions[formCode];
-        return perm?.canDelete === true;
-      },
+  canDelete: (formCode) => {
+    const { permissions, user } = get();
+    if (user?.role === "ADMIN") return true;
+    const perm = permissions[formCode];
+    return perm?.canDelete === true;
+  },
 
-      /* ─── High-level screen access helpers ─── */
-      canAccessOrdering:    () => get().can(FORM_CODES.ORDERING),
-      canAccessSalesReport: () => get().can(FORM_CODES.SALES_REPORT),
-      canAccessMembers:     () => get().can(FORM_CODES.MEMBERS),
-      canAccessTimeEntry:   () => get().can(FORM_CODES.TIME_ENTRY),
-      canAccessLockTables:  () => get().can(FORM_CODES.TABLES),
-      canAccessKDS:         () => get().can(FORM_CODES.KDS),
-      canAccessHeldOrders:  () => get().can(FORM_CODES.HELD_ORDERS),
-      canVoidOrder:         () => get().can(FORM_CODES.VOID_ORDER),
+  /* ─── High-level screen access helpers ─── */
+  canAccessOrdering:    () => get().can(FORM_CODES.ORDERING),
+  canAccessSalesReport: () => get().can(FORM_CODES.SALES_REPORT),
+  canAccessMembers:     () => get().can(FORM_CODES.MEMBERS),
+  canAccessTimeEntry:   () => get().can(FORM_CODES.TIME_ENTRY),
+  canAccessLockTables:  () => get().can(FORM_CODES.TABLES),
+  canAccessKDS:         () => get().can(FORM_CODES.KDS),
+  canAccessHeldOrders:  () => get().can(FORM_CODES.HELD_ORDERS),
+  canVoidOrder:         () => get().can(FORM_CODES.VOID_ORDER),
 
-      /* ─── Role helpers ─── */
-      isAdmin:      () => get().user?.role === "ADMIN",
-      isManager:    () => get().user?.role === "MANAGER",
-      isSupervisor: () => get().user?.role === "SUPERVISOR",
-      isCashier:    () => get().user?.role === "CASHIER",
-    }),
-    {
-      name: "auth-storage",
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+  /* ─── Role helpers ─── */
+  isAdmin:      () => get().user?.role === "ADMIN",
+  isManager:    () => get().user?.role === "MANAGER",
+  isSupervisor: () => get().user?.role === "SUPERVISOR",
+  isCashier:    () => get().user?.role === "CASHIER",
+}));

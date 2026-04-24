@@ -1,7 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED' | 'CART' | 'DELIVERY';
 
 export type TableStatus = {
@@ -35,16 +32,14 @@ type TableStatusState = {
   isTableLocked: (tableId: string) => boolean;
   getLockedName: (tableNo: string, section?: string) => string | undefined;
   setLockedName: (tableNo: string, name: string) => void;
-  syncLockedTables: (lockedTables: Array<{ tableNo: string; section: string; lockedByName?: string }>) => void;
+  syncLockedTables: (lockedTables: Array<{ tableId: string; tableNo: string; section: string; lockedByName?: string }>) => void;
   getTables: () => TableStatus[];
 };
 
-export const useTableStatusStore = create<TableStatusState>()(
-  persist(
-    (set, get) => ({
-      tables: [],
-      lockedTables: [],
-      lockedTableNames: {},
+export const useTableStatusStore = create<TableStatusState>((set, get) => ({
+  tables: [],
+  lockedTables: [],
+  lockedTableNames: {},
 
   updateTableStatus: (tableId, section, tableNo, orderId, status, startTime, lockedByName, totalAmount) => {
     set((state) => {
@@ -180,7 +175,7 @@ export const useTableStatusStore = create<TableStatusState>()(
         const exists = updatedTables.find(t => t.tableNo === lockedItem.tableNo && t.section === lockedItem.section);
         if (!exists) {
           updatedTables.push({
-            tableId: lockedItem.tableNo, // Use tableNo as fallback tableId
+            tableId: lockedItem.tableId,
             section: lockedItem.section,
             tableNo: lockedItem.tableNo,
             orderId: "RESERVED",
@@ -208,13 +203,7 @@ export const useTableStatusStore = create<TableStatusState>()(
   },
 
   getTables: () => get().tables,
-    }),
-    {
-      name: "table-status-storage",
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+}));
 
 // Legacy wrappers for compatibility if needed, but components should use useTableStatusStore
 export const getTables = () => useTableStatusStore.getState().getTables();
