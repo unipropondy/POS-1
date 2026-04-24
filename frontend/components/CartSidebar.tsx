@@ -791,58 +791,60 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       )}
 
       {/* CANCEL PASSWORD MODAL - Stay for admin safety */}
-      <Modal transparent visible={showCancelModal} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Order?</Text>
-            <TextInput
-              style={styles.modalInput}
-              secureTextEntry
-              autoFocus
-              value={cancelPassword}
-              onChangeText={setCancelPassword}
-              placeholder="Admin Password"
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalBtnCancel}
-                onPress={() => setShowCancelModal(false)}
-              >
-                <Text style={styles.modalBtnTextCancel}>Back</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalBtnConfirm}
-                onPress={() => {
-                  if (cancelPassword === "786") {
-                    if (itemToVoid && activeOrder) {
-                      voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
-                      setItemToVoid(null);
-                      setCancelPassword("");
-                      setShowCancelModal(false);
-                      showToast({
-                        type: "success",
-                        message: "Item Voided",
-                        subtitle: "Sent items updated",
-                      });
+      {showCancelModal && (
+        <Modal transparent visible={showCancelModal} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Cancel Order?</Text>
+              <TextInput
+                style={styles.modalInput}
+                secureTextEntry
+                autoFocus
+                value={cancelPassword}
+                onChangeText={setCancelPassword}
+                placeholder="Admin Password"
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalBtnCancel}
+                  onPress={() => setShowCancelModal(false)}
+                >
+                  <Text style={styles.modalBtnTextCancel}>Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalBtnConfirm}
+                  onPress={() => {
+                    if (cancelPassword === "786") {
+                      if (itemToVoid && activeOrder) {
+                        voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+                        setItemToVoid(null);
+                        setCancelPassword("");
+                        setShowCancelModal(false);
+                        showToast({
+                          type: "success",
+                          message: "Item Voided",
+                          subtitle: "Sent items updated",
+                        });
+                      } else {
+                        clearCartStandalone();
+                        setCancelPassword("");
+                        setShowCancelModal(false);
+                      }
                     } else {
-                      clearCartStandalone();
-                      setCancelPassword("");
-                      setShowCancelModal(false);
+                      showToast({
+                        type: "error",
+                        message: "Invalid Password",
+                      });
                     }
-                  } else {
-                    showToast({
-                      type: "error",
-                      message: "Invalid Password",
-                    });
-                  }
-                }}
-              >
-                <Text style={styles.modalBtnTextConfirm}>Confirm</Text>
-              </TouchableOpacity>
+                  }}
+                >
+                  <Text style={styles.modalBtnTextConfirm}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* EDIT DISH MODAL */}
       <EditDishModal

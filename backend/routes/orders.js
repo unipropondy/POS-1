@@ -103,70 +103,54 @@ router.post("/complete", async (req, res) => {
 router.post("/save-cart", async (req, res) => {
   try {
     const { tableId, orderId, items } = req.body;
-    console.log("📥 [CartSave] Payload received for Table:", tableId, "Order:", orderId);
+    console.log(`📥 [CartSave] Table: ${tableId} | Items: ${items?.length}`);
     
     const pool = await poolPromise;
+    const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
-    // --- TEST INSERTION (DYNAMIC) ---
-    console.log("🧪 [CartSave] Running DYNAMIC TEST INSERTION...");
-    try {
-      const realDish = await pool.request().query("SELECT TOP 1 DishId FROM DishMaster");
-      const realTable = await pool.request().query("SELECT TOP 1 TableId FROM TableMaster");
-      
-      if (realDish.recordset.length > 0 && realTable.recordset.length > 0) {
-        const dId = realDish.recordset[0].DishId;
-        const tId = realTable.recordset[0].TableId;
+    // 1. Clear old cart for this table
+    await pool.request()
+      .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
+      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+
+    // 2. Insert new items if any
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
+        const cleanOrderNo = String(orderId || "PENDING").replace(/^\{|\}$/g, "").trim();
+        const newItemId = require("crypto").randomUUID();
         
         await pool.request()
-          .input("cartId", sql.NVarChar(sql.MAX), String(tId))
-          .input("qty", sql.Int, 1)
-          .input("productId", sql.NVarChar(sql.MAX), String(dId))
-          .input("orderNo", sql.NVarChar(sql.MAX), "TEST-ORDER")
-          .input("cost", sql.Decimal(18, 2), 9.99)
+          .input("itemId", sql.NVarChar(128), newItemId)
+          .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
+          .input("qty", sql.Int, item.qty || 1)
+          .input("productId", sql.NVarChar(128), cleanProdId)
+          .input("orderNo", sql.NVarChar(sql.MAX), cleanOrderNo)
+          .input("cost", sql.Decimal(18, 2), item.price || 0)
           .query(`
-            INSERT INTO [dbo].[CartItems] (CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty)
-            VALUES (@cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty)
+            INSERT INTO [dbo].[CartItems] 
+            (ItemId, CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty)
+            VALUES 
+            (@itemId, @cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty)
           `);
-        console.log("🧪 [CartSave] DYNAMIC TEST SUCCESSFUL for TableId:", tId);
-      } else {
-        console.log("🧪 [CartSave] Could not find real Dish/Table for test");
       }
-    } catch (testErr) {
-      console.error("🧪 [CartSave] TEST FAILED:", testErr.message);
-    }
-    // ----------------------------------
-
-    if (!tableId || !items) return res.status(400).json({ error: "tableId and items are required" });
-    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
-
-    // Clear old cart for this table
-    console.log("🗑️ [CartSave] Clearing old items for CartId:", cleanId);
-    const deleteResult = await pool.request()
-      .input("cartId", sql.NVarChar(sql.MAX), cleanId)
-      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
-    console.log("🗑️ [CartSave] Rows deleted:", deleteResult.rowsAffected[0]);
-
-    // Insert new items
-    for (const item of items) {
-      const pId = String(item.id).replace(/^\{|\}$/g, "").trim();
-      console.log(`📝 [CartSave] Inserting: ${item.name} | ProductId: ${pId} | Qty: ${item.qty}`);
       
+      // Update table status to 1 (Occupied)
       await pool.request()
-        .input("cartId", sql.NVarChar(sql.MAX), cleanId)
-        .input("qty", sql.Int, item.qty || 1)
-        .input("productId", sql.NVarChar(sql.MAX), pId)
-        .input("orderNo", sql.NVarChar(sql.MAX), String(orderId || "PENDING"))
-        .input("cost", sql.Decimal(18, 2), item.price || 0)
-        .query(`
-          INSERT INTO [dbo].[CartItems] (CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty)
-          VALUES (@cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty)
-        `);
+        .input("tableId", sql.UniqueIdentifier, cleanTableId)
+        .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
+      console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
+    } else {
+      // If cart is empty, set table status to 0 (Empty)
+      await pool.request()
+        .input("tableId", sql.UniqueIdentifier, cleanTableId)
+        .query("UPDATE TableMaster SET Status = 0 WHERE TableId = @tableId");
+      console.log(`✅ [CartSave] Cart cleared. Table Status -> 0`);
     }
 
-    console.log("✅ [CartSave] ALL ITEMS SAVED SUCCESSFULLY");
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ [CartSave] CRITICAL ERROR:", err.message);
+    console.error("❌ [CartSave] ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -178,17 +162,21 @@ router.get("/cart/:tableId", async (req, res) => {
     const pool = await poolPromise;
     const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
 
+    console.log(`🔍 [CartFetch] Fetching for Table: ${cleanId}`);
+
     const result = await pool.request()
-      .input("cartId", sql.VarChar(50), cleanId)
+      .input("cartId", sql.NVarChar(sql.MAX), cleanId)
       .query(`
-        SELECT c.*, d.Name as name, d.currentcost as price
-        FROM cartitems c
-        LEFT JOIN DishMaster d ON CAST(c.ProductId AS VARCHAR(50)) = CAST(d.DishId AS VARCHAR(50))
+        SELECT c.*, d.Name as name, d.CurrentCost as price
+        FROM [dbo].[CartItems] c
+        LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
         WHERE c.CartId = @cartId
       `);
 
+    console.log(`🔍 [CartFetch] Found ${result.recordset.length} items`);
     res.json(result.recordset);
   } catch (err) {
+    console.error("❌ [CartFetch] ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

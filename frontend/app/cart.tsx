@@ -268,17 +268,20 @@ export default function CartScreen() {
     return table;
   }, [orderContext, tables]);
 
+  const isFetchingCart = React.useRef(false);
+
   // ✅ Auto-load cart from DB on mount (Persistence Fix)
   React.useEffect(() => {
     const tableId = orderContext?.tableId || currentTableData?.tableId;
-    if (tableId && currentContextId && cart.length === 0) {
-      console.log("🔄 [Cart Persistence] Fetching from DB...");
+    if (tableId && currentContextId && cart.length === 0 && !isFetchingCart.current) {
+      isFetchingCart.current = true;
+      console.log("🔄 [Cart Persistence] Fetching from DB for Table:", tableId);
       fetch(`${API_URL}/api/orders/cart/${tableId}`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
-            const mappedItems = data.map((dbItem: any) => ({
-              lineItemId: `db-${dbItem.ItemId}`,
+            const mappedItems = data.map((dbItem: any, index: number) => ({
+              lineItemId: `db-${dbItem.ItemId}-${Date.now()}-${index}`,
               id: dbItem.ProductId,
               name: dbItem.name || "Unknown Item",
               price: dbItem.Cost || dbItem.price || 0,
@@ -288,20 +291,24 @@ export default function CartScreen() {
               isSent: dbItem.OrderNo !== "PENDING"
             }));
             
-            console.log("✅ [Cart Persistence] Order restored from DB");
+            console.log("✅ [Cart Persistence] Restored:", mappedItems.length, "items");
             setCartItemsGlobal(currentContextId, mappedItems);
           }
         })
-        .catch(err => console.error("Cart Recovery Error:", err));
+        .catch(err => console.error("Cart Recovery Error:", err))
+        .finally(() => {
+          isFetchingCart.current = false;
+        });
     }
   }, [orderContext?.tableId, currentTableData?.tableId, currentContextId]);
 
   // ✅ Auto-sync to DB on every change (Real-time Persistence)
   React.useEffect(() => {
     const tableId = orderContext?.tableId || currentTableData?.tableId;
-    if (tableId && cart.length > 0) {
+    // Don't sync if we don't have a tableId or if we are currently loading the initial state
+    if (tableId && !isFetchingCart.current) {
       const syncTimeout = setTimeout(() => {
-        console.log("💾 [Cart Persistence] Syncing to DB...");
+        console.log("💾 [Cart Persistence] Syncing to DB (Items:", cart.length, ")...");
         fetch(`${API_URL}/api/orders/save-cart`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

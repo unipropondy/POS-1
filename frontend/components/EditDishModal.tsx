@@ -47,7 +47,7 @@ export default function EditDishModal({
     onClose();
   };
 
-  if (!item) return null;
+  if (!visible || !item) return null;
 
   return (
     <Modal visible={visible} transparent animationType="fade">

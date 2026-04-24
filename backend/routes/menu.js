@@ -152,7 +152,9 @@ router.post("/order/add", async (req, res) => {
           PricePerUnit,
           BaseAmount,
           TotalDetailLineAmount,
-          CreatedOn
+          CreatedOn,
+          Description,
+          StatusCode
         )
         VALUES (
           @OrderDetailId,
@@ -163,7 +165,9 @@ router.post("/order/add", async (req, res) => {
           @PricePerUnit,
           @BaseAmount,
           @TotalDetailLineAmount,
-          @CreatedOn
+          @CreatedOn,
+          '',
+          'SENT'
         )
       `);
 

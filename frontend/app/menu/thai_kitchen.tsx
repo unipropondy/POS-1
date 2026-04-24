@@ -299,16 +299,19 @@ export default function MenuScreen() {
   const isPhone = !isTablet;
   const isLarge = true; // Always show cart sidebar
 
+  const isFetchingCart = React.useRef(false);
+
   // ✅ Auto-load cart from DB on mount (Persistence Fix)
   useEffect(() => {
-    if (orderContext?.tableId && currentContextId && cart.length === 0) {
+    if (orderContext?.tableId && currentContextId && cart.length === 0 && !isFetchingCart.current) {
+      isFetchingCart.current = true;
       console.log("🔄 [Persistence] Fetching cart from DB for Table:", orderContext.tableId);
       fetch(`${API_URL}/api/orders/cart/${orderContext.tableId}`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
-            const mappedItems = data.map((dbItem: any) => ({
-              lineItemId: `db-${dbItem.ItemId}`,
+            const mappedItems = data.map((dbItem: any, index: number) => ({
+              lineItemId: `db-${dbItem.ItemId}-${Date.now()}-${index}`,
               id: dbItem.ProductId,
               name: dbItem.name || "Unknown Item",
               price: dbItem.Cost || dbItem.price || 0,
@@ -322,15 +325,18 @@ export default function MenuScreen() {
             setCartItemsGlobal(currentContextId, mappedItems);
           }
         })
-        .catch(err => console.error("Fetch Cart Error:", err));
+        .catch(err => console.error("Fetch Cart Error:", err))
+        .finally(() => {
+          isFetchingCart.current = false;
+        });
     }
   }, [orderContext?.tableId, currentContextId]);
 
   // ✅ Auto-sync to DB on every change (Real-time Persistence)
   useEffect(() => {
-    if (orderContext?.tableId && cart.length > 0) {
+    if (orderContext?.tableId && !isFetchingCart.current) {
       const syncTimeout = setTimeout(() => {
-        console.log("💾 [Persistence] Syncing cart to DB...");
+        console.log("💾 [Persistence] Syncing cart to DB (Items:", cart.length, ")...");
         fetch(`${API_URL}/api/orders/save-cart`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
