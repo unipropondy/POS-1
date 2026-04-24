@@ -65,7 +65,34 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     loadGst();
-  }, []);
+
+    // ✅ Load from DB if local state is empty (Persistence Fix)
+    if (context?.tableId && cart.length === 0) {
+      console.log("🔄 [Summary Persistence] Fetching from DB...");
+      fetch(`${API_URL}/api/orders/cart/${context.tableId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            const mappedItems = data.map((dbItem: any) => ({
+              lineItemId: `db-${dbItem.ItemId}`,
+              id: dbItem.ProductId,
+              name: dbItem.name || "Unknown Item",
+              price: dbItem.Cost || dbItem.price || 0,
+              qty: dbItem.Quantity,
+              modifiers: [], 
+              categoryName: "Menu",
+              isSent: dbItem.OrderNo !== "PENDING"
+            }));
+            
+            const recoveryOrderId = data[0].OrderNo || "RECOVERY";
+            useActiveOrdersStore.getState().appendOrder(recoveryOrderId, context, mappedItems);
+            useActiveOrdersStore.getState().markItemsSent(recoveryOrderId);
+            console.log("✅ [Summary Persistence] Order restored from DB");
+          }
+        })
+        .catch(err => console.error("Summary Recovery Error:", err));
+    }
+  }, [context?.tableId]);
 
   const cart = useMemo(() => {
     return activeOrder ? activeOrder.items : [];

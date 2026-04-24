@@ -315,7 +315,7 @@ export default function MenuScreen() {
               qty: dbItem.Quantity,
               modifiers: [], 
               categoryName: "Menu",
-              isSent: true
+              isSent: dbItem.OrderNo !== "PENDING"
             }));
             
             console.log("✅ [Persistence] Restoring items:", mappedItems.length);
@@ -325,6 +325,25 @@ export default function MenuScreen() {
         .catch(err => console.error("Fetch Cart Error:", err));
     }
   }, [orderContext?.tableId, currentContextId]);
+
+  // ✅ Auto-sync to DB on every change (Real-time Persistence)
+  useEffect(() => {
+    if (orderContext?.tableId && cart.length > 0) {
+      const syncTimeout = setTimeout(() => {
+        console.log("💾 [Persistence] Syncing cart to DB...");
+        fetch(`${API_URL}/api/orders/save-cart`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            tableId: orderContext.tableId, 
+            orderId: activeOrder?.orderId || "PENDING", 
+            items: cart 
+          }),
+        }).catch(err => console.error("Auto-sync Error:", err));
+      }, 1000); // Debounce sync by 1s
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [cart, orderContext?.tableId]);
 
   const cartItemsCount = useMemo(() => {
     const draftCount = cart.length;
