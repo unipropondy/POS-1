@@ -87,10 +87,10 @@ router.post("/complete", async (req, res) => {
     const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
     const pool = await poolPromise;
 
-    // Clear cartitems on payment complete
+    // Clear CartItems on payment complete
     await pool.request()
-      .input("cartId", sql.VarChar(50), cleanId)
-      .query("DELETE FROM cartitems WHERE CartId = @cartId");
+      .input("cartId", sql.VarChar(100), cleanId)
+      .query("DELETE FROM [CartItems] WHERE [CartId] = @cartId");
 
     await updateTableStatus(req, tableId, 0); // 0 = Available
     res.json({ success: true, status: 0 });
@@ -103,31 +103,41 @@ router.post("/complete", async (req, res) => {
 router.post("/save-cart", async (req, res) => {
   try {
     const { tableId, orderId, items } = req.body;
+    console.log("📥 [CartSave] Payload received for Table:", tableId, "Order:", orderId);
+    
+    if (!tableId || !items) return res.status(400).json({ error: "tableId and items are required" });
+
     const pool = await poolPromise;
-    const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
+    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
     // Clear old cart for this table
-    await pool.request()
-      .input("cartId", sql.VarChar(50), cleanId)
-      .query("DELETE FROM cartitems WHERE CartId = @cartId");
+    console.log("🗑️ [CartSave] Clearing old items for CartId:", cleanId);
+    const deleteResult = await pool.request()
+      .input("cartId", sql.NVarChar(sql.MAX), cleanId)
+      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+    console.log("🗑️ [CartSave] Rows deleted:", deleteResult.rowsAffected[0]);
 
     // Insert new items
     for (const item of items) {
+      const pId = String(item.id).replace(/^\{|\}$/g, "").trim();
+      console.log(`📝 [CartSave] Inserting: ${item.name} | ProductId: ${pId} | Qty: ${item.qty}`);
+      
       await pool.request()
-        .input("cartId", sql.VarChar(50), cleanId)
-        .input("qty", sql.Int, item.qty)
-        .input("productId", sql.VarChar(50), item.id)
-        .input("orderNo", sql.VarChar(50), orderId || "PENDING")
-        .input("cost", sql.Decimal(18, 2), item.price)
+        .input("cartId", sql.NVarChar(sql.MAX), cleanId)
+        .input("qty", sql.Int, item.qty || 1)
+        .input("productId", sql.NVarChar(sql.MAX), pId)
+        .input("orderNo", sql.NVarChar(sql.MAX), String(orderId || "PENDING"))
+        .input("cost", sql.Decimal(18, 2), item.price || 0)
         .query(`
-          INSERT INTO cartitems (CartId, Quantity, ProductId, OrderNo, Cost, DateCreated)
-          VALUES (@cartId, @qty, @productId, @orderNo, @cost, GETDATE())
+          INSERT INTO [dbo].[CartItems] (CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty)
+          VALUES (@cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty)
         `);
     }
 
+    console.log("✅ [CartSave] ALL ITEMS SAVED SUCCESSFULLY");
     res.json({ success: true });
   } catch (err) {
-    console.error("SAVE CART ERROR:", err);
+    console.error("❌ [CartSave] CRITICAL ERROR:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
