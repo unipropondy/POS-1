@@ -105,9 +105,38 @@ router.post("/save-cart", async (req, res) => {
     const { tableId, orderId, items } = req.body;
     console.log("📥 [CartSave] Payload received for Table:", tableId, "Order:", orderId);
     
-    if (!tableId || !items) return res.status(400).json({ error: "tableId and items are required" });
-
     const pool = await poolPromise;
+
+    // --- TEST INSERTION (DYNAMIC) ---
+    console.log("🧪 [CartSave] Running DYNAMIC TEST INSERTION...");
+    try {
+      const realDish = await pool.request().query("SELECT TOP 1 DishId FROM DishMaster");
+      const realTable = await pool.request().query("SELECT TOP 1 TableId FROM TableMaster");
+      
+      if (realDish.recordset.length > 0 && realTable.recordset.length > 0) {
+        const dId = realDish.recordset[0].DishId;
+        const tId = realTable.recordset[0].TableId;
+        
+        await pool.request()
+          .input("cartId", sql.NVarChar(sql.MAX), String(tId))
+          .input("qty", sql.Int, 1)
+          .input("productId", sql.NVarChar(sql.MAX), String(dId))
+          .input("orderNo", sql.NVarChar(sql.MAX), "TEST-ORDER")
+          .input("cost", sql.Decimal(18, 2), 9.99)
+          .query(`
+            INSERT INTO [dbo].[CartItems] (CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty)
+            VALUES (@cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty)
+          `);
+        console.log("🧪 [CartSave] DYNAMIC TEST SUCCESSFUL for TableId:", tId);
+      } else {
+        console.log("🧪 [CartSave] Could not find real Dish/Table for test");
+      }
+    } catch (testErr) {
+      console.error("🧪 [CartSave] TEST FAILED:", testErr.message);
+    }
+    // ----------------------------------
+
+    if (!tableId || !items) return res.status(400).json({ error: "tableId and items are required" });
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
     // Clear old cart for this table
@@ -158,6 +187,21 @@ router.get("/cart/:tableId", async (req, res) => {
         WHERE c.CartId = @cartId
       `);
 
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Debug Schema
+router.get("/debug-schema", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'CartItems'
+    `);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });

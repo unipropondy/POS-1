@@ -268,6 +268,54 @@ export default function CartScreen() {
     return table;
   }, [orderContext, tables]);
 
+  // ✅ Auto-load cart from DB on mount (Persistence Fix)
+  React.useEffect(() => {
+    const tableId = orderContext?.tableId || currentTableData?.tableId;
+    if (tableId && currentContextId && cart.length === 0) {
+      console.log("🔄 [Cart Persistence] Fetching from DB...");
+      fetch(`${API_URL}/api/orders/cart/${tableId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            const mappedItems = data.map((dbItem: any) => ({
+              lineItemId: `db-${dbItem.ItemId}`,
+              id: dbItem.ProductId,
+              name: dbItem.name || "Unknown Item",
+              price: dbItem.Cost || dbItem.price || 0,
+              qty: dbItem.Quantity,
+              modifiers: [], 
+              categoryName: "Menu",
+              isSent: dbItem.OrderNo !== "PENDING"
+            }));
+            
+            console.log("✅ [Cart Persistence] Order restored from DB");
+            setCartItemsGlobal(currentContextId, mappedItems);
+          }
+        })
+        .catch(err => console.error("Cart Recovery Error:", err));
+    }
+  }, [orderContext?.tableId, currentTableData?.tableId, currentContextId]);
+
+  // ✅ Auto-sync to DB on every change (Real-time Persistence)
+  React.useEffect(() => {
+    const tableId = orderContext?.tableId || currentTableData?.tableId;
+    if (tableId && cart.length > 0) {
+      const syncTimeout = setTimeout(() => {
+        console.log("💾 [Cart Persistence] Syncing to DB...");
+        fetch(`${API_URL}/api/orders/save-cart`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            tableId: tableId, 
+            orderId: activeOrder?.orderId || "PENDING", 
+            items: cart 
+          }),
+        }).catch(err => console.error("Cart Sync Error:", err));
+      }, 1000);
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [cart, orderContext?.tableId, currentTableData?.tableId]);
+
   React.useEffect(() => {
     if (!orderContext) router.replace("/(tabs)/category");
   }, [orderContext]);
