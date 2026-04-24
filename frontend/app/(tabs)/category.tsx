@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+﻿import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -74,7 +74,7 @@ const TableItemComponent = React.memo(({
   itemSize: number; 
   activeTab: string; 
   tableData: any; 
-  onPress: (item: TableItem, tableData: any) => void;
+  onPress: (item: TableItem, tableData: any, isCheckout?: boolean) => void;
   numberFont: number;
   smallFont: number;
   isTabletPortrait?: boolean;
@@ -139,6 +139,20 @@ const TableItemComponent = React.memo(({
               </View>
             )}
           </View>
+        )}
+        
+        {/* ðŸ”¥ CHECKOUT BUTTON OVERLAY (When occupied) */}
+        {(status === 1 || status === 3 || status === 5) && (
+          <TouchableOpacity 
+            style={styles.inlineCheckoutBtn}
+            onPress={(e) => {
+              e.stopPropagation();
+              onPress(item, tableData, true); // Pass true to trigger checkout
+            }}
+          >
+            <Ionicons name="receipt-outline" size={12} color="#FFF" />
+            <Text style={styles.inlineCheckoutText}>CHECKOUT</Text>
+          </TouchableOpacity>
         )}
 
         {status === 4 && (
@@ -244,10 +258,10 @@ export default function Category() {
   const canAccessLockTables  = useAuthStore((s: any) => s.canAccessLockTables);
   const canAccessKDS         = useAuthStore((s: any) => s.canAccessKDS);
 
-  // 🔔 Real-time sync listener for table status
+  // ðŸ”” Real-time sync listener for table status
   useEffect(() => {
     const handleTableUpdate = (data: { tableId: string; status: number }) => {
-      console.log(`📡 [Real-time] Table ${data.tableId} changed to status ${data.status}`);
+      console.log(`ðŸ“¡ [Real-time] Table ${data.tableId} changed to status ${data.status}`);
       fetchTables(); // Refresh everything from DB
     };
 
@@ -257,7 +271,7 @@ export default function Category() {
     };
   }, []);
 
-  // ── Route guard: redirect to login if not authenticated ──
+  // â”€â”€ Route guard: redirect to login if not authenticated â”€â”€
   useFocusEffect(
     React.useCallback(() => {
       if (!user) {
@@ -461,7 +475,7 @@ export default function Category() {
 
   const occupiedCount = currentTables.filter((t: TableItem) => t.Status !== 0).length;
 
-  // ──── STATUS HANDLERS (OPTIMISTIC) ────
+  // â”€â”€â”€â”€ STATUS HANDLERS (OPTIMISTIC) â”€â”€â”€â”€
   const updateTableStatus = async (tableId: string, status: number, lockedByName?: string, totalAmount?: number) => {
     // 1. Optimistic UI update
     const previousTables = [...allTables];
@@ -492,15 +506,15 @@ export default function Category() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/tables/${tableId}/status`, {
+      const res = await fetch(`${API_URL}/api/tables/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, lockedByName }),
+        body: JSON.stringify({ tableId, status, lockedByName }),
       });
       if (!res.ok) throw new Error("Failed to update status");
       
       // Successfully updated backend
-      fetchTables(); // 🔥 refresh after update
+      fetchTables(); // ðŸ”¥ refresh after update
       if (status === 4) fetchLockedTables();
     } catch (err) {
       console.error("Status update failed:", err);
@@ -522,8 +536,14 @@ export default function Category() {
   const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Reserved
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 
-  const handleTablePress = React.useCallback((item: TableItem, tableData: any) => {
+  const handleTablePress = React.useCallback((item: TableItem, tableData: any, isCheckoutAction?: boolean) => {
     const status = Number(item.Status);
+
+    if (isCheckoutAction) {
+      handleCheckout(item.id);
+      return;
+    }
+
     if (status === 4) {
       Alert.alert(
         "Table Locked",
@@ -541,7 +561,7 @@ export default function Category() {
     if (activeTab !== "TAKEAWAY") {
       newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label, tableId: item.id };
       
-      // ✅ If table is Available, mark it as "Dining" (status 1) in DB
+      // âœ… If table is Available, mark it as "Dining" (status 1) in DB
       if (status === 0) {
         fetch(`${API_URL}/api/orders/send`, {
           method: "POST",
@@ -659,14 +679,14 @@ export default function Category() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
 
-      {/* ═══════════ TOP NAV BAR ═══════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â• TOP NAV BAR â•â•â•â•â•â•â•â•â•â•â• */}
       <View style={[
         styles.topNavContainer, 
         { paddingHorizontal: isTablet ? 20 : 12 },
         !isTablet && isLandscape && { height: 42, paddingVertical: 2, gap: 8 }
       ]}>
 
-        {/* CENTER — Section Tabs */}
+        {/* CENTER â€” Section Tabs */}
         <ScrollView
           ref={sectionScrollRef}
           horizontal
@@ -722,9 +742,9 @@ export default function Category() {
           </View>
         </ScrollView>
 
-        {/* RIGHT — Action Buttons */}
+        {/* RIGHT â€” Action Buttons */}
         <View style={[styles.navRightGroup, { gap: isTablet ? 8 : 6 }]}>
-          {/* Lock Tables — gated by MSTTBL */}
+          {/* Lock Tables â€” gated by MSTTBL */}
           {canAccessLockTables() && (
             <TouchableOpacity
               style={styles.headerActionBtn}
@@ -744,7 +764,7 @@ export default function Category() {
             </TouchableOpacity>
           )}
 
-          {/* KDS — gated by OPRSTK */}
+          {/* KDS â€” gated by OPRSTK */}
           {canAccessKDS() && (
             <TouchableOpacity
               style={styles.headerActionBtn}
@@ -772,7 +792,7 @@ export default function Category() {
         </View>
       </View>
 
-      {/* ═══════════ MORE MENU MODAL ═══════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â• MORE MENU MODAL â•â•â•â•â•â•â•â•â•â•â• */}
       <Modal
         visible={isMenuVisible}
         transparent
@@ -896,7 +916,7 @@ export default function Category() {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Section Header Row (Hidden on Mobile Landscape) ── */}
+      {/* â”€â”€ Section Header Row (Hidden on Mobile Landscape) â”€â”€ */}
       {(!isLandscape || isTablet) && (
         <View style={[
           styles.sectionHeader,
@@ -938,7 +958,7 @@ export default function Category() {
         </View>
       )}
 
-      {/* ═══════════ TABLE GRID ═══════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â• TABLE GRID â•â•â•â•â•â•â•â•â•â•â• */}
       <FlatList
         data={currentTables}
         key={columns}
@@ -971,7 +991,7 @@ export default function Category() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Theme.bgMain },
 
-  /* ── Loading ── */
+  /* â”€â”€ Loading â”€â”€ */
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -985,7 +1005,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  /* ── Top Nav ── */
+  /* â”€â”€ Top Nav â”€â”€ */
   topNavContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -1063,7 +1083,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* ── Section Header Row ── */
+  /* â”€â”€ Section Header Row â”€â”€ */
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1120,7 +1140,7 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: Theme.textMuted, fontSize: 10, fontFamily: Fonts.medium },
 
-  /* ── Table Card ── */
+  /* â”€â”€ Table Card â”€â”€ */
   tableBox: {
     borderRadius: 12,
     borderWidth: 1.5,
@@ -1160,7 +1180,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* ── Empty State ── */
+  /* â”€â”€ Empty State â”€â”€ */
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1187,7 +1207,7 @@ const styles = StyleSheet.create({
   },
   retryText: { color: Theme.primary, fontFamily: Fonts.bold, fontSize: 14 },
 
-  /* ── User Chip ── */
+  /* â”€â”€ User Chip â”€â”€ */
   userChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -1222,7 +1242,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  /* ── More Menu Modal ── */
+  /* â”€â”€ More Menu Modal â”€â”€ */
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -1290,5 +1310,23 @@ const styles = StyleSheet.create({
   },
   logoutMenuItem: {
     marginTop: 4,
+  },
+  inlineCheckoutBtn: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#fd7e14',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    ...Theme.shadowSm,
+  },
+  inlineCheckoutText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontFamily: Fonts.black,
   },
 });

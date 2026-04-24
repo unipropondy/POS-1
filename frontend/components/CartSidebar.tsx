@@ -233,6 +233,16 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         undefined,
         payableAmount,
       );
+      
+      // 🔥 Update Backend
+      fetch(`${API_URL}/api/tables/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          tableId: orderContext.tableId, 
+          status: 2 // 2 = Checkout
+        }),
+      }).catch(err => console.error("Checkout Sync Error:", err));
 
       // 🔥 Sync with KDS: Remove order from kitchen display when bill is requested
       socket.emit("order_status_update", {

@@ -153,6 +153,44 @@ router.post("/unlock-persistent", async (req, res) => {
   }
 });
 
+// ✅ New route to match user's snippet: PUT /api/tables/status
+router.put("/status", async (req, res) => {
+  const { tableId, status } = req.body;
+
+  try {
+    const pool = await poolPromise;
+    if (!tableId) return res.status(400).json({ error: "tableId is required" });
+    if (status === undefined) return res.status(400).json({ error: "status is required" });
+
+    const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
+    const request = pool.request();
+    request.input("tableId", sql.VarChar(50), cleanTableId);
+    request.input("status", sql.Int, Number(status));
+
+    await request.query(`
+      UPDATE TableMaster 
+      SET Status = @status,
+          StartTime = CASE 
+            WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
+            WHEN @status = 0 THEN NULL 
+            ELSE StartTime 
+          END
+      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
+    `);
+
+    // 🔥 Emit socket event
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("table_status_updated", { tableId: cleanTableId, status: Number(status) });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("UPDATE STATUS ERROR:", err);
+    res.status(500).json({ error: "Error updating" });
+  }
+});
+
 router.put("/:tableId/status", async (req, res) => {
   try {
     const pool = await poolPromise;
