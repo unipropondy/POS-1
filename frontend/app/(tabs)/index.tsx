@@ -117,9 +117,9 @@ export default function LoginScreen() {
           setPermissions({});
         }
 
-        // Role-based navigation: KDS goes to kitchen screen, all others to POS
-        const role = (data.user.role || "").toUpperCase();
-        if (role === "KDS") {
+        // ✅ Role/Username-based navigation: KDS goes to kitchen screen, all others to POS
+        const userName = (data.user.userName || "").trim().toUpperCase();
+        if (userName === "KDS") {
           router.replace("/kds" as any);
         } else {
           router.replace("/(tabs)/category");

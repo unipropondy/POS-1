@@ -11,12 +11,14 @@ import {
   Text,
   useWindowDimensions,
   View,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useKdsSocket } from "../hooks/useKdsSocket";
 import { OrderItem, useActiveOrdersStore } from "../stores/activeOrdersStore";
+import { useAuthStore } from "../stores/authStore";
 
 const URGENCY_FRESH = 15;
 const URGENCY_WARN = 30;
@@ -142,6 +144,10 @@ export default function KDSScreen() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const isKDSUser = user?.userName?.toUpperCase() === "KDS";
+
   const flatListRef = useRef<FlatList>(null);
   const scrollOffset = useRef(0);
   useKdsSocket();
@@ -236,14 +242,33 @@ export default function KDSScreen() {
 
         {/* HEADER */}
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={Theme.textPrimary} />
-          </Pressable>
-          <View style={styles.logoAndTitle}>
-            <Ionicons name="fast-food" size={30} color={Theme.primary} />
-            <Text style={styles.screenTitle}>KDS</Text>
+          <View style={styles.headerLeftSection}>
+            {!isKDSUser && (
+              <Pressable onPress={() => router.back()} style={styles.backBtn}>
+                <Ionicons name="arrow-back" size={22} color={Theme.textPrimary} />
+              </Pressable>
+            )}
+            <View style={styles.logoAndTitle}>
+              <Ionicons name="fast-food" size={30} color={Theme.primary} />
+              <Text style={styles.screenTitle}>KDS</Text>
+            </View>
           </View>
-          <Text style={styles.totalOrdersCount}>{stats.total} orders</Text>
+
+          <View style={styles.headerRightSection}>
+            <Text style={styles.totalOrdersCount}>{stats.total} orders</Text>
+            {isKDSUser && (
+              <TouchableOpacity 
+                onPress={() => {
+                  logout();
+                  router.replace("/(tabs)");
+                }} 
+                style={styles.logoutBtn}
+              >
+                <Ionicons name="log-out-outline" size={20} color={Theme.danger} />
+                <Text style={styles.logoutBtnText}>Logout</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* LEGEND BAR */}
@@ -343,6 +368,25 @@ const styles = StyleSheet.create({
   },
   statDot:     { width: 9, height: 9, borderRadius: 5 },
   statChipText:{ fontSize: 15, fontFamily: Fonts.black, color: Theme.textPrimary },
+
+  headerLeftSection: { flexDirection: "row", alignItems: "center", gap: 15 },
+  headerRightSection: { flexDirection: "row", alignItems: "center", gap: 20 },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Theme.danger + "10",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Theme.danger + "30",
+  },
+  logoutBtnText: {
+    color: Theme.danger,
+    fontFamily: Fonts.bold,
+    fontSize: 13,
+  },
 
   gridRow: { flex: 1, flexDirection: "row" },
 

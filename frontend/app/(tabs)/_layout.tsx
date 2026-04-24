@@ -1,4 +1,4 @@
-import { Tabs, usePathname } from "expo-router";
+import { Tabs, usePathname, useRouter } from "expo-router";
 import React from "react";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -9,12 +9,20 @@ import { useAuthStore } from "@/stores/authStore";
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const router = useRouter(); // ✅ Import router for redirection
   const user = useAuthStore((state) => state.user);
 
+  // ✅ REDIRECTION GUARD: KDS user cannot stay in /(tabs)
+  React.useEffect(() => {
+    if (user?.userName?.toUpperCase() === "KDS" && pathname.startsWith("/(tabs)")) {
+      router.replace("/kds" as any);
+    }
+  }, [user, pathname]);
+
   // ✅ Show tabs ONLY inside /(tabs) screens (NOT login "/")
-  // 🛑 ALSO hide tabs if user is KDS role
-  const isKDS = user?.role === "KDS";
-  const showTabs = pathname.startsWith("/(tabs)") && !isKDS;
+  // 🛑 ALSO hide tabs if user is KDS
+  const isKDS = user?.userName?.toUpperCase() === "KDS";
+  const showTabs = pathname.startsWith("/(tabs)") && !isKDS && user !== null;
 
   return (
     <Tabs
