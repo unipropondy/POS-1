@@ -22,7 +22,6 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import CartSidebar from "../../components/CartSidebar";
-import KdsSidebar from "../../components/KdsSidebar";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
@@ -31,6 +30,7 @@ import {
   addToCartGlobal,
   getContextId,
   setCurrentContext,
+  setCartItemsGlobal,
   useCartStore,
 } from "../../stores/cartStore";
 import { useOrderContextStore } from "../../stores/orderContextStore";
@@ -39,7 +39,49 @@ const IMAGE_BASE_URL = `${API_URL}/api/menu/image/`;
 
 // --- COMPONENTS ---
 
+const NavRail = () => {
+  const router = useRouter();
+  const navItems = [
+    { id: "home", icon: "home-outline", label: "Home", active: true },
+  ];
 
+  return (
+    <View style={styles.rail}>
+      <View style={styles.railTop}>
+        {navItems.map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            style={[styles.railItem, item.active && styles.railItemActive]}
+          >
+            <Ionicons
+              name={item.icon as any}
+              size={22}
+              color={item.active ? Theme.primary : Theme.textSecondary}
+            />
+            <Text
+              style={[styles.railLabel, item.active && styles.railLabelActive]}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.railBottom}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => router.replace("/")}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={22}
+            color={Theme.textSecondary}
+          />
+          <Text style={styles.railLabel}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 const DishCard = React.memo(
   ({ dish, width, cartQty, onPress, isPhone, isTablet, isLandscape }: any) => {
@@ -257,6 +299,33 @@ export default function MenuScreen() {
   const isPhone = !isTablet;
   const isLarge = true; // Always show cart sidebar
 
+  // ✅ Auto-load cart from DB on mount (Persistence Fix)
+  useEffect(() => {
+    if (orderContext?.tableId && currentContextId && cart.length === 0) {
+      console.log("🔄 [Persistence] Fetching cart from DB for Table:", orderContext.tableId);
+      fetch(`${API_URL}/api/orders/cart/${orderContext.tableId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            const mappedItems = data.map((dbItem: any) => ({
+              lineItemId: `db-${dbItem.ItemId}`,
+              id: dbItem.ProductId,
+              name: dbItem.name || "Unknown Item",
+              price: dbItem.Cost || dbItem.price || 0,
+              qty: dbItem.Quantity,
+              modifiers: [], 
+              categoryName: "Menu",
+              isSent: true
+            }));
+            
+            console.log("✅ [Persistence] Restoring items:", mappedItems.length);
+            setCartItemsGlobal(currentContextId, mappedItems);
+          }
+        })
+        .catch(err => console.error("Fetch Cart Error:", err));
+    }
+  }, [orderContext?.tableId, currentContextId]);
+
   const cartItemsCount = useMemo(() => {
     const draftCount = cart.length;
     const sentCount = (activeOrder?.items || []).length;
@@ -266,18 +335,17 @@ export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const usableWidth = width - insets.left - insets.right;
 
-  // Sidebar widths should be more responsive
+  // Sidebar width should be more responsive
   const cartWidth = isTablet
     ? width > 1024
-      ? 350
-      : 300
+      ? 380
+      : 330
     : isLandscape
-      ? usableWidth * 0.35
+      ? usableWidth * 0.38
       : width * 0.62;
 
-  const kdsWidth = isLandscape ? cartWidth : 0;
-
-  const mainWidth = (isLandscape ? usableWidth : width) - cartWidth - kdsWidth;
+  const mainWidth =
+    (isLandscape && !isTablet ? usableWidth : width) - cartWidth;
 
   const columns = isTablet
     ? isLandscape
@@ -730,10 +798,7 @@ export default function MenuScreen() {
       <View style={{ flex: 1 }}>
         {isLandscape ? (
           <View style={styles.layout}>
-            {/* KDS SIDEBAR (LEFT) */}
-            <KdsSidebar width={kdsWidth} currentTableNo={orderContext.tableNo} />
-
-            {/* MAIN CONTENT (CENTER) */}
+            {/* DESKTOP LAYOUT - Full height sidebar */}
             <View style={[styles.main, { width: mainWidth }]}>
               {renderTopBar()}
               {renderCategoryNav()}
@@ -764,8 +829,7 @@ export default function MenuScreen() {
                 )}
               </View>
             </View>
-            {/* CART SIDEBAR (RIGHT) */}
-            <CartSidebar width={cartWidth} />
+            {isLarge && <CartSidebar width={cartWidth} />}
           </View>
         ) : (
           <View style={{ flex: 1, backgroundColor: Theme.bgMain }}>
@@ -960,34 +1024,33 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Theme.bgMain },
   layout: { flex: 1, flexDirection: "row" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  main: { flex: 1, padding: 12 },
-  headerCartBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  rail: {
+    width: 90,
     backgroundColor: "#fff",
+    borderRightWidth: 1,
+    borderRightColor: Theme.border,
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  railTop: { flex: 1, gap: 20 },
+  railItem: {
+    width: 64,
+    height: 64,
     justifyContent: "center",
     alignItems: "center",
-    ...Theme.shadowSm,
+    borderRadius: 16,
   },
-  cartBadge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    backgroundColor: Theme.danger,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  cartBadgeText: {
-    color: "#fff",
+  railItemActive: { backgroundColor: Theme.bgMain },
+  railLabel: {
     fontSize: 10,
-    fontFamily: Fonts.black,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+    marginTop: 4,
   },
+  railLabelActive: { color: Theme.primary },
+  railBottom: { gap: 20, alignItems: "center" },
+  logoutBtn: { alignItems: "center" },
+  main: { flex: 1, padding: 12 },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -1127,6 +1190,37 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.black,
     color: Theme.primary,
     marginTop: 4,
+  },
+  headerCartBtn: {
+    width: 48,
+    height: 48,
+    backgroundColor: Theme.bgMain,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: Theme.danger,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontFamily: Fonts.black,
   },
   title: { fontSize: 24, fontFamily: Fonts.black },
   modalOverlay: {

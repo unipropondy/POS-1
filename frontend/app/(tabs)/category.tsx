@@ -49,13 +49,13 @@ const formatSectionGlobal = (sec: string) => {
 const getStatusUI = (status: number) => {
   const s = Number(status);
   switch (s) {
-    case 1: return { text: "DINING", color: "#28a745", lightBg: "#F0FDF4" };
+    case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
     case 2: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
-    case 3: return { text: "HOLD", color: "#007bff", lightBg: "#EFF6FF" };
-    case 4: return { text: "RESERVED", color: "#dc3545", lightBg: "#FEF2F2" };
-    case 5: return { text: "OVERTIME", color: "#6f42c1", lightBg: "#FAF5FF" };
+    case 3: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
+    case 4: return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
+    case 5: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
     case 0:
-    default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" };
+    default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" }; // Gray
   }
 };
 
@@ -118,14 +118,13 @@ const TableItemComponent = React.memo(({
 
         {status !== 0 && (
           <View style={styles.tableInfo}>
-            {/* Show badge ONLY if not showing the checkout button, OR if it's status 2 */}
-            {(status === 2 || status === 4) ? (
-              <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
-                <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
-                  {ui.text}
-                </Text>
-              </View>
-            ) : (status === 1 || status === 3 || status === 5) ? (
+            <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
+              <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
+                {ui.text}
+              </Text>
+            </View>
+
+            {(status === 1 || status === 2 || status === 3 || status === 5) && (
               <View style={styles.tableStats}>
                 {timeText ? (
                   <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
@@ -138,24 +137,10 @@ const TableItemComponent = React.memo(({
                   </Text>
                 )}
               </View>
-            ) : null}
+            )}
           </View>
         )}
         
-        {/* ðŸ”¥ CHECKOUT BUTTON OVERLAY (When occupied) */}
-        {(status === 1 || status === 3 || status === 5) && (
-          <TouchableOpacity 
-            style={styles.inlineCheckoutBtn}
-            onPress={(e) => {
-              e.stopPropagation();
-              onPress(item, tableData, true); // Pass true to trigger checkout
-            }}
-          >
-            <Ionicons name="receipt-outline" size={12} color="#FFF" />
-            <Text style={styles.inlineCheckoutText}>CHECKOUT</Text>
-          </TouchableOpacity>
-        )}
-
         {status === 4 && (
           <View style={styles.lockedOverlay}>
             <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={ui.color} />
@@ -365,6 +350,7 @@ export default function Category() {
             DiningSection: Number(item.DiningSection) || 1,
             Status: Number(item.Status) || 0,
             StartTime: item.StartTime,
+            lockedByName: item.lockedByName,
           }))
           .filter((item) => item.id && item.label);
         setAllTables(convertedData);
@@ -378,7 +364,8 @@ export default function Category() {
               t.label,
               "SYNC",
               t.Status === 4 ? 'LOCKED' : (t.Status === 1 || t.Status === 5 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
-              t.StartTime ? new Date(t.StartTime).getTime() : undefined
+              t.StartTime ? new Date(t.StartTime).getTime() : undefined,
+              t.lockedByName
             );
           }
         });
@@ -430,20 +417,6 @@ export default function Category() {
       setActiveTab(urlSection);
     }
   }, [urlSection]);
-
-  // 🔥 Real-time Sync
-  useEffect(() => {
-    const { socket } = require("../../constants/socket");
-    
-    socket.on("table_status_updated", (data: any) => {
-      console.log("🔄 [SOCKET] Table status updated, refreshing grid...", data);
-      fetchTables();
-    });
-
-    return () => {
-      socket.off("table_status_updated");
-    };
-  }, []);
 
   const insets = useSafeAreaInsets();
   const GAP = !isTablet && isLandscape ? 8 : 10;
@@ -575,7 +548,7 @@ export default function Category() {
       return;
     }
 
-    if (status === 2 || status === 3 || status === 5) {
+    if (status === 3 || status === 5) {
       // For occupied tables, set context and go to summary/menu
       const section = getSectionFromDiningSection(item.DiningSection);
       setOrderContext({ 

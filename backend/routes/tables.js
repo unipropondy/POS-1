@@ -174,7 +174,8 @@ router.put("/status", async (req, res) => {
             WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
             WHEN @status = 0 THEN NULL 
             ELSE StartTime 
-          END
+          END,
+          ModifiedOn = GETDATE()
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 

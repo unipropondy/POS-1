@@ -273,17 +273,25 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         payableAmount,
       );
 
-      // 🔥 Update Backend Status to Dining (1)
+      // ✅ Sync Status to Occupied (1) only after SEND
       fetch(`${API_URL}/api/tables/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          tableId: orderContext.tableId, 
-          status: 1 // 1 = Dining
-        }),
-      }).catch(err => console.error("Send Order Sync Error:", err));
+        body: JSON.stringify({ tableId: orderContext.tableId, status: 1 }),
+      }).catch(err => console.error("Status Sync Error:", err));
 
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
+
+      // ✅ Persistent Save to cartitems table
+      fetch(`${API_URL}/api/orders/save-cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          tableId: orderContext.tableId, 
+          orderId: targetOrderId, 
+          items: cart 
+        }),
+      }).catch(err => console.error("Cart Save Error:", err));
     } else {
       updateTableStatus(
         "",
@@ -746,8 +754,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   {!isPhone && <Text style={styles.btnText}>Send</Text>}
                 </TouchableOpacity>
               </>
-            ) : currentTableStatus === "SENT" ||
-              currentTableStatus === "HOLD" ? (
+            ) : currentTableStatus === "SENT" ? (
               <TouchableOpacity
                 style={[
                   styles.proceedBtn,
@@ -758,7 +765,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 <Ionicons name="receipt-outline" size={20} color="#fff" />
                 <Text style={styles.btnText}>Checkout</Text>
               </TouchableOpacity>
-            ) : currentTableStatus === "BILL_REQUESTED" ? (
+            ) : currentTableStatus === "HOLD" || currentTableStatus === "BILL_REQUESTED" ? (
               <TouchableOpacity
                 style={[
                   styles.proceedBtn,

@@ -36,7 +36,7 @@ const getStatusUI = (status: number) => {
   const s = Number(status);
   switch (s) {
     case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
-    case 2: return { text: "CHECKOUT", color: "#f59e0b", lightBg: "#FFFBEB" };
+    case 2: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
     case 3: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
     case 4: return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
     case 5: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
@@ -120,6 +120,7 @@ export default function LockedTablesScreen() {
               diningSection: Number(table.DiningSection) || 1,
               status,
               isLocked,
+              lockedByName: table.lockedByName,
             };
           })
           : [];
