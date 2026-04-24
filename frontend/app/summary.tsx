@@ -166,7 +166,7 @@ export default function SummaryScreen() {
 
   const totalItems = useMemo(
     () =>
-      cart.reduce((sum, item) => {
+      cart.reduce((sum: number, item: any) => {
         const isVoided = "status" in item && (item as any).status === "VOIDED";
         if (isVoided) return sum;
         return sum + item.qty;
@@ -176,7 +176,7 @@ export default function SummaryScreen() {
 
   const subtotal = useMemo(
     () =>
-      cart.reduce((sum, item) => {
+      cart.reduce((sum: number, item: any) => {
         const isVoided = "status" in item && (item as any).status === "VOIDED";
         if (isVoided) return sum;
         return sum + (item.price || 0) * item.qty;
@@ -280,7 +280,7 @@ export default function SummaryScreen() {
               showsVerticalScrollIndicator={false}
               keyExtractor={(item, index) => item.id + index}
               contentContainerStyle={{ paddingBottom: 20 }}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: any }) => (
                 <View style={styles.row}>
                   <View style={styles.qtyBadge}>
                     <Text style={styles.qtyBadgeText}>{item.qty}</Text>

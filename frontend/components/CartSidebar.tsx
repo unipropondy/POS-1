@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   DimensionValue,
   FlatList,
@@ -16,11 +16,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { API_URL } from "../constants/Config";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import EditDishModal from "./EditDishModal";
 import { useToast } from "./Toast";
 
+import { socket } from "../constants/socket";
 import { OrderItem, useActiveOrdersStore } from "../stores/activeOrdersStore";
 import {
   CartItem,
@@ -31,7 +33,6 @@ import { holdOrder } from "../stores/heldOrdersStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
-import { socket } from "../constants/socket";
 
 if (
   Platform.OS === "android" &&
@@ -54,6 +55,7 @@ interface CartSidebarProps {
 }
 
 export default function CartSidebar({ width = 400 }: CartSidebarProps) {
+
   const router = useRouter();
   const { showToast } = useToast();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -106,23 +108,26 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   }, [tables, orderContext]);
 
   const unsentCount = useMemo(() => {
-    return cart.filter((i: any) => !i.status || i.status === 'NEW').length;
+    return cart.filter((i: any) => !i.status || i.status === "NEW").length;
   }, [cart]);
 
   const currentTableStatus = useMemo(() => {
     if (!tableData) return "EMPTY";
-    
+
     // Normalize status if it comes from the database as a number
     const s = tableData.status;
-    if (typeof s === 'number' || typeof (tableData as any).Status === 'number') {
-      const val = typeof s === 'number' ? s : (tableData as any).Status;
+    if (
+      typeof s === "number" ||
+      typeof (tableData as any).Status === "number"
+    ) {
+      const val = typeof s === "number" ? s : (tableData as any).Status;
       const statusMap: Record<number, string> = {
-        0: 'EMPTY',
-        1: 'SENT',
-        2: 'HOLD',
-        3: 'BILL_REQUESTED',
-        4: 'LOCKED',
-        5: 'SENT'
+        0: "EMPTY",
+        1: "SENT",
+        2: "HOLD",
+        3: "BILL_REQUESTED",
+        4: "LOCKED",
+        5: "SENT",
       };
       return statusMap[val] || "EMPTY";
     }
@@ -232,7 +237,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       // 🔥 Sync with KDS: Remove order from kitchen display when bill is requested
       socket.emit("order_status_update", {
         orderId: activeOrder?.orderId || "PAYMENT",
-        action: "CLOSE"
+        action: "CLOSE",
       });
 
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
@@ -680,13 +685,14 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             </View>
           </View>
 
-           <View style={styles.actions}>
+          <View style={styles.actions}>
             {unsentCount > 0 ? (
               <>
                 <TouchableOpacity
                   style={styles.holdBtn}
                   onPress={() => {
-                    let targetOrderId = activeOrder?.orderId || getNextOrderId();
+                    let targetOrderId =
+                      activeOrder?.orderId || getNextOrderId();
                     updateTableStatus(
                       orderContext.tableId || "",
                       orderContext.section!,
@@ -701,7 +707,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     );
                   }}
                 >
-                  <Ionicons name="pause-circle-outline" size={20} color="#fff" />
+                  <Ionicons
+                    name="pause-circle-outline"
+                    size={20}
+                    color="#fff"
+                  />
                   {!isPhone && <Text style={styles.btnText}>Hold Cart</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -715,7 +725,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   {!isPhone && <Text style={styles.btnText}>Send</Text>}
                 </TouchableOpacity>
               </>
-            ) : (currentTableStatus === "SENT" || currentTableStatus === "HOLD") ? (
+            ) : currentTableStatus === "SENT" ||
+              currentTableStatus === "HOLD" ? (
               <TouchableOpacity
                 style={[
                   styles.proceedBtn,

@@ -123,15 +123,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     const currentCart = carts[currentContextId] || [];
 
     const areModifiersEqual = (mods1?: Modifier[], mods2?: Modifier[]) => {
-      const ids1 = (mods1 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      const ids2 = (mods2 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      return ids1 === ids2;
+      const getIds = (mods?: any[]) => (mods || []).map(m => String(m.ModifierId || m.ModifierID || "")).sort().join("|");
+      return getIds(mods1) === getIds(mods2);
     };
 
     const existing = currentCart.find(
@@ -276,15 +269,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     if (!sourceItem) return;
 
     const areModifiersEqual = (mods1?: Modifier[], mods2?: Modifier[]) => {
-      const ids1 = (mods1 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      const ids2 = (mods2 || [])
-        .map((m) => m.ModifierId)
-        .sort()
-        .join("|");
-      return ids1 === ids2;
+      const getIds = (mods?: any[]) => (mods || []).map(m => String(m.ModifierId || m.ModifierID || "")).sort().join("|");
+      return getIds(mods1) === getIds(mods2);
     };
 
     if (areModifiersEqual(sourceItem.modifiers, modifiers)) {

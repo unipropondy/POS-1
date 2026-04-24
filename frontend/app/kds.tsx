@@ -1,17 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   useWindowDimensions,
   View,
-  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
@@ -38,9 +40,9 @@ const formatSection = (sec: string) => {
 };
 
 const URGENCY_UI: Record<UrgencyLevel, { primary: string; label: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  fresh:    { primary: Theme.success, label: "ON TRACK",     icon: "checkmark-circle-outline" },
-  warn:     { primary: Theme.warning, label: "RUNNING LONG", icon: "time-outline" },
-  critical: { primary: Theme.danger,  label: "OVERDUE",      icon: "alert-circle-outline" },
+  fresh: { primary: Theme.success, label: "ON TRACK", icon: "checkmark-circle-outline" },
+  warn: { primary: Theme.warning, label: "RUNNING LONG", icon: "time-outline" },
+  critical: { primary: Theme.danger, label: "OVERDUE", icon: "alert-circle-outline" },
 };
 
 // Per-card component so each card can track its own scroll state
@@ -59,7 +61,10 @@ function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
   const seconds = ui.seconds;
 
   return (
-    <View style={[styles.cardContainer, { height: cardHeight }]}>
+    <Pressable
+      style={[styles.cardContainer, { height: cardHeight }]}
+      onPress={() => item.onPress?.(item)}
+    >
       <View style={[styles.urgencyBar, { backgroundColor: ui.primary }]} />
       <View style={styles.cardHeader}>
         <View style={styles.headerRow}>
@@ -97,25 +102,45 @@ function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
             <View key={catName} style={styles.categorySection}>
               <Text style={styles.categoryHeader}>{catName}</Text>
               {items.map((i: any) => (
-                <View key={i.lineItemId} style={[styles.itemRow, (time - (i.sentAt || item.createdAt) < 15000) && styles.itemFlash]}>
+                <View
+                  key={i.lineItemId}
+                  style={[
+                    styles.itemRow,
+                    (time - (i.sentAt || item.createdAt) < 15000) && styles.itemFlash,
+                    i.status === "READY" && styles.itemReadyFlash
+                  ]}
+                >
                   <View style={styles.qtyPill}>
                     <Text style={styles.itemQtyPrefix}>{i.qty}x</Text>
                   </View>
-                  
+
                   <View style={[styles.itemTextWrap, { marginLeft: 10 }]}>
                     <View style={styles.itemTitleRow}>
-                      <Text style={[styles.itemName, i.status === "VOIDED" && styles.itemVoided]}>{i.name}</Text>
-                      {(i.status === "VOIDED" || time - (i.sentAt || item.createdAt) < 150000) && (
-                        <View style={[styles.itemStatusBadge, { backgroundColor: Theme.danger }]}>
-                          <Text style={styles.itemStatusText}>{i.status === "VOIDED" ? "VOID" : "NEW"}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.itemName, i.status === "VOIDED" && styles.itemVoided]}>{i.name}</Text>
+                        {i.isTakeaway && (
+                          <View style={styles.takeawayBadge}>
+                            <Ionicons name="bag-handle" size={10} color="#FFF" />
+                            <Text style={styles.takeawayBadgeText}>TAKEAWAY</Text>
+                          </View>
+                        )}
+                      </View>
+                      {(i.status === "VOIDED" || i.status === "READY" || time - (i.sentAt || item.createdAt) < 150000) && (
+                        <View style={[
+                          styles.itemStatusBadge,
+                          { backgroundColor: i.status === "READY" ? Theme.success : Theme.danger }
+                        ]}>
+                          <Text style={styles.itemStatusText}>
+                            {i.status === "VOIDED" ? "VOID" : i.status === "READY" ? "READY" : "NEW"}
+                          </Text>
                         </View>
                       )}
                     </View>
-                    
+
                     {i.modifiers?.map((mod: any, idx: number) => (
                       <Text key={idx} style={styles.modifierText}>• {mod.ModifierName}</Text>
                     ))}
-                    
+
                     {(i.note || i.notes) && (
                       <View style={styles.noteWrapper}>
                         <Ionicons name="pencil" size={10} color={Theme.primary} />
@@ -136,7 +161,7 @@ function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
           </View>
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -153,6 +178,9 @@ export default function KDSScreen() {
   useKdsSocket();
 
   const [time, setTime] = useState(Date.now());
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const markItemReady = useActiveOrdersStore((s) => s.markItemReady);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -164,7 +192,7 @@ export default function KDSScreen() {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 0.6, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,   duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       ]),
     ).start();
   }, []);
@@ -172,13 +200,23 @@ export default function KDSScreen() {
   const kitchenOrders = useMemo(() => {
     return activeOrders
       .map((order) => {
-        const sentItems = order.items.filter((i: any) => i.status === "SENT" || i.status === "VOIDED");
-        if (sentItems.length === 0) return null;
-        return { ...order, items: sentItems };
+        const displayItems = order.items.filter((i: any) => {
+          if (i.status === "SENT" || i.status === "VOIDED") return true;
+          if (i.status === "READY" && i.readyAt) {
+            return time - i.readyAt < 20000; // Stay for 20 seconds
+          }
+          return false;
+        });
+        if (displayItems.length === 0) return null;
+        return { ...order, items: displayItems };
       })
       .filter(Boolean)
       .sort((a: any, b: any) => a.createdAt - b.createdAt);
-  }, [activeOrders]);
+  }, [activeOrders, time]);
+
+  const selectedOrder = useMemo(() => {
+    return kitchenOrders.find((o: any) => o.orderId === selectedOrderId);
+  }, [kitchenOrders, selectedOrderId]);
 
   const numColumns = width > 1400 ? 4 : width > 1000 ? 3 : 2;
   const cardHeight = height * 0.55;
@@ -210,11 +248,11 @@ export default function KDSScreen() {
 
   const renderOrder = ({ item }: any) => {
     const latestSent = Math.max(...item.items.map((i: any) => i.sentAt || item.createdAt));
-    const elapsed  = time - latestSent;
-    const minutes  = Math.floor(elapsed / 60000);
-    const seconds  = Math.floor((elapsed % 60000) / 1000);
-    const urgency  = getUrgency(minutes);
-    const ui       = URGENCY_UI[urgency];
+    const elapsed = time - latestSent;
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    const urgency = getUrgency(minutes);
+    const ui = URGENCY_UI[urgency];
 
     const groups: Record<string, OrderItem[]> = {};
     item.items.forEach((i: OrderItem) => {
@@ -225,7 +263,7 @@ export default function KDSScreen() {
 
     return (
       <OrderCard
-        item={item}
+        item={{ ...item, onPress: (o: any) => setSelectedOrderId(o.orderId) }}
         cardHeight={cardHeight}
         ui={{ ...ui, urgency, minutes, seconds }}
         time={time}
@@ -235,10 +273,81 @@ export default function KDSScreen() {
     );
   };
 
+  const handleMarkReady = (lineItemId: string) => {
+    if (!selectedOrder) return;
+    markItemReady(selectedOrder.orderId, lineItemId);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       <View style={styles.container}>
+
+        {/* ITEM SELECTION MODAL */}
+        <Modal
+          visible={!!selectedOrderId}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedOrderId(null)}
+        >
+          <BlurView intensity={20} tint="dark" style={styles.modalOverlay}>
+            <Pressable style={styles.modalBackdrop} onPress={() => setSelectedOrderId(null)} />
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {selectedOrder?.context.orderType === "DINE_IN"
+                    ? `Table ${selectedOrder.context.tableNo}`
+                    : `Takeaway #${selectedOrder?.context.takeawayNo}`}
+                </Text>
+                <Pressable onPress={() => setSelectedOrderId(null)} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={24} color={Theme.textPrimary} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={styles.modalItemsList}>
+                {selectedOrder?.items.map((i: any) => {
+                  const isReady = i.status === "READY";
+                  return (
+                    <View key={i.lineItemId} style={[styles.modalItemRow, isReady && styles.modalItemReady]}>
+                      <View style={styles.modalItemInfo}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={styles.modalItemQty}>{i.qty}x</Text>
+                          <Text style={[styles.modalItemName, i.status === "VOIDED" && styles.itemVoided]}>{i.name}</Text>
+                          {i.isTakeaway && (
+                            <View style={styles.takeawayBadge}>
+                              <Text style={styles.takeawayBadgeText}>TAKEAWAY</Text>
+                            </View>
+                          )}
+                        </View>
+                        {i.modifiers?.map((m: any, idx: number) => (
+                          <Text key={idx} style={styles.modalModifierText}>• {m.ModifierName}</Text>
+                        ))}
+                      </View>
+
+                      {i.status !== "VOIDED" && (
+                        <Pressable
+                          style={[styles.readyBtn, isReady && styles.readyBtnActive]}
+                          onPress={() => !isReady && handleMarkReady(i.lineItemId)}
+                        >
+                          <Ionicons
+                            name={isReady ? "checkmark-circle" : "restaurant-outline"}
+                            size={18}
+                            color="#FFF"
+                          />
+                          <Text style={styles.readyBtnText}>{isReady ? "READY" : "MARK READY"}</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              <Pressable style={styles.modalDoneBtn} onPress={() => setSelectedOrderId(null)}>
+                <Text style={styles.modalDoneText}>Done</Text>
+              </Pressable>
+            </View>
+          </BlurView>
+        </Modal>
 
         {/* HEADER */}
         <View style={styles.topBar}>
@@ -257,11 +366,11 @@ export default function KDSScreen() {
           <View style={styles.headerRightSection}>
             <Text style={styles.totalOrdersCount}>{stats.total} orders</Text>
             {isKDSUser && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   logout();
                   router.replace("/(tabs)");
-                }} 
+                }}
                 style={styles.logoutBtn}
               >
                 <Ionicons name="log-out-outline" size={20} color={Theme.danger} />
@@ -336,7 +445,7 @@ export default function KDSScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: Theme.bgMain },
+  safe: { flex: 1, backgroundColor: Theme.bgMain },
   container: { flex: 1 },
 
   topBar: {
@@ -349,9 +458,9 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Theme.bgMuted, justifyContent: "center", alignItems: "center",
   },
-  logoAndTitle:    { flexDirection: "row", alignItems: "center", gap: 10 },
-  screenTitle:     { fontSize: 24, fontFamily: Fonts.black, color: Theme.textPrimary },
-  totalOrdersCount:{ fontSize: 14, fontFamily: Fonts.bold, color: Theme.textSecondary },
+  logoAndTitle: { flexDirection: "row", alignItems: "center", gap: 10 },
+  screenTitle: { fontSize: 24, fontFamily: Fonts.black, color: Theme.textPrimary },
+  totalOrdersCount: { fontSize: 14, fontFamily: Fonts.bold, color: Theme.textSecondary },
 
   legendBar: {
     flexDirection: "row", justifyContent: "space-around", alignItems: "center",
@@ -359,15 +468,15 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.bgMuted,
     borderBottomWidth: 1, borderBottomColor: Theme.border,
   },
-  legendItem:  { flexDirection: "row", alignItems: "center", gap: 8 },
-  legendText:  { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textSecondary },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+  legendText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textSecondary },
   statChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#FFF", borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1,
   },
-  statDot:     { width: 9, height: 9, borderRadius: 5 },
-  statChipText:{ fontSize: 15, fontFamily: Fonts.black, color: Theme.textPrimary },
+  statDot: { width: 9, height: 9, borderRadius: 5 },
+  statChipText: { fontSize: 15, fontFamily: Fonts.black, color: Theme.textPrimary },
 
   headerLeftSection: { flexDirection: "row", alignItems: "center", gap: 15 },
   headerRightSection: { flexDirection: "row", alignItems: "center", gap: 20 },
@@ -397,32 +506,33 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: Theme.bgCard, borderRadius: 20, overflow: "hidden",
     borderWidth: 1, borderColor: Theme.border, marginBottom: 20, ...Theme.shadowMd,
   },
-  urgencyBar:   { height: 6, width: "100%" },
-  cardHeader:   { padding: 15, paddingBottom: 10 },
-  headerRow:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
-  tableInfo:    { fontSize: 20, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1 },
-  timer:        { fontSize: 22, fontFamily: Fonts.black },
-  orderIdText:  { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted },
+  urgencyBar: { height: 6, width: "100%" },
+  cardHeader: { padding: 15, paddingBottom: 10 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
+  tableInfo: { fontSize: 20, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1 },
+  timer: { fontSize: 22, fontFamily: Fonts.black },
+  orderIdText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted },
   statusBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
   },
   statusBadgeText: { fontSize: 9, fontFamily: Fonts.black },
-  divider:      { height: 1, backgroundColor: Theme.border, marginHorizontal: 15 },
+  divider: { height: 1, backgroundColor: Theme.border, marginHorizontal: 15 },
 
-  itemsScroll:   { flex: 1, paddingHorizontal: 15 },
-  categorySection:{ marginTop: 6 },
+  itemsScroll: { flex: 1, paddingHorizontal: 15 },
+  categorySection: { marginTop: 6 },
   categoryHeader: { fontSize: 10, fontFamily: Fonts.black, color: Theme.primary, marginBottom: 2, letterSpacing: 1 },
-  itemRow:       { flexDirection: "row", marginBottom: 6, paddingVertical: 2 },
-  itemFlash:     { backgroundColor: Theme.success + "12", borderRadius: 8, marginHorizontal: -4, paddingHorizontal: 4 },
-  itemTextWrap:  { flex: 1 },
-  itemTitleRow:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  itemStatusBadge:{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  itemRow: { flexDirection: "row", marginBottom: 6, paddingVertical: 2 },
+  itemFlash: { backgroundColor: Theme.success + "12", borderRadius: 8, marginHorizontal: -4, paddingHorizontal: 4 },
+  itemReadyFlash: { backgroundColor: Theme.success + "30", borderRadius: 8, marginHorizontal: -4, paddingHorizontal: 4 },
+  itemTextWrap: { flex: 1 },
+  itemTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  itemStatusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   itemStatusText: { color: "#FFF", fontSize: 9, fontFamily: Fonts.black },
-  itemName:      { fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, lineHeight: 22 },
-  itemVoided:    { color: Theme.danger, textDecorationLine: "line-through", opacity: 0.6 },
-  modifierText:  { fontSize: 13, fontFamily: Fonts.medium, color: Theme.textSecondary, marginTop: 1 },
-  
+  itemName: { fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, lineHeight: 22 },
+  itemVoided: { color: Theme.danger, textDecorationLine: "line-through", opacity: 0.6 },
+  modifierText: { fontSize: 13, fontFamily: Fonts.medium, color: Theme.textSecondary, marginTop: 1 },
+
   noteWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -439,11 +549,11 @@ const styles = StyleSheet.create({
   },
 
   itemQtyPrefix: { fontSize: 16, fontFamily: Fonts.black, color: Theme.primary },
-  qtyPill:       { backgroundColor: Theme.primary + "12", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, justifyContent: "center", alignItems: "center" },
+  qtyPill: { backgroundColor: Theme.primary + "12", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, justifyContent: "center", alignItems: "center" },
 
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 150, gap: 20 },
-  emptyText:     { fontSize: 32, fontFamily: Fonts.black, color: Theme.textPrimary },
-  emptySub:      { fontSize: 16, fontFamily: Fonts.bold, color: Theme.textMuted },
+  emptyText: { fontSize: 32, fontFamily: Fonts.black, color: Theme.textPrimary },
+  emptySub: { fontSize: 16, fontFamily: Fonts.bold, color: Theme.textMuted },
 
   sideScrollArea: {
     width: 50,
@@ -480,5 +590,122 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Theme.border,
     zIndex: 10,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 600,
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    padding: 25,
+    ...Theme.shadowLg,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+  },
+  modalCloseBtn: {
+    padding: 5,
+    backgroundColor: Theme.bgMuted,
+    borderRadius: 12,
+  },
+  modalItemsList: {
+    maxHeight: 500,
+  },
+  modalItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.border,
+  },
+  modalItemReady: {
+    backgroundColor: Theme.success + "08",
+  },
+  modalItemInfo: {
+    flex: 1,
+    marginRight: 15,
+  },
+  modalItemQty: {
+    fontSize: 18,
+    fontFamily: Fonts.black,
+    color: Theme.primary,
+  },
+  modalItemName: {
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+    color: Theme.textPrimary,
+  },
+  modalModifierText: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    color: Theme.textSecondary,
+    marginLeft: 30,
+  },
+  readyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Theme.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minWidth: 130,
+    justifyContent: "center",
+  },
+  readyBtnActive: {
+    backgroundColor: Theme.success,
+  },
+  readyBtnText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontFamily: Fonts.black,
+  },
+  modalDoneBtn: {
+    backgroundColor: Theme.textPrimary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  modalDoneText: {
+    color: "#FFF",
+    fontSize: 18,
+    fontFamily: Fonts.black,
+  },
+
+  // Takeaway Styles
+  takeawayBadge: {
+    backgroundColor: Theme.warning,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  takeawayBadgeText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontFamily: Fonts.black,
   },
 });

@@ -2,7 +2,6 @@ import { API_URL } from "@/constants/Config";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Skeleton } from "../../components/ui/Skeleton";
 import {
   ActivityIndicator,
   FlatList,
@@ -18,10 +17,15 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import CartSidebar from "../../components/CartSidebar";
+import { Skeleton } from "../../components/ui/Skeleton";
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
+import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
 import {
   addToCartGlobal,
   getContextId,
@@ -29,7 +33,6 @@ import {
   useCartStore,
 } from "../../stores/cartStore";
 import { useOrderContextStore } from "../../stores/orderContextStore";
-import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
 
 const IMAGE_BASE_URL = `${API_URL}/api/menu/image/`;
 
@@ -181,17 +184,34 @@ const DishCard = React.memo(
 const DishGridSkeleton = ({ cardWidth, columns, gap, isPhone }: any) => {
   const items = Array.from({ length: columns * 4 });
   return (
-    <View style={{ 
-      flexDirection: 'row', 
-      flexWrap: 'wrap', 
-      gap: gap, 
-      paddingBottom: 80 
-    }}>
+    <View
+      style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: gap,
+        paddingBottom: 80,
+      }}
+    >
       {items.map((_, i) => (
-        <View key={i} style={[styles.card, { width: cardWidth, padding: isPhone ? 8 : 12, borderStyle: 'dashed' }]}>
-           <Skeleton circle width={isPhone ? 48 : 75} height={isPhone ? 48 : 75} style={{ marginBottom: 8 }} />
-           <Skeleton width="80%" height={14} style={{ marginBottom: 6 }} />
-           <Skeleton width="40%" height={14} />
+        <View
+          key={i}
+          style={[
+            styles.card,
+            {
+              width: cardWidth,
+              padding: isPhone ? 8 : 12,
+              borderStyle: "dashed",
+            },
+          ]}
+        >
+          <Skeleton
+            circle
+            width={isPhone ? 48 : 75}
+            height={isPhone ? 48 : 75}
+            style={{ marginBottom: 8 }}
+          />
+          <Skeleton width="80%" height={14} style={{ marginBottom: 6 }} />
+          <Skeleton width="40%" height={14} />
         </View>
       ))}
     </View>
@@ -199,7 +219,7 @@ const DishGridSkeleton = ({ cardWidth, columns, gap, isPhone }: any) => {
 };
 
 const CategorySkeleton = () => (
-  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 15 }}>
+  <View style={{ flexDirection: "row", gap: 10, marginBottom: 15 }}>
     {[1, 2, 3, 4].map((i) => (
       <Skeleton key={i} width={100} height={36} borderRadius={12} />
     ))}
@@ -207,7 +227,7 @@ const CategorySkeleton = () => (
 );
 
 const GroupSkeleton = () => (
-  <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+  <View style={{ flexDirection: "row", gap: 8, marginTop: 15 }}>
     {[1, 2, 3, 4, 5].map((i) => (
       <Skeleton key={i} width={80} height={38} borderRadius={full} />
     ))}
@@ -288,19 +308,32 @@ export default function MenuScreen() {
   const usableWidth = width - insets.left - insets.right;
 
   // Sidebar width should be more responsive
-  const cartWidth = isTablet 
-    ? (width > 1024 ? 380 : 330) 
-    : (isLandscape ? usableWidth * 0.38 : width * 0.62);
-  
-  const mainWidth = (isLandscape && !isTablet ? usableWidth : width) - cartWidth;
+  const cartWidth = isTablet
+    ? width > 1024
+      ? 380
+      : 330
+    : isLandscape
+      ? usableWidth * 0.38
+      : width * 0.62;
 
-  const columns = isTablet 
-    ? (isLandscape ? (width > 1200 ? 5 : 3) : 2) 
-    : (isLandscape ? 2 : 1); // Back to 2 columns as requested
-  
+  const mainWidth =
+    (isLandscape && !isTablet ? usableWidth : width) - cartWidth;
+
+  const columns = isTablet
+    ? isLandscape
+      ? width > 1200
+        ? 5
+        : 3
+      : 2
+    : isLandscape
+      ? 2
+      : 1; // Back to 2 columns as requested
+
   const gap = isPhone ? (isLandscape ? 12 : 8) : 12;
   // Increase internal padding subtraction (24 -> 32) to ensure cards don't touch edges or sidebar
-  const cardWidth = Math.floor((mainWidth - (isPhone ? 32 : 40) - gap * (columns - 1)) / columns);
+  const cardWidth = Math.floor(
+    (mainWidth - (isPhone ? 32 : 40) - gap * (columns - 1)) / columns,
+  );
 
   const dismissKeyboard = () => Keyboard.dismiss();
 
@@ -365,28 +398,75 @@ export default function MenuScreen() {
       const name = (d.Name || d.DishName || "").toLowerCase();
       const code = (d.DishCode || "").toLowerCase();
       const desc = (d.Description || "").toLowerCase();
-      
-      return name.includes(query) || code.includes(query) || desc.includes(query);
+
+      return (
+        name.includes(query) || code.includes(query) || desc.includes(query)
+      );
     });
   }, [searchText, items, allDishes]);
 
-  const openModifiers = React.useCallback(async (dish: any) => {
-    setSelectedDish(dish);
-    setSelectedModifierIds([]);
-    setCustomMods([]);
-    setModifiers([]);
-    setLoadingModifiers(true);
+  const openModifiers = React.useCallback(
+    async (dish: any) => {
+      setSelectedDish(dish);
+      setSelectedModifierIds([]);
+      setCustomMods([]);
+      setModifiers([]);
+      setLoadingModifiers(true);
 
-    try {
-      const res = await fetch(`${API_URL}/api/menu/modifiers/${dish.DishId}`);
-      if (!res.ok) throw new Error("Failed to fetch modifiers");
-      const data = await res.json();
+      try {
+        const res = await fetch(`${API_URL}/api/menu/modifiers/${dish.DishId}`);
+        if (!res.ok) throw new Error("Failed to fetch modifiers");
+        const data = await res.json();
 
-      if (Array.isArray(data) && data.length > 0) {
-        setModifiers(data);
-        setShowModifier(true);
-      } else {
-        const currentKitchenName = kitchens.find(k => k.CategoryId === selectedKitchenId)?.KitchenTypeName || "Kitchen";
+        if (Array.isArray(data) && data.length > 0) {
+          setModifiers(data);
+          setShowModifier(true);
+        } else {
+          const currentKitchenName =
+            kitchens.find((k) => k.CategoryId === selectedKitchenId)
+              ?.KitchenTypeName || "Kitchen";
+
+          addToCartGlobal({
+            id: dish.DishId,
+            name: dish.Name,
+            price: dish.Price || 0,
+            categoryName: currentKitchenName,
+          });
+
+          // 🔥 FIXED ROUTE: /api/menu/order/add
+          fetch(`${API_URL}/api/menu/order/add`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              dishId: dish.DishId,
+              name: dish.Name,
+              price: dish.Price,
+              qty: 1,
+            }),
+          });
+
+          setModifiers([]);
+          setShowModifier(false);
+        }
+      } catch (err) {
+        fetch(`${API_URL}/api/menu/order/add`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dishId: dish.DishId,
+            name: dish.Name,
+            price: dish.Price,
+            qty: 1,
+          }),
+        });
+        console.error(err);
+        const currentKitchenName =
+          kitchens.find((k) => k.CategoryId === selectedKitchenId)
+            ?.KitchenTypeName || "Kitchen";
         addToCartGlobal({
           id: dish.DishId,
           name: dish.Name,
@@ -395,22 +475,12 @@ export default function MenuScreen() {
         });
         setModifiers([]);
         setShowModifier(false);
+      } finally {
+        setLoadingModifiers(false);
       }
-    } catch (err) {
-      console.error(err);
-      const currentKitchenName = kitchens.find(k => k.CategoryId === selectedKitchenId)?.KitchenTypeName || "Kitchen";
-      addToCartGlobal({
-        id: dish.DishId,
-        name: dish.Name,
-        price: dish.Price || 0,
-        categoryName: currentKitchenName,
-      });
-      setModifiers([]);
-      setShowModifier(false);
-    } finally {
-      setLoadingModifiers(false);
-    }
-  }, [selectedKitchenId, kitchens]); // Adding dependencies for safety
+    },
+    [selectedKitchenId, kitchens],
+  ); // Adding dependencies for safety
 
   const renderDishItem = React.useCallback(
     ({ item }: { item: any }) => {
@@ -433,7 +503,15 @@ export default function MenuScreen() {
         />
       );
     },
-    [orderContext, carts, cardWidth, openModifiers, isPhone, isTablet, isLandscape],
+    [
+      orderContext,
+      carts,
+      cardWidth,
+      openModifiers,
+      isPhone,
+      isTablet,
+      isLandscape,
+    ],
   );
 
   const toggleModifier = (mod: any) => {
@@ -475,15 +553,17 @@ export default function MenuScreen() {
       );
 
       const modsToAdd = selectedMods.map((m) => ({
-        ModifierId: m.ModifierID || m.ModifierId,
+        ModifierId: String(m.ModifierID || m.ModifierId || ""),
         ModifierName: m.ModifierName,
-        Price: m.Price || 0,
+        Price: Number(m.Price || 0),
       }));
 
       const extra = modsToAdd.reduce((sum, m) => sum + (m.Price || 0), 0);
       const finalPrice = (selectedDish.Price || 0) + extra;
 
-      const currentKitchenName = kitchens.find(k => k.CategoryId === selectedKitchenId)?.KitchenTypeName || "Kitchen";
+      const currentKitchenName =
+        kitchens.find((k) => k.CategoryId === selectedKitchenId)
+          ?.KitchenTypeName || "Kitchen";
 
       addToCartGlobal({
         id: selectedDish.DishId,
@@ -493,19 +573,50 @@ export default function MenuScreen() {
         basePrice: selectedDish.Price || 0,
         categoryName: currentKitchenName, // 🔥 Now grouping by Kitchen Name
       });
+
+      // 🔥 FIXED ROUTE: /api/menu/order/add
+      fetch(`${API_URL}/api/menu/order/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dishId: selectedDish.DishId,
+          name: selectedDish.Name,
+          price: finalPrice,
+          qty: 1,
+        }),
+      });
     }
     setShowModifier(false);
   };
 
   const renderTopBar = () => (
-    <View style={[styles.topBar, isPhone && isLandscape && { marginBottom: 6, height: 40 }]}>
+    <View
+      style={[
+        styles.topBar,
+        isPhone && isLandscape && { marginBottom: 6, height: 40 },
+      ]}
+    >
       <TouchableOpacity
         onPress={() => router.replace("/(tabs)/category")}
-        style={[styles.backBtn, isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 }]}
+        style={[
+          styles.backBtn,
+          isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },
+        ]}
       >
-        <Ionicons name="arrow-back" size={isPhone && isLandscape ? 20 : 24} color={Theme.textPrimary} />
+        <Ionicons
+          name="arrow-back"
+          size={isPhone && isLandscape ? 20 : 24}
+          color={Theme.textPrimary}
+        />
       </TouchableOpacity>
-      <View style={[styles.searchWrap, isPhone && isLandscape && { height: 36, flex: 0.8 }]}>
+      <View
+        style={[
+          styles.searchWrap,
+          isPhone && isLandscape && { height: 36, flex: 0.8 },
+        ]}
+      >
         <Ionicons
           name="search"
           size={isPhone && isLandscape ? 16 : 20}
@@ -513,7 +624,10 @@ export default function MenuScreen() {
           style={styles.searchIcon}
         />
         <TextInput
-          style={[styles.searchInput, isPhone && isLandscape && { fontSize: 13 }]}
+          style={[
+            styles.searchInput,
+            isPhone && isLandscape && { fontSize: 13 },
+          ]}
           placeholder="Search products....."
           value={searchText}
           onChangeText={setSearchText}
@@ -526,13 +640,33 @@ export default function MenuScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.headerCartBtn, isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 }]}
+        style={[
+          styles.headerCartBtn,
+          isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },
+        ]}
         onPress={() => router.push("/cart")}
       >
-        <Ionicons name="cart-outline" size={isPhone && isLandscape ? 20 : 24} color={Theme.primary} />
+        <Ionicons
+          name="cart-outline"
+          size={isPhone && isLandscape ? 20 : 24}
+          color={Theme.primary}
+        />
         {cartItemsCount > 0 && (
-          <View style={[styles.cartBadge, isPhone && isLandscape && { top: -4, right: -4, minWidth: 16, height: 16 }]}>
-            <Text style={[styles.cartBadgeText, isPhone && isLandscape && { fontSize: 9 }]}>{cartItemsCount}</Text>
+          <View
+            style={[
+              styles.cartBadge,
+              isPhone &&
+                isLandscape && { top: -4, right: -4, minWidth: 16, height: 16 },
+            ]}
+          >
+            <Text
+              style={[
+                styles.cartBadgeText,
+                isPhone && isLandscape && { fontSize: 9 },
+              ]}
+            >
+              {cartItemsCount}
+            </Text>
           </View>
         )}
       </TouchableOpacity>
@@ -550,7 +684,12 @@ export default function MenuScreen() {
   );
 
   const renderCategoryNav = () => (
-    <View style={[styles.categoryNavigation, isPhone && isLandscape && { marginBottom: 6 }]}>
+    <View
+      style={[
+        styles.categoryNavigation,
+        isPhone && isLandscape && { marginBottom: 6 },
+      ]}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -562,7 +701,7 @@ export default function MenuScreen() {
             style={[
               styles.catPill,
               selectedKitchenId === k.CategoryId && styles.catPillActive,
-              isPhone && isLandscape && { height: 36, paddingHorizontal: 16 }
+              isPhone && isLandscape && { height: 36, paddingHorizontal: 16 },
             ]}
             onPress={() => loadGroups(k.CategoryId)}
           >
@@ -570,7 +709,7 @@ export default function MenuScreen() {
               style={[
                 styles.catText,
                 selectedKitchenId === k.CategoryId && styles.catTextActive,
-                isPhone && isLandscape && { fontSize: 13 }
+                isPhone && isLandscape && { fontSize: 13 },
               ]}
             >
               {k.KitchenTypeName}
@@ -579,9 +718,11 @@ export default function MenuScreen() {
         ))}
       </ScrollView>
 
-      <View style={isPhone && isLandscape ? { marginTop: 12 } : { marginTop: 15 }}>
+      <View
+        style={isPhone && isLandscape ? { marginTop: 12 } : { marginTop: 15 }}
+      >
         {isInitialLoading ? (
-           <GroupSkeleton />
+          <GroupSkeleton />
         ) : (
           <ScrollView
             horizontal
@@ -594,7 +735,8 @@ export default function MenuScreen() {
                 style={[
                   styles.groupPill,
                   selectedGroup === g.DishGroupId && styles.groupPillActive,
-                  isPhone && isLandscape && { height: 36, paddingHorizontal: 14 }
+                  isPhone &&
+                    isLandscape && { height: 36, paddingHorizontal: 14 },
                 ]}
                 onPress={() => loadDishes(g.DishGroupId)}
               >
@@ -602,7 +744,7 @@ export default function MenuScreen() {
                   style={[
                     styles.groupText,
                     selectedGroup === g.DishGroupId && styles.groupTextActive,
-                    isPhone && isLandscape && { fontSize: 12 }
+                    isPhone && isLandscape && { fontSize: 12 },
                   ]}
                 >
                   {g.DishGroupName}
@@ -634,7 +776,12 @@ export default function MenuScreen() {
               {renderCategoryNav()}
               <View style={styles.gridContainer}>
                 {isLoadingDishes || isInitialLoading ? (
-                  <DishGridSkeleton cardWidth={cardWidth} columns={columns} gap={gap} isPhone={isPhone} />
+                  <DishGridSkeleton
+                    cardWidth={cardWidth}
+                    columns={columns}
+                    gap={gap}
+                    isPhone={isPhone}
+                  />
                 ) : (
                   <FlatList
                     data={filteredItems}
@@ -677,7 +824,12 @@ export default function MenuScreen() {
               >
                 <View style={styles.gridContainer}>
                   {isLoadingDishes || isInitialLoading ? (
-                    <DishGridSkeleton cardWidth={cardWidth} columns={columns} gap={gap} isPhone={isPhone} />
+                    <DishGridSkeleton
+                      cardWidth={cardWidth}
+                      columns={columns}
+                      gap={gap}
+                      isPhone={isPhone}
+                    />
                   ) : (
                     <FlatList
                       data={filteredItems}
