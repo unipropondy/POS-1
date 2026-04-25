@@ -141,6 +141,9 @@ async function initDB(pool) {
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Sugar')
             ALTER TABLE [dbo].[CartItems] ADD Sugar NVARCHAR(50);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Status')
+            ALTER TABLE [dbo].[CartItems] ADD Status NVARCHAR(20) DEFAULT 'NEW';
         `);
 
     console.log("✅ Database schema is up to date.");

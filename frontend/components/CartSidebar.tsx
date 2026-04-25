@@ -173,9 +173,10 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   }, [orderContext?.tableId]);
 
   const displayItems = useMemo(() => {
-    const sentItems: (OrderItem | CartItem)[] = activeOrder?.items || [];
-    return [...sentItems, ...cart];
-  }, [activeOrder, cart]);
+    // The 'cart' from useCartStore now contains both NEW and SENT items from the DB.
+    // This prevents duplication with activeOrder.items.
+    return cart;
+  }, [cart]);
 
   useEffect(() => {
     // 🔥 If the cart is completely empty (no unsent items AND no active order items),
@@ -316,10 +317,23 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   };
 
   const handleSendOrder = async () => {
-    if (cart.length === 0) return;
+    const unsentItems = cart.filter((i: any) => !i.status || i.status === "NEW");
+    if (unsentItems.length === 0) return;
+
     let targetOrderId = activeOrder?.orderId || getNextOrderId();
-    appendOrder(targetOrderId, orderContext, cart);
+    
+    // 1. Mark as sent in local activeOrder store (for KDS)
+    appendOrder(targetOrderId, orderContext, unsentItems);
     markItemsSent(targetOrderId);
+
+    // 2. Prepare the FULL updated cart for persistence
+    const updatedCart = cart.map(item => {
+      if (!item.status || item.status === "NEW") {
+        return { ...item, status: "SENT" as const };
+      }
+      return item;
+    });
+
     if (orderContext.orderType === "DINE_IN") {
       updateTableStatus(
         orderContext.tableId || "",
@@ -332,14 +346,14 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         payableAmount,
       );
 
-      // ✅ 1. Sync Status to Occupied (1) in background
+      // ✅ 1. Sync Status to Occupied (1)
       fetch(`${API_URL}/api/tables/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tableId: orderContext.tableId, status: 1 }),
       }).catch(err => console.error("Status Sync Error:", err));
 
-      // ✅ 2. Persistent Save to cartitems table (WAIT for this)
+      // ✅ 2. Persistent Save to DB
       try {
         await fetch(`${API_URL}/api/orders/save-cart`, {
           method: "POST",
@@ -347,14 +361,19 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           body: JSON.stringify({ 
             tableId: orderContext.tableId, 
             orderId: targetOrderId, 
-            items: cart 
+            items: updatedCart 
           }),
         });
       } catch (err) {
         console.error("Cart Save Error:", err);
       }
 
-      // ✅ 3. Navigate away
+      // ✅ 3. Update local cart store
+      if (currentContextId) {
+        useCartStore.getState().setCartItems(currentContextId, updatedCart);
+      }
+
+      // ✅ 4. Navigate away
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       updateTableStatus(
@@ -369,7 +388,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       );
       router.replace(`/(tabs)/category?section=TAKEAWAY`);
     }
-    clearCartStandalone();
+
     showToast({
       type: "success",
       message: "Order Sent",

@@ -96,7 +96,7 @@ export default function LockedTablesScreen() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const tablesRes = await fetch(`${API_URL}/tables`);
+      const tablesRes = await fetch(`${API_URL}/api/tables/all`);
       if (!tablesRes.ok) throw new Error("Failed to fetch tables");
       const tablesData = await tablesRes.json();
 

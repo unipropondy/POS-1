@@ -31,7 +31,8 @@ export type CartItem = {
   basePrice?: number;
   isTakeaway?: boolean;
   isVoided?: boolean;
-  categoryName?: string; // 🔥 Added for KDS grouping
+  categoryName?: string; 
+  status?: "NEW" | "SENT" | "VOIDED" | "READY" | "SERVED";
 };
 
 export type DiscountInfo = {
@@ -390,6 +391,7 @@ export const useCartStore = create<CartState>()(
                 isTakeaway: item.isTakeaway,
                 isVoided: item.isVoided,
                 modifiers: item.modifiers,
+                status: item.status || "NEW",
                 spicy: item.spicy,
                 salt: item.salt,
                 oil: item.oil,

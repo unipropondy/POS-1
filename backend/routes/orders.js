@@ -192,13 +192,14 @@ router.post("/save-cart", async (req, res) => {
           .input("salt", sql.NVarChar(50), item.salt || "")
           .input("oil", sql.NVarChar(50), item.oil || "")
           .input("sugar", sql.NVarChar(50), item.sugar || "")
+          .input("status", sql.NVarChar(20), item.status || "NEW")
           .query(`
             INSERT INTO [dbo].[CartItems] 
-            (ItemId, CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty, 
-             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar)
+            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
+             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status)
             VALUES 
-            (@itemId, @cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty, 
-             @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar)
+            (@itemId, @cartId, @productId, @qty, @cost, @orderNo, @qty, GETDATE(), 
+             @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status)
           `);
       }
 
@@ -326,6 +327,7 @@ router.get("/cart/:tableId", async (req, res) => {
       qty: item.Quantity,
       name: item.name,
       price: item.price || item.Cost,
+      status: item.Status || "NEW",
       modifiers: item.ModifiersJSON ? JSON.parse(item.ModifiersJSON) : [],
       isTakeaway: !!item.IsTakeaway,
       isVoided: !!item.IsVoided,
