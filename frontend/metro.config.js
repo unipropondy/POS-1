@@ -3,9 +3,10 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// mssql / express / etc. are Node.js-only packages.
+// mssql / express / etc. are Node.js-only packages that use `import.meta`.
 // They cannot be bundled by Metro for web/RN → stub them out.
 const STUB = path.resolve(__dirname, 'shims/empty-module.js');
+config.resolver.sourceExts.push('mjs');
 
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules || {}),
@@ -15,16 +16,8 @@ config.resolver.extraNodeModules = {
   cors: STUB,
   dotenv: STUB,
   tedious: STUB,
-  fs: STUB,
-  path: STUB,
-  os: STUB,
-  net: STUB,
-  tls: STUB,
-  crypto: STUB,
-  stream: STUB,
 };
 
-// Prioritize CJS 'main' over 'module' to prevent import.meta SyntaxErrors on web
-config.resolver.resolverMainFields = ['browser', 'main', 'module'];
+config.resolver.resolverMainFields = ['browser', 'module', 'main'];
 
 module.exports = config;

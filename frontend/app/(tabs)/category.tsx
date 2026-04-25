@@ -355,22 +355,15 @@ export default function Category() {
           .filter((item) => item.id && item.label);
         setAllTables(convertedData);
 
+        // Sync with TableStatusStore
         convertedData.forEach(t => {
           if (t.Status !== 0) {
-            const statusMap: Record<number, TableStatusType> = {
-              1: 'SENT',
-              2: 'BILL_REQUESTED',
-              3: 'HOLD',
-              4: 'LOCKED',
-              5: 'SENT'
-            };
-            
             useTableStatusStore.getState().updateTableStatus(
               t.id,
               getSectionFromDiningSection(t.DiningSection),
               t.label,
               "SYNC",
-              statusMap[t.Status] || 'SENT',
+              t.Status === 4 ? 'LOCKED' : (t.Status === 1 || t.Status === 5 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
               t.StartTime ? new Date(t.StartTime).getTime() : undefined,
               t.lockedByName
             );
@@ -555,8 +548,8 @@ export default function Category() {
       return;
     }
 
-    if (status === 1 || status === 2 || status === 3 || status === 5) {
-      // For occupied/checkout tables, set context and go to summary
+    if (status === 3 || status === 5) {
+      // For occupied tables, set context and go to summary/menu
       const section = getSectionFromDiningSection(item.DiningSection);
       setOrderContext({ 
         orderType: "DINE_IN", 
