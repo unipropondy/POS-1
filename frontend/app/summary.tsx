@@ -63,11 +63,17 @@ export default function SummaryScreen() {
 
   const { enabled: gstEnabled, percentage: gstPercentage, taxMode, isConfigured: gstConfigured, setEnabled: setGstEnabled, loadSettings: loadGst } = useGstStore();
 
+  const cart = useMemo(() => {
+    return activeOrder ? activeOrder.items : [];
+  }, [activeOrder]);
+
+  const hasHydrated = useActiveOrdersStore((s) => s._hasHydrated);
+
   useEffect(() => {
     loadGst();
 
-    // ✅ Load from DB if local state is empty (Persistence Fix)
-    if (context?.tableId && cart.length === 0) {
+    // ✅ Load from DB if local state is empty and hydration is done (Persistence Fix)
+    if (hasHydrated && context?.tableId && cart.length === 0) {
       console.log("🔄 [Summary Persistence] Fetching from DB...");
       fetch(`${API_URL}/api/orders/cart/${context.tableId}`)
         .then(res => res.json())
@@ -92,11 +98,7 @@ export default function SummaryScreen() {
         })
         .catch(err => console.error("Summary Recovery Error:", err));
     }
-  }, [context?.tableId]);
-
-  const cart = useMemo(() => {
-    return activeOrder ? activeOrder.items : [];
-  }, [activeOrder]);
+  }, [context?.tableId, hasHydrated]);
 
   const discountInfo = useCartStore((s) => {
     const id = s.currentContextId;

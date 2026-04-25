@@ -548,7 +548,7 @@ export default function Category() {
       return;
     }
 
-    if (status === 3 || status === 5) {
+    if (status === 2 || status === 3 || status === 5) {
       // For occupied tables, set context and go to summary/menu
       const section = getSectionFromDiningSection(item.DiningSection);
       setOrderContext({ 

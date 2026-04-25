@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CartItem, DiscountInfo, getContextId, useCartStore } from "./cartStore";
 import { OrderContext } from "./orderContextStore";
 
@@ -20,6 +22,8 @@ export type ActiveOrder = {
 };
 
 type ActiveOrdersState = {
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
   activeOrders: ActiveOrder[];
 
   appendOrder: (
@@ -40,8 +44,12 @@ type ActiveOrdersState = {
 
 /* ================= STORE ================= */
 
-export const useActiveOrdersStore = create<ActiveOrdersState>((set, get) => ({
-  activeOrders: [],
+export const useActiveOrdersStore = create<ActiveOrdersState>()(
+  persist(
+    (set, get) => ({
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
+      activeOrders: [],
 
   /* ================= APPEND ORDER ================= */
 
@@ -255,7 +263,15 @@ export const useActiveOrdersStore = create<ActiveOrdersState>((set, get) => ({
       }),
     });
   },
-}));
+}),
+{
+  name: "active-orders-storage",
+  storage: createJSONStorage(() => AsyncStorage),
+  onRehydrateStorage: () => (state) => {
+    state?.setHasHydrated(true);
+  },
+}
+));
 
 /* ================= HELPERS ================= */
 

@@ -14,11 +14,22 @@ type OrderContextState = {
   clearOrderContext: () => void;
 };
 
-export const useOrderContextStore = create<OrderContextState>((set) => ({
-  currentOrder: null,
-  setOrderContext: (data) => set({ currentOrder: data }),
-  clearOrderContext: () => set({ currentOrder: null }),
-}));
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export const useOrderContextStore = create<OrderContextState>()(
+  persist(
+    (set) => ({
+      currentOrder: null,
+      setOrderContext: (data) => set({ currentOrder: data }),
+      clearOrderContext: () => set({ currentOrder: null }),
+    }),
+    {
+      name: "order-context-storage",
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
 
 // Backwards compatibility for existing code that hasn't been migrated yet
 export const getOrderContext = () => useOrderContextStore.getState().currentOrder;

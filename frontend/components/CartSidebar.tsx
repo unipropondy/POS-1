@@ -220,7 +220,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     setExpandedItemId(expandedItemId === id ? null : id);
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!orderContext) return;
     if (orderContext.orderType === "DINE_IN") {
       updateTableStatus(
@@ -234,6 +234,26 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         payableAmount,
       );
       
+      // ✅ Persistent Save to cartitems table before checkout
+      if (cart.length > 0) {
+        let targetOrderId = activeOrder?.orderId || getNextOrderId();
+        appendOrder(targetOrderId, orderContext, cart);
+        markItemsSent(targetOrderId);
+        try {
+          await fetch(`${API_URL}/api/orders/save-cart`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              tableId: orderContext.tableId, 
+              orderId: targetOrderId, 
+              items: cart 
+            }),
+          });
+        } catch (err) {
+          console.error("Cart Save Error on Checkout:", err);
+        }
+      }
+
       // 🔥 Update Backend
       fetch(`${API_URL}/api/tables/status`, {
         method: "PUT",
