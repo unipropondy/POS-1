@@ -124,8 +124,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       const statusMap: Record<number, string> = {
         0: "EMPTY",
         1: "SENT",
-        2: "HOLD",
-        3: "BILL_REQUESTED",
+        2: "BILL_REQUESTED",
+        3: "HOLD",
         4: "LOCKED",
         5: "SENT",
       };
@@ -180,7 +180,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   useEffect(() => {
     // 🔥 If the cart is completely empty (no unsent items AND no active order items),
     // and we have a table context, reset the table status to Available (0) in the DB.
-    if (displayItems.length === 0 && orderContext?.tableId) {
+    if (false && displayItems.length === 0 && orderContext?.tableId) {
       console.log(`🧹 [CartSidebar] Cart empty, resetting table ${orderContext.tableId}`);
       fetch(`${API_URL}/api/orders/save-cart`, {
         method: "POST",
@@ -783,9 +783,20 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               <>
                 <TouchableOpacity
                   style={styles.holdBtn}
-                  onPress={() => {
+                  onPress={async () => {
                     let targetOrderId =
                       activeOrder?.orderId || getNextOrderId();
+                    if (orderContext.tableId) {
+                      try {
+                        await fetch(`${API_URL}/api/orders/hold`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ tableId: orderContext.tableId }),
+                        });
+                      } catch (err) {
+                        console.error("Hold sync error:", err);
+                      }
+                    }
                     updateTableStatus(
                       orderContext.tableId || "",
                       orderContext.section!,
