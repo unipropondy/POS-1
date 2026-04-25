@@ -92,8 +92,8 @@ const validateSalePayload = ({ totalAmount, paymentMethod, items }) => {
   }
 
   const numericTotal = Number(totalAmount);
-  if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
-    return "Total amount must be greater than zero";
+  if (!Number.isFinite(numericTotal) || numericTotal < 0) {
+    return "Total amount must be at least zero";
   }
 
   if (!Array.isArray(items) || items.length === 0) {

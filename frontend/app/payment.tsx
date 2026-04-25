@@ -314,7 +314,7 @@ export default function PaymentScreen() {
   /* ================= PAYMENT ================= */
 
   const confirmPayment = async () => {
-    if (isCashMethod(method) && (paidNum < total && Math.abs(paidNum - total) > 0.01)) {
+    if (total > 0 && isCashMethod(method) && (paidNum < total && Math.abs(paidNum - total) > 0.01)) {
       showToast({ type: "warning", message: "Insufficient Payment", subtitle: `Please enter at least $${total.toFixed(2)}` });
       return;
     }
@@ -713,9 +713,9 @@ export default function PaymentScreen() {
                     style={[
                       styles.confirmBtn,
                       isMobile && isLandscape && { height: 44, marginTop: 10 },
-                      isCashMethod(method) && paidNum < total && Math.abs(paidNum - total) > 0.01 && styles.disabled
+                      isCashMethod(method) && total > 0 && paidNum < total && Math.abs(paidNum - total) > 0.01 && styles.disabled
                     ]}
-                    disabled={processing || (isCashMethod(method) && paidNum < total && Math.abs(paidNum - total) > 0.01)}
+                    disabled={processing || (isCashMethod(method) && total > 0 && paidNum < total && Math.abs(paidNum - total) > 0.01)}
                     onPress={confirmPayment}
                     activeOpacity={0.8}
                   >
