@@ -263,7 +263,7 @@ router.post("/add-item", async (req, res) => {
             AND (Note = @note OR (Note IS NULL AND @note = ''))
         )
         BEGIN
-          UPDATE [dbo].[CartItems] 
+          UPDATE TOP (1) [dbo].[CartItems] 
           SET Quantity = Quantity + @qty, 
               OrderConfirmQty = ISNULL(OrderConfirmQty, 0) + @qty
           WHERE CartId = @cartId 
