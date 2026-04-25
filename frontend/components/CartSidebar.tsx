@@ -182,13 +182,13 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     // 🔥 If the cart is completely empty (no unsent items AND no active order items),
     // and we have a table context, reset the table status to Available (0) in the DB.
     const ctx = orderContext;
-    if (ctx && ctx.tableId && false && displayItems.length === 0) {
-      console.log(`🧹 [CartSidebar] Cart empty, resetting table ${ctx.tableId}`);
+    if (ctx?.tableId && false && displayItems.length === 0) {
+      console.log(`🧹 [CartSidebar] Cart empty, resetting table ${ctx?.tableId}`);
       fetch(`${API_URL}/api/orders/save-cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tableId: ctx.tableId,
+          tableId: ctx?.tableId,
           items: [],
         }),
       }).catch((err) => console.error("Error auto-resetting table:", err));
