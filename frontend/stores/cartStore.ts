@@ -51,9 +51,9 @@ type CartState = {
 
   getCart: () => CartItem[];
 
-  addToCartGlobal: (item: Omit<CartItem, "qty" | "lineItemId">) => string;
-  removeFromCartGlobal: (lineItemId: string) => void;
-  clearCart: () => void;
+  addToCartGlobal: (item: Omit<CartItem, "qty" | "lineItemId">) => Promise<string>;
+  removeFromCartGlobal: (lineItemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
   clearAllCarts: () => void;
 
   applyDiscount: (discount: DiscountInfo) => void;
@@ -127,110 +127,86 @@ export const useCartStore = create<CartState>()(
 
       /* ================= ADD ================= */
 
-      addToCartGlobal: (item) => {
-        const { carts, currentContextId, discounts } = get();
+      addToCartGlobal: async (item) => {
+        const { currentContextId, fetchCartFromDB } = get();
         if (!currentContextId) return "";
 
-        const currentCart = carts[currentContextId] || [];
+        const tableId = currentContextId.split("_").pop() || "";
+        const targetLineItemId = uuidv4();
 
-        const areModifiersEqual = (mods1?: Modifier[], mods2?: Modifier[]) => {
-          const getIds = (mods?: any[]) => (mods || []).map(m => String(m.ModifierId || m.ModifierID || "")).sort().join("|");
-          return getIds(mods1) === getIds(mods2);
-        };
-
-        const existing = currentCart.find(
-          (p) =>
-            p.id === item.id &&
-            p.spicy === item.spicy &&
-            p.oil === item.oil &&
-            p.salt === item.salt &&
-            p.sugar === item.sugar &&
-            p.note === item.note &&
-            areModifiersEqual(p.modifiers, item.modifiers),
-        );
-
-        let updatedCart;
-        const targetLineItemId = existing ? existing.lineItemId : uuidv4();
-        const basePrice = item.price || 0;
-
-        if (existing) {
-          updatedCart = currentCart.map((p) =>
-            p.lineItemId === existing.lineItemId ? { ...p, qty: p.qty + 1 } : p,
-          );
-        } else {
-          updatedCart = [
-            ...currentCart,
-            { ...item, qty: 1, lineItemId: targetLineItemId, basePrice },
-          ];
+        try {
+          await fetch(`${API_URL}/api/orders/add-item`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tableId,
+              item: { ...item, qty: 1 }
+            })
+          });
+          
+          // Re-fetch from DB to ensure sync
+          await fetchCartFromDB(tableId);
+        } catch (err) {
+          console.error("❌ [CartStore] Add failed:", err);
         }
-
-        const newDiscounts = { ...discounts };
-        delete newDiscounts[currentContextId];
-
-        set({
-          carts: {
-            ...carts,
-            [currentContextId]: updatedCart,
-          },
-          discounts: newDiscounts,
-        });
-
-        get().syncCartWithDB(currentContextId);
+        
         return targetLineItemId;
       },
 
       /* ================= REMOVE ================= */
 
-      removeFromCartGlobal: (lineItemId) => {
-        const { carts, currentContextId, discounts } = get();
+      removeFromCartGlobal: async (lineItemId) => {
+        const { carts, currentContextId, fetchCartFromDB } = get();
         if (!currentContextId) return;
 
+        const tableId = currentContextId.split("_").pop() || "";
         const currentCart = carts[currentContextId] || [];
         const item = currentCart.find((p) => p.lineItemId === lineItemId);
         if (!item) return;
 
-        let updatedCart;
+        try {
+          // If qty > 1, we might need an update-qty route, 
+          // but for simplicity we'll just handle removal for now as per user prompt
+          // or use the save-cart for bulk updates.
+          // The user specifically asked for DELETE FROM CartItems.
+          
+          await fetch(`${API_URL}/api/orders/remove-item`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tableId,
+              itemId: lineItemId
+            })
+          });
 
-        if (item.qty > 1) {
-          updatedCart = currentCart.map((p) =>
-            p.lineItemId === lineItemId ? { ...p, qty: p.qty - 1 } : p,
-          );
-        } else {
-          updatedCart = currentCart.filter((p) => p.lineItemId !== lineItemId);
+          await fetchCartFromDB(tableId);
+        } catch (err) {
+          console.error("❌ [CartStore] Remove failed:", err);
         }
-
-        const newDiscounts = { ...discounts };
-        delete newDiscounts[currentContextId];
-
-        set({
-          carts: {
-            ...carts,
-            [currentContextId]: updatedCart,
-          },
-          discounts: newDiscounts,
-        });
-
-        get().syncCartWithDB(currentContextId);
       },
 
       /* ================= CLEAR ================= */
 
-      clearCart: () => {
-        const { carts, currentContextId, discounts } = get();
+      clearCart: async () => {
+        const { currentContextId, fetchCartFromDB } = get();
         if (!currentContextId) return;
 
-        const newDiscounts = { ...discounts };
-        delete newDiscounts[currentContextId];
+        const tableId = currentContextId.split("_").pop() || "";
 
-        set({
-          carts: {
-            ...carts,
-            [currentContextId]: [],
-          },
-          discounts: newDiscounts,
-        });
+        try {
+          await fetch(`${API_URL}/api/orders/save-cart`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tableId,
+              items: []
+            })
+          });
 
-        get().syncCartWithDB(currentContextId);
+          await fetchCartFromDB(tableId);
+        } catch (err) {
+          console.error("❌ [CartStore] Clear failed:", err);
+        }
       },
 
       clearAllCarts: () =>

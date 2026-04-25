@@ -151,6 +151,13 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     });
   }, [activeOrders, orderContext]);
 
+  useEffect(() => {
+    if (orderContext?.tableId) {
+      console.log(`🔄 [CartSidebar] Refreshing cart from DB for table: ${orderContext.tableId}`);
+      useCartStore.getState().fetchCartFromDB(orderContext.tableId);
+    }
+  }, [orderContext?.tableId]);
+
   const displayItems = useMemo(() => {
     const sentItems: (OrderItem | CartItem)[] = activeOrder?.items || [];
     return [...sentItems, ...cart];

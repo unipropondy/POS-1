@@ -191,6 +191,8 @@ type TableItem = {
   DiningSection: number;
   Status: number;
   StartTime?: string | number | Date;
+  totalAmount?: number;
+  lockedByName?: string;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
@@ -246,20 +248,36 @@ export default function Category() {
   const canAccessLockTables  = useAuthStore((s: any) => s.canAccessLockTables);
   const canAccessKDS         = useAuthStore((s: any) => s.canAccessKDS);
 
-  // ðŸ”” Real-time sync listener for table status
+  // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    const handleTableUpdate = (data: { tableId: string; status: number }) => {
-      console.log(`ðŸ“¡ [Real-time] Table ${data.tableId} changed to status ${data.status}`);
-      fetchTables(); // Refresh everything from DB
-    };
+    socket.on("table_status_updated", ({ tableId, status, totalAmount }) => {
+      console.log(`🔌 [Socket] Table ${tableId} updated -> Status ${status}, Total ${totalAmount}`);
+      setAllTables(prev => prev.map(t => 
+        t.id === tableId ? { ...t, Status: Number(status), totalAmount: Number(totalAmount || 0) } : t
+      ));
+      
+      // Update store for consistency
+      const table = allTables.find(t => t.id === tableId);
+      if (table) {
+        useTableStatusStore.getState().updateTableStatus(
+          tableId,
+          getSectionFromDiningSection(table.DiningSection),
+          table.label,
+          "SYNC",
+          status === 5 ? 'LOCKED' : (status === 1 ? 'SENT' : (status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
+          undefined,
+          undefined,
+          totalAmount
+        );
+      }
+    });
 
-    socket.on("table_status_updated", handleTableUpdate);
     return () => {
-      socket.off("table_status_updated", handleTableUpdate);
+      socket.off("table_status_updated");
     };
-  }, []);
+  }, [allTables]);
 
-  // â”€â”€ Route guard: redirect to login if not authenticated â”€â”€
+  // ——— Route guard: redirect to login if not authenticated ———
   useFocusEffect(
     React.useCallback(() => {
       if (!user) {
@@ -345,7 +363,7 @@ export default function Category() {
       else if (data?.recordset && Array.isArray(data.recordset)) tablesArray = data.recordset;
 
       if (tablesArray.length > 0) {
-        const convertedData = tablesArray
+        const convertedData: TableItem[] = tablesArray
           .map((item: any) => ({
             id: item.TableId || item.id,
             label: item.TableNumber || item.label,
@@ -353,6 +371,7 @@ export default function Category() {
             Status: Number(item.Status) || 0,
             StartTime: item.StartTime,
             lockedByName: item.lockedByName,
+            totalAmount: Number(item.totalAmount) || 0,
           }))
           .filter((item) => item.id && item.label);
         setAllTables(convertedData);
@@ -365,9 +384,10 @@ export default function Category() {
               getSectionFromDiningSection(t.DiningSection),
               t.label,
               "SYNC",
-              t.Status === 4 ? 'LOCKED' : (t.Status === 1 || t.Status === 5 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
+              t.Status === 5 ? 'LOCKED' : (t.Status === 1 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
               t.StartTime ? new Date(t.StartTime).getTime() : undefined,
-              t.lockedByName
+              t.lockedByName,
+              t.totalAmount
             );
           }
         });
