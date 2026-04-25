@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
 export type TableStatusType = 'EMPTY' | 'HOLD' | 'SENT' | 'BILL_REQUESTED' | 'LOCKED' | 'CART' | 'DELIVERY';
 
 export type TableStatus = {
@@ -36,176 +40,184 @@ type TableStatusState = {
   getTables: () => TableStatus[];
 };
 
-export const useTableStatusStore = create<TableStatusState>((set, get) => ({
-  tables: [],
-  lockedTables: [],
-  lockedTableNames: {},
+export const useTableStatusStore = create<TableStatusState>()(
+  persist(
+    (set, get) => ({
+      tables: [],
+      lockedTables: [],
+      lockedTableNames: {},
 
-  updateTableStatus: (tableId, section, tableNo, orderId, status, startTime, lockedByName, totalAmount) => {
-    set((state) => {
-      const existingIndex = state.tables.findIndex(
-        (t) => t.section === section && t.tableNo === tableNo
-      );
+      updateTableStatus: (tableId, section, tableNo, orderId, status, startTime, lockedByName, totalAmount) => {
+        set((state) => {
+          const existingIndex = state.tables.findIndex(
+            (t) => t.section === section && t.tableNo === tableNo
+          );
 
-      const newState = { ...state };
-      if (status === 'LOCKED' && lockedByName) {
-        newState.lockedTableNames = { ...state.lockedTableNames, [tableNo]: lockedByName };
-      } else if (status !== 'LOCKED') {
-        const { [tableNo]: _, ...rest } = newState.lockedTableNames;
-        newState.lockedTableNames = rest;
-      }
+          const newState = { ...state };
+          if (status === 'LOCKED' && lockedByName) {
+            newState.lockedTableNames = { ...state.lockedTableNames, [tableNo]: lockedByName };
+          } else if (status !== 'LOCKED') {
+            const { [tableNo]: _, ...rest } = newState.lockedTableNames;
+            newState.lockedTableNames = rest;
+          }
 
-      if (existingIndex > -1) {
-        const updatedTables = [...state.tables];
-        updatedTables[existingIndex] = {
-          ...updatedTables[existingIndex],
-          tableId,
-          orderId,
-          status,
-          startTime: startTime || updatedTables[existingIndex].startTime,
-          lockedByName,
-          totalAmount: totalAmount !== undefined ? totalAmount : updatedTables[existingIndex].totalAmount,
-        };
-        return { ...newState, tables: updatedTables };
-      } else {
-        return {
-          ...newState,
-          tables: [
-            ...state.tables,
-            {
+          if (existingIndex > -1) {
+            const updatedTables = [...state.tables];
+            updatedTables[existingIndex] = {
+              ...updatedTables[existingIndex],
               tableId,
-              section,
-              tableNo,
               orderId,
-              startTime: startTime || Date.now(),
               status,
+              startTime: startTime || updatedTables[existingIndex].startTime,
               lockedByName,
-              totalAmount,
-            },
-          ],
-        };
-      }
-    });
-  },
+              totalAmount: totalAmount !== undefined ? totalAmount : updatedTables[existingIndex].totalAmount,
+            };
+            return { ...newState, tables: updatedTables };
+          } else {
+            return {
+              ...newState,
+              tables: [
+                ...state.tables,
+                {
+                  tableId,
+                  section,
+                  tableNo,
+                  orderId,
+                  startTime: startTime || Date.now(),
+                  status,
+                  lockedByName,
+                  totalAmount,
+                },
+              ],
+            };
+          }
+        });
+      },
 
-  clearTable: (section, tableNo) => {
-    set((state) => {
-      const { [tableNo]: _, ...rest } = state.lockedTableNames;
-      return {
-        tables: state.tables.filter(
-          (t) => !(t.section === section && t.tableNo === tableNo)
-        ),
-        lockedTableNames: rest,
-      };
-    });
-  },
+      clearTable: (section, tableNo) => {
+        set((state) => {
+          const { [tableNo]: _, ...rest } = state.lockedTableNames;
+          return {
+            tables: state.tables.filter(
+              (t) => !(t.section === section && t.tableNo === tableNo)
+            ),
+            lockedTableNames: rest,
+          };
+        });
+      },
 
-  lockTable: (tableId, lockedByName) => {
-    set((state) => {
-      if (!state.lockedTables.includes(tableId)) {
-        const newState: any = { lockedTables: [...state.lockedTables, tableId] };
-        if (lockedByName) {
-          newState.lockedTableNames = { ...state.lockedTableNames, [tableId]: lockedByName };
+      lockTable: (tableId, lockedByName) => {
+        set((state) => {
+          if (!state.lockedTables.includes(tableId)) {
+            const newState: any = { lockedTables: [...state.lockedTables, tableId] };
+            if (lockedByName) {
+              newState.lockedTableNames = { ...state.lockedTableNames, [tableId]: lockedByName };
+            }
+            return newState;
+          }
+          return state;
+        });
+      },
+
+      unlockTable: (tableId) => {
+        set((state) => {
+          const { [tableId]: _, ...rest } = state.lockedTableNames;
+          return {
+            lockedTables: state.lockedTables.filter((id) => id !== tableId),
+            lockedTableNames: rest,
+          };
+        });
+      },
+
+      isTableLocked: (tableId) => {
+        return get().lockedTables.includes(tableId);
+      },
+
+      getLockedName: (tableNo, section) => {
+        const normalize = (n: any) => n?.toString().replace(/^T/i, "").trim();
+        const sTableNo = normalize(tableNo);
+
+        if (section) {
+          const name = get().lockedTableNames[`${section}_${sTableNo}`] || get().lockedTableNames[`${section}_${tableNo}`];
+          if (name) return name;
         }
-        return newState;
-      }
-      return state;
-    });
-  },
 
-  unlockTable: (tableId) => {
-    set((state) => {
-      const { [tableId]: _, ...rest } = state.lockedTableNames;
-      return {
-        lockedTables: state.lockedTables.filter((id) => id !== tableId),
-        lockedTableNames: rest,
-      };
-    });
-  },
+        // Fallback search in tables array
+        const table = get().tables.find(t => 
+          (normalize(t.tableNo) === sTableNo || t.tableNo === tableNo) && 
+          (!section || t.section === section)
+        );
+        return table?.lockedByName;
+      },
 
-  isTableLocked: (tableId) => {
-    return get().lockedTables.includes(tableId);
-  },
+      setLockedName: (tableNo, name) => {
+        set((state) => ({
+          lockedTableNames: { ...state.lockedTableNames, [tableNo]: name },
+        }));
+      },
 
-  getLockedName: (tableNo, section) => {
-    const normalize = (n: any) => n?.toString().replace(/^T/i, "").trim();
-    const sTableNo = normalize(tableNo);
-
-    if (section) {
-      const name = get().lockedTableNames[`${section}_${sTableNo}`] || get().lockedTableNames[`${section}_${tableNo}`];
-      if (name) return name;
-    }
-
-    // Fallback search in tables array
-    const table = get().tables.find(t => 
-      (normalize(t.tableNo) === sTableNo || t.tableNo === tableNo) && 
-      (!section || t.section === section)
-    );
-    return table?.lockedByName;
-  },
-
-  setLockedName: (tableNo, name) => {
-    set((state) => ({
-      lockedTableNames: { ...state.lockedTableNames, [tableNo]: name },
-    }));
-  },
-
-  syncLockedTables: (lockedList) => {
-    set((state) => {
-      const lockedMap: Record<string, { name: string; section: string }> = {};
-      lockedList.forEach((t) => {
-        const key = `${t.section}_${t.tableNo}`;
-        lockedMap[key] = { name: t.lockedByName || "", section: t.section };
-      });
-
-      // 1. Update existing tables in state
-      const updatedTables = state.tables.map((t) => {
-        const key = `${t.section}_${t.tableNo}`;
-        const lockedData = lockedMap[key];
-        if (lockedData !== undefined) {
-          return { ...t, status: "LOCKED" as TableStatusType, lockedByName: lockedData.name };
-        } else if (t.status === "LOCKED") {
-          return { ...t, status: "EMPTY" as TableStatusType, lockedByName: undefined };
-        }
-        return t;
-      });
-
-      // 2. Add tables that are locked but were not in the store (they were "empty")
-      lockedList.forEach((lockedItem) => {
-        const exists = updatedTables.find(t => t.tableNo === lockedItem.tableNo && t.section === lockedItem.section);
-        if (!exists) {
-          updatedTables.push({
-            tableId: lockedItem.tableId,
-            section: lockedItem.section,
-            tableNo: lockedItem.tableNo,
-            orderId: "RESERVED",
-            startTime: Date.now(),
-            status: "LOCKED",
-            lockedByName: lockedItem.lockedByName
+      syncLockedTables: (lockedList) => {
+        set((state) => {
+          const lockedMap: Record<string, { name: string; section: string }> = {};
+          lockedList.forEach((t) => {
+            const key = `${t.section}_${t.tableNo}`;
+            lockedMap[key] = { name: t.lockedByName || "", section: t.section };
           });
-        }
-      });
 
-      // Cleanup: Remove any "EMPTY" tables from the store to keep it clean (only active ones stay)
-      const finalTables = updatedTables.filter(t => t.status !== 'EMPTY');
+          // 1. Update existing tables in state
+          const updatedTables = state.tables.map((t) => {
+            const key = `${t.section}_${t.tableNo}`;
+            const lockedData = lockedMap[key];
+            if (lockedData !== undefined) {
+              return { ...t, status: "LOCKED" as TableStatusType, lockedByName: lockedData.name };
+            } else if (t.status === "LOCKED") {
+              return { ...t, status: "EMPTY" as TableStatusType, lockedByName: undefined };
+            }
+            return t;
+          });
 
-      const nameMap: Record<string, string> = {};
-      lockedList.forEach(t => {
-        const key = `${t.section}_${t.tableNo}`;
-        nameMap[key] = t.lockedByName || "";
-      });
+          // 2. Add tables that are locked but were not in the store (they were "empty")
+          lockedList.forEach((lockedItem) => {
+            const exists = updatedTables.find(t => t.tableNo === lockedItem.tableNo && t.section === lockedItem.section);
+            if (!exists) {
+              updatedTables.push({
+                tableId: lockedItem.tableId,
+                section: lockedItem.section,
+                tableNo: lockedItem.tableNo,
+                orderId: "RESERVED",
+                startTime: Date.now(),
+                status: "LOCKED",
+                lockedByName: lockedItem.lockedByName
+              });
+            }
+          });
 
-      return {
-        tables: finalTables,
-        lockedTableNames: { ...state.lockedTableNames, ...nameMap },
-      };
-    });
-  },
+          // Cleanup: Remove any "EMPTY" tables from the store to keep it clean (only active ones stay)
+          const finalTables = updatedTables.filter(t => t.status !== 'EMPTY');
 
-  getTables: () => get().tables,
-}));
+          const nameMap: Record<string, string> = {};
+          lockedList.forEach(t => {
+            const key = `${t.section}_${t.tableNo}`;
+            nameMap[key] = t.lockedByName || "";
+          });
 
-// Legacy wrappers for compatibility if needed, but components should use useTableStatusStore
+          return {
+            tables: finalTables,
+            lockedTableNames: { ...state.lockedTableNames, ...nameMap },
+          };
+        });
+      },
+
+      getTables: () => get().tables,
+    }),
+    {
+      name: "table-status-storage",
+      storage: createJSONStorage(() => (Platform.OS === "web" ? localStorage : AsyncStorage)),
+    }
+  )
+);
+
+// Legacy wrappers
 export const getTables = () => useTableStatusStore.getState().getTables();
 export const updateTableStatus = (
   tableId: string,
