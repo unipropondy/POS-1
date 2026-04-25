@@ -652,43 +652,8 @@ export default function Category() {
     // Prepare optimized data for memoized component
     let tableData = null;
     if (rawTableData) {
-      let billAmount = 0;
-      if (rawTableData.status === "HOLD") {
-        const helds = getHeldOrders();
-        const held = helds.find((h: any) => h.orderId === rawTableData.orderId);
-        if (held) {
-          billAmount = held.cart.reduce(
-            (sum: number, i: any) => sum + (i.price || 0) * i.qty,
-            0
-          );
-        }
-      } else {
-        const activeOrder = activeOrders.find(
-          (o: any) => o.orderId === rawTableData.orderId
-        );
-        if (activeOrder) {
-          billAmount = activeOrder.items.reduce(
-            (sum: number, i: any) => sum + (i.price || 0) * i.qty,
-            0
-          );
-        } else if (rawTableData.totalAmount) {
-          billAmount = rawTableData.totalAmount;
-        }
-      }
-
-      const contextId = getContextId({
-        orderType: activeTab === "TAKEAWAY" ? "TAKEAWAY" : "DINE_IN",
-        section: activeTab,
-        tableNo: item.label,
-        takeawayNo: item.label,
-      });
-      if (contextId) {
-        const cartItems = carts[contextId] || [];
-        billAmount += cartItems.reduce(
-          (sum: number, i: any) => sum + (i.price || 0) * i.qty,
-          0
-        );
-      }
+      // Use totalAmount from database as the source of truth
+      const billAmount = rawTableData.totalAmount || 0;
 
       tableData = {
         ...rawTableData,

@@ -27,7 +27,10 @@ import {
   findActiveOrder,
   useActiveOrdersStore,
 } from "../stores/activeOrdersStore";
-import { clearCart } from "../stores/cartStore";
+import {
+  clearCart,
+  useCartStore,
+} from "../stores/cartStore";
 import {
   clearOrderContext,
   getOrderContext,
@@ -108,12 +111,16 @@ export default function PaymentScreen() {
     );
   }
 
-  const cart = useMemo(
-    () => (activeOrder ? activeOrder.items : []),
-    [activeOrder],
-  );
+  const carts = useCartStore((s: any) => s.carts);
+  const currentContextId = useCartStore((s: any) => s.currentContextId);
+  const cart = useMemo(() => {
+    return (currentContextId && carts[currentContextId]) || [];
+  }, [carts, currentContextId]);
 
-  const discount = activeOrder?.discount;
+  const discount = useCartStore((s: any) => {
+    const id = s.currentContextId;
+    return id ? s.discounts[id] : null;
+  });
 
   const [method, setMethod] = useState("CAS");
   const [cashInput, setCashInput] = useState("");
@@ -209,7 +216,7 @@ export default function PaymentScreen() {
 
   const subtotal = useMemo(
     () =>
-      cart.reduce((sum, item) => {
+      cart.reduce((sum: number, item: any) => {
         const isVoided = "status" in item && (item as any).status === "VOIDED";
         if (isVoided) return sum;
         return sum + (item.price || 0) * item.qty;
@@ -262,8 +269,8 @@ export default function PaymentScreen() {
         tableNo: context?.orderType === "TAKEAWAY" ? context?.takeawayNo : context?.tableNo,
         section: context?.section,
         items: cart
-          .filter((item) => (item as any).status !== "VOIDED")
-          .map((item) => ({
+          .filter((item: any) => (item as any).status !== "VOIDED")
+          .map((item: any) => ({
             dishId: item.id,
             name: item.name,
             qty: item.qty,
@@ -344,7 +351,7 @@ export default function PaymentScreen() {
     const printBill = () => {
       const dateStr = new Date().toLocaleString();
       let itemsHtml = "";
-      cart.forEach((i) => {
+      cart.forEach((i: any) => {
         const nameLine = `${i.qty}x ${i.name}`;
         const priceLine = `$${((i.price || 0) * i.qty).toFixed(2)}`;
         itemsHtml += `<div><span style="float:left">${nameLine}</span><span style="float:right">${priceLine}</span><div style="clear:both"></div></div>`;

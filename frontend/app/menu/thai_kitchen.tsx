@@ -303,10 +303,8 @@ export default function MenuScreen() {
   const isFetchingCart = React.useRef(false);
 
   const cartItemsCount = useMemo(() => {
-    const draftCount = cart.length;
-    const sentCount = (activeOrder?.items || []).length;
-    return draftCount + sentCount;
-  }, [cart, activeOrder]);
+    return cart.length;
+  }, [cart]);
 
   const insets = useSafeAreaInsets();
   const usableWidth = width - insets.left - insets.right;

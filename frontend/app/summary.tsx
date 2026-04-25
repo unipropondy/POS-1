@@ -63,53 +63,29 @@ export default function SummaryScreen() {
 
   const { enabled: gstEnabled, percentage: gstPercentage, taxMode, isConfigured: gstConfigured, setEnabled: setGstEnabled, loadSettings: loadGst } = useGstStore();
 
+  const carts = useCartStore((s: any) => s.carts);
+  const currentContextId = useCartStore((s: any) => s.currentContextId);
   const cart = useMemo(() => {
-    return activeOrder ? activeOrder.items : [];
-  }, [activeOrder]);
+    return (currentContextId && carts[currentContextId]) || [];
+  }, [carts, currentContextId]);
 
-  const hasHydrated = useActiveOrdersStore((s) => s._hasHydrated);
+  const hasHydrated = useActiveOrdersStore((s: any) => s._hasHydrated);
 
   useEffect(() => {
     loadGst();
+    // ✅ No more redundant fetch here, as useCartStore handles it on mount/socket
+  }, []);
 
-    // ✅ Load from DB if local state is empty and hydration is done (Persistence Fix)
-    if (hasHydrated && context?.tableId && cart.length === 0) {
-      console.log("🔄 [Summary Persistence] Fetching from DB...");
-      fetch(`${API_URL}/api/orders/cart/${context.tableId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data) && data.length > 0) {
-            const mappedItems = data.map((dbItem: any) => ({
-              lineItemId: `db-${dbItem.ItemId}`,
-              id: dbItem.ProductId,
-              name: dbItem.name || "Unknown Item",
-              price: dbItem.Cost || dbItem.price || 0,
-              qty: dbItem.Quantity,
-              modifiers: [], 
-              categoryName: "Menu",
-              isSent: dbItem.OrderNo !== "PENDING"
-            }));
-            
-            const recoveryOrderId = data[0].OrderNo || "RECOVERY";
-            useActiveOrdersStore.getState().appendOrder(recoveryOrderId, context, mappedItems);
-            useActiveOrdersStore.getState().markItemsSent(recoveryOrderId);
-            console.log("✅ [Summary Persistence] Order restored from DB");
-          }
-        })
-        .catch(err => console.error("Summary Recovery Error:", err));
-    }
-  }, [context?.tableId, hasHydrated]);
-
-  const discountInfo = useCartStore((s) => {
+  const discountInfo = useCartStore((s: any) => {
     const id = s.currentContextId;
     return id ? s.discounts[id] : null;
   });
 
-  const applyDiscount = useCartStore((s) => s.applyDiscount);
-  const clearCart = useCartStore((s) => s.clearCart);
-  const updateOrderDiscount = useActiveOrdersStore((s) => s.updateOrderDiscount);
-  const closeActiveOrder = useActiveOrdersStore((s) => s.closeActiveOrder);
-  const updateTableStatus = useTableStatusStore((s) => s.updateTableStatus);
+  const applyDiscount = useCartStore((s: any) => s.applyDiscount);
+  const clearCart = useCartStore((s: any) => s.clearCart);
+  const updateOrderDiscount = useActiveOrdersStore((s: any) => s.updateOrderDiscount);
+  const closeActiveOrder = useActiveOrdersStore((s: any) => s.closeActiveOrder);
+  const updateTableStatus = useTableStatusStore((s: any) => s.updateTableStatus);
 
   const handleFOC = () => {
     const discountData = {
@@ -203,15 +179,13 @@ export default function SummaryScreen() {
     [cart],
   );
 
-  const subtotal = useMemo(
-    () =>
-      cart.reduce((sum: number, item: any) => {
-        const isVoided = "status" in item && (item as any).status === "VOIDED";
-        if (isVoided) return sum;
-        return sum + (item.price || 0) * item.qty;
-      }, 0),
-    [cart],
-  );
+  const subtotal = useMemo(() => {
+    return cart.reduce((sum: number, item: any) => {
+      const isVoided = (item as any).status === "VOIDED";
+      if (isVoided) return sum;
+      return sum + (item.price || 0) * item.qty;
+    }, 0);
+  }, [cart]);
 
   const discountAmount = useMemo(() => {
     if (!discountInfo?.applied) return 0;
