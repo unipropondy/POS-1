@@ -145,14 +145,15 @@ const TableItemComponent = React.memo(({
         
         {status === 5 && (
           <View style={styles.lockedOverlay}>
-            <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={ui.color} />
+            <Ionicons name="lock-closed" size={Math.max(12, itemSize * 0.15)} color={ui.color} />
             {tableData?.lockedByName ? (
               <View style={{ 
                 backgroundColor: ui.color, 
                 paddingHorizontal: 6, 
                 paddingVertical: 2, 
                 borderRadius: 4, 
-                marginTop: 2 
+                marginTop: 2,
+                marginBottom: 4
               }}>
                 <Text style={{ fontSize: smallFont - 1, color: "#FFF", fontWeight: "bold" }} numberOfLines={1}>
                   {tableData.lockedByName}
@@ -1173,11 +1174,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 6,
+    padding: 10,
   },
   tableNumber: {
     fontFamily: Fonts.black,
     color: Theme.textPrimary,
+    marginTop: 4,
     marginBottom: 2,
   },
   tableInfo: { alignItems: "center", gap: 2 },
