@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "@/constants/Config";
+import { useOrderContextStore } from "./orderContextStore";
 
 /* ================= TYPES ================= */
 
@@ -222,7 +223,6 @@ export const useCartStore = create<CartState>()(
             [contextId]: items,
           },
         }));
-        get().syncCartWithDB(contextId);
       },
 
       updateCartItemQty: (lineItemId, newQty, discount) => {
@@ -374,16 +374,37 @@ export const useCartStore = create<CartState>()(
       syncCartWithDB: async (contextId) => {
         const { carts } = get();
         const items = carts[contextId] || [];
-        const parts = contextId.split("_");
-        const tableId = parts[parts.length - 1];
+        const orderContext = useOrderContextStore.getState().currentOrder;
+        const tableId =
+          orderContext?.orderType === "DINE_IN"
+            ? orderContext.tableId
+            : orderContext?.takeawayNo;
+
+        if (!tableId) {
+          return;
+        }
 
         try {
+          const latestResponse = await fetch(`${API_URL}/api/orders/cart/${tableId}`);
+          const latestItems = await latestResponse.json();
+          const mergedItems = new Map<string, any>();
+
+          if (Array.isArray(latestItems)) {
+            latestItems.forEach((item) => {
+              mergedItems.set(String(item.lineItemId || item.ItemId || ""), item);
+            });
+          }
+
+          items.forEach((item) => {
+            mergedItems.set(String(item.lineItemId), item);
+          });
+
           await fetch(`${API_URL}/api/orders/save-cart`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tableId,
-              items: items.map(item => ({
+              items: Array.from(mergedItems.values()).map(item => ({
                 id: item.id,
                 qty: item.qty,
                 price: item.price,
@@ -411,7 +432,7 @@ export const useCartStore = create<CartState>()(
           
           if (Array.isArray(dbItems)) {
             const contextId = get().currentContextId;
-            if (contextId && contextId.endsWith(tableId)) {
+            if (contextId) {
               set((state) => ({
                 carts: { ...state.carts, [contextId]: dbItems }
               }));

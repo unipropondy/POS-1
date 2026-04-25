@@ -138,7 +138,10 @@ router.post("/complete", async (req, res) => {
     const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
     const pool = await poolPromise;
 
-    // Clear CartItems on payment complete
+    await pool.request()
+      .input("cartId", sql.NVarChar(sql.MAX), cleanId)
+      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+
     await pool.request()
       .input("tid", sql.UniqueIdentifier, cleanId)
       .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");

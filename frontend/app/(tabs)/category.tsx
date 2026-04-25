@@ -30,7 +30,7 @@ import {
   useCartStore,
 } from "../../stores/cartStore";
 import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
-import { setOrderContext } from "../../stores/orderContextStore";
+import { setOrderContext, OrderContext } from "../../stores/orderContextStore";
 import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { useAuthStore } from "../../stores/authStore";
 
@@ -264,7 +264,15 @@ export default function Category() {
           getSectionFromDiningSection(table.DiningSection),
           table.label,
           "SYNC",
-          status === 5 ? 'LOCKED' : (status === 1 ? 'SENT' : (status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
+          status === 5
+            ? "LOCKED"
+            : status === 1
+              ? "SENT"
+              : status === 2
+                ? "BILL_REQUESTED"
+                : status === 3
+                  ? "HOLD"
+                  : "EMPTY",
           undefined,
           undefined,
           totalAmount
@@ -562,7 +570,7 @@ export default function Category() {
   const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Reserved
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 
-  const handleTablePress = React.useCallback((item: TableItem, tableData: any, isCheckoutAction?: boolean) => {
+  const handleTablePress = React.useCallback(async (item: TableItem, tableData: any, isCheckoutAction?: boolean) => {
     const status = Number(item.Status);
 
     if (isCheckoutAction) {
@@ -573,12 +581,22 @@ export default function Category() {
     if (status === 2 || status === 3 || status === 4) {
       // For occupied tables, set context and go to summary/menu
       const section = getSectionFromDiningSection(item.DiningSection);
-      setOrderContext({ 
+      const existingContext: OrderContext = { 
         orderType: "DINE_IN", 
         section: section, 
         tableNo: item.label, 
         tableId: item.id 
-      });
+      };
+      setOrderContext(existingContext);
+      const contextId = getContextId(existingContext);
+      if (contextId) {
+        setCurrentContext(contextId);
+      }
+      try {
+        await fetchCartFromDBGlobal(item.id);
+      } catch (err) {
+        console.error("❌ [Category] Failed to fetch occupied table cart:", err);
+      }
       router.push("/summary");
       return;
     }
@@ -609,13 +627,17 @@ export default function Category() {
       setCurrentContext(contextId);
     }
 
-    if (tableData && tableData.status === "HOLD") {
+    if (newContext.tableId) {
+      try {
+        await fetchCartFromDBGlobal(newContext.tableId);
+      } catch (err) {
+        console.error("❌ [Category] Failed to fetch shared cart:", err);
+      }
+    } else if (tableData && tableData.status === "HOLD") {
       const helds = getHeldOrders();
       const held = helds.find((h: any) => h.orderId === tableData.orderId);
-      if (held) {
-        const contextId = getContextId(newContext);
-        if (contextId) setCartItemsGlobal(contextId, held.cart);
-        removeHeldOrder(held.id);
+      if (held && contextId) {
+        setCartItemsGlobal(contextId, held.cart);
       }
     }
 

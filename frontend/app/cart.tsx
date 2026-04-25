@@ -191,6 +191,7 @@ export default function CartScreen() {
   const addToCartGlobal = useCartStore((state: any) => state.addToCartGlobal);
   const clearCart = useCartStore((state: any) => state.clearCart);
   const setCartItemsGlobal = useCartStore((state: any) => state.setCartItems);
+  const isFetchingCart = React.useRef(false);
 
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
@@ -258,8 +259,8 @@ export default function CartScreen() {
       const statusMap: Record<number, string> = {
         0: 'EMPTY',
         1: 'SENT',
-        2: 'HOLD',
-        3: 'BILL_REQUESTED',
+        2: 'BILL_REQUESTED',
+        3: 'HOLD',
         4: 'LOCKED',
         5: 'SENT'
       };
@@ -268,12 +269,11 @@ export default function CartScreen() {
     return table;
   }, [orderContext, tables]);
 
-  const isFetchingCart = React.useRef(false);
 
   // ✅ Auto-load cart from DB on mount (Persistence Fix)
   React.useEffect(() => {
     const tableId = orderContext?.tableId || currentTableData?.tableId;
-    if (tableId && currentContextId && cart.length === 0 && !isFetchingCart.current) {
+    if (false && tableId && currentContextId && cart.length === 0 && !isFetchingCart.current) {
       isFetchingCart.current = true;
       console.log("🔄 [Cart Persistence] Fetching from DB for Table:", tableId);
       fetch(`${API_URL}/api/orders/cart/${tableId}`)
@@ -306,7 +306,7 @@ export default function CartScreen() {
   React.useEffect(() => {
     const tableId = orderContext?.tableId || currentTableData?.tableId;
     // Don't sync if we don't have a tableId or if we are currently loading the initial state
-    if (tableId && !isFetchingCart.current) {
+    if (false && tableId && !isFetchingCart.current) {
       const syncTimeout = setTimeout(() => {
         console.log("💾 [Cart Persistence] Syncing to DB (Items:", cart.length, ")...");
         fetch(`${API_URL}/api/orders/save-cart`, {
@@ -322,6 +322,29 @@ export default function CartScreen() {
       return () => clearTimeout(syncTimeout);
     }
   }, [cart, orderContext?.tableId, currentTableData?.tableId]);
+
+  React.useEffect(() => {
+    const tableId = orderContext?.tableId || currentTableData?.tableId;
+    if (tableId) {
+      useCartStore.getState().fetchCartFromDB(tableId);
+    }
+  }, [orderContext?.tableId, currentTableData?.tableId, currentContextId]);
+
+  React.useEffect(() => {
+    const tableId = orderContext?.tableId || currentTableData?.tableId;
+    if (!tableId) return;
+
+    const handleCartUpdate = (data: { tableId: string }) => {
+      if (String(data.tableId) === String(tableId)) {
+        useCartStore.getState().fetchCartFromDB(tableId);
+      }
+    };
+
+    socket.on("cart_updated", handleCartUpdate);
+    return () => {
+      socket.off("cart_updated", handleCartUpdate);
+    };
+  }, [orderContext?.tableId, currentTableData?.tableId]);
 
   React.useEffect(() => {
     if (!orderContext) router.replace("/(tabs)/category");
@@ -384,6 +407,7 @@ export default function CartScreen() {
         orderContext.tableNo
       ) {
         updateTableStatus(
+          orderContext.tableId || "",
           orderContext.section,
           orderContext.tableNo,
           "",
