@@ -108,12 +108,14 @@ router.post("/save-cart", async (req, res) => {
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
-    // 1. Clear old cart for this table
+    // 1. Always Clear old cart for this table first
     await pool.request()
       .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
       .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
 
-    // 2. Insert new items if any
+    const io = req.app.get("io");
+
+    // 2. If we have items, insert them and set table to DINING (1)
     if (items && items.length > 0) {
       for (const item of items) {
         const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
@@ -144,18 +146,22 @@ router.post("/save-cart", async (req, res) => {
              @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar)
           `);
       }
-      
-      // Update table status to 1 (Occupied)
+
+      // Update table status to 1 (Occupied/Dining)
       await pool.request()
         .input("tableId", sql.UniqueIdentifier, cleanTableId)
         .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
+      
+      if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
       console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
     } else {
-      // If cart is empty, set table status to 0 (Empty)
+      // 3. If items are empty, reset table to Available (0)
       await pool.request()
         .input("tableId", sql.UniqueIdentifier, cleanTableId)
-        .query("UPDATE TableMaster SET Status = 0 WHERE TableId = @tableId");
-      console.log(`✅ [CartSave] Cart cleared. Table Status -> 0`);
+        .query("UPDATE TableMaster SET Status = 0, StartTime = NULL WHERE TableId = @tableId");
+      
+      if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
+      console.log(`🧹 [CartSave] Cart cleared. Table Status -> 0`);
     }
 
     res.json({ success: true });

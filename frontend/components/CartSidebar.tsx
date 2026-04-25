@@ -156,6 +156,22 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     return [...sentItems, ...cart];
   }, [activeOrder, cart]);
 
+  useEffect(() => {
+    // 🔥 If the cart is completely empty (no unsent items AND no active order items),
+    // and we have a table context, reset the table status to Available (0) in the DB.
+    if (displayItems.length === 0 && orderContext?.tableId) {
+      console.log(`🧹 [CartSidebar] Cart empty, resetting table ${orderContext.tableId}`);
+      fetch(`${API_URL}/api/orders/save-cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: orderContext.tableId,
+          items: [],
+        }),
+      }).catch((err) => console.error("Error auto-resetting table:", err));
+    }
+  }, [displayItems.length, orderContext?.tableId]);
+
   const subtotal = useMemo(() => {
     return displayItems.reduce((sum, item) => {
       const isVoided = "status" in item && item.status === "VOIDED";

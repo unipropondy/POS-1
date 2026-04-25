@@ -97,7 +97,16 @@ export default function PaymentScreen() {
   const showOrderPanel = (isTablet && (isLandscape || width >= 1024)) || (isMobile && isLandscape);
 
   const context = getOrderContext();
+  const hasHydrated = useActiveOrdersStore((s) => s._hasHydrated);
   const activeOrder = context ? findActiveOrder(context) : undefined;
+
+  if (!hasHydrated) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Theme.bgMain }}>
+        <ActivityIndicator size="large" color={Theme.primary} />
+      </View>
+    );
+  }
 
   const cart = useMemo(
     () => (activeOrder ? activeOrder.items : []),

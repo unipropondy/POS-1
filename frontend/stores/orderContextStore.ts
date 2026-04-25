@@ -16,6 +16,7 @@ type OrderContextState = {
 
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 export const useOrderContextStore = create<OrderContextState>()(
   persist(
@@ -26,7 +27,9 @@ export const useOrderContextStore = create<OrderContextState>()(
     }),
     {
       name: "order-context-storage",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => 
+        Platform.OS === 'web' ? window.sessionStorage : AsyncStorage
+      ),
     }
   )
 );

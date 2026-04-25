@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { create } from "zustand";
+import { Platform } from "react-native";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "@/constants/Config";
@@ -445,7 +446,9 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "cart-storage",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => 
+        Platform.OS === 'web' ? window.sessionStorage : AsyncStorage
+      ),
     }
   )
 );

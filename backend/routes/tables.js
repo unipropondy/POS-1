@@ -220,6 +220,13 @@ router.put("/:tableId/status", async (req, res) => {
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 
+    // ✅ If status is 0, clear any lingering items in CartItems for this table
+    if (Number(status) === 0) {
+      await pool.request()
+        .input("tableId", sql.VarChar(50), cleanTableId)
+        .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
+    }
+
     // 🔥 Emit socket event for real-time sync across devices
     const io = req.app.get("io");
     if (io) {

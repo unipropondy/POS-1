@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { Platform } from "react-native";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CartItem, DiscountInfo, getContextId, useCartStore } from "./cartStore";
@@ -264,13 +265,15 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
     });
   },
 }),
-{
-  name: "active-orders-storage",
-  storage: createJSONStorage(() => AsyncStorage),
-  onRehydrateStorage: () => (state) => {
-    state?.setHasHydrated(true);
-  },
-}
+  {
+    name: "active-orders-storage",
+    storage: createJSONStorage(() => 
+      Platform.OS === 'web' ? window.sessionStorage : AsyncStorage
+    ),
+    onRehydrateStorage: () => (state) => {
+      state?.setHasHydrated(true);
+    },
+  }
 ));
 
 /* ================= HELPERS ================= */
