@@ -111,9 +111,15 @@ router.post("/lock-persistent", async (req, res) => {
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 
     await request.query(`
-      UPDATE TableMaster SET Status = 5, LockedByName = @lockedByName 
+      UPDATE TableMaster 
+      SET Status = 5, LockedByName = @lockedByName, TotalAmount = 0, StartTime = NULL 
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
+
+    // ✅ Clear CartItems for this table when locked
+    await pool.request()
+      .input("tableId", sql.VarChar(50), cleanTableId)
+      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
 
     // 🔥 Emit socket event
     const io = req.app.get("io");
@@ -137,9 +143,15 @@ router.post("/unlock-persistent", async (req, res) => {
     await pool.request()
       .input("tableId", sql.VarChar(50), cleanTableId)
       .query(`
-        UPDATE TableMaster SET Status = 0, LockedByName = NULL 
+        UPDATE TableMaster 
+        SET Status = 0, LockedByName = NULL, TotalAmount = 0, StartTime = NULL 
         WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
       `);
+
+    // ✅ Clear any items in CartItems for this table when unlocked
+    await pool.request()
+      .input("tableId", sql.VarChar(50), cleanTableId)
+      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
 
     // 🔥 Emit socket event
     const io = req.app.get("io");
@@ -172,12 +184,23 @@ router.put("/status", async (req, res) => {
       SET Status = @status,
           StartTime = CASE 
             WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
-            WHEN @status = 0 THEN NULL 
+            WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
+          END,
+          TotalAmount = CASE 
+            WHEN @status = 0 OR @status = 5 THEN 0 
+            ELSE TotalAmount 
           END,
           ModifiedOn = GETDATE()
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
+
+    // ✅ Clear CartItems if status is 0 (Available) or 5 (Locked)
+    if (Number(status) === 0 || Number(status) === 5) {
+      await pool.request()
+        .input("tableId", sql.VarChar(50), cleanTableId)
+        .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
+    }
 
     // 🔥 Emit socket event
     const io = req.app.get("io");
@@ -213,15 +236,19 @@ router.put("/:tableId/status", async (req, res) => {
           StartTime = CASE 
             -- Status 1 (Dining) or 3 (Hold) starts the timer
             WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
-            -- Status 0 (Available) resets the timer
-            WHEN @status = 0 THEN NULL 
+            -- Status 0 (Available) or 5 (Locked) resets the timer
+            WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
+          END,
+          TotalAmount = CASE 
+            WHEN @status = 0 OR @status = 5 THEN 0 
+            ELSE TotalAmount 
           END
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 
-    // ✅ If status is 0, clear any lingering items in CartItems for this table
-    if (Number(status) === 0) {
+    // ✅ If status is 0 or 5, clear any lingering items in CartItems for this table
+    if (Number(status) === 0 || Number(status) === 5) {
       await pool.request()
         .input("tableId", sql.VarChar(50), cleanTableId)
         .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");

@@ -316,7 +316,7 @@ export default function Category() {
         if (table.Status === 1 && table.StartTime) {
           const startTime = new Date(table.StartTime).getTime();
           if (now - startTime > OVERTIME_LIMIT) {
-            updateTableStatus(table.id, 5); // Automatically move to Overtime
+            updateTableStatus(table.id, 4); // Automatically move to Overtime (4)
           }
         }
       });
@@ -507,8 +507,8 @@ export default function Category() {
         1: 'SENT',
         2: 'BILL_REQUESTED',
         3: 'HOLD',
-        4: 'LOCKED',
-        5: 'SENT' // Overtime is technically still an active order
+        4: 'SENT',   // Overtime is technically still an active order (SENT)
+        5: 'LOCKED' 
       };
       
       useTableStatusStore.getState().updateTableStatus(

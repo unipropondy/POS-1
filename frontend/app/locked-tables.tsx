@@ -278,7 +278,7 @@ export default function LockedTablesScreen() {
       t.section === getSectionFromDiningSection(item.diningSection) && t.tableNo === item.tableNumber
     );
     
-    const status = Number(item.status || (tableStatusData?.status === 'LOCKED' ? 4 : 0));
+    const status = Number(item.status || (tableStatusData?.status === 'LOCKED' ? 5 : 0));
     const ui = getStatusUI(status);
     
     const iconSize = Math.max(22, itemSize * 0.18);
@@ -304,8 +304,13 @@ export default function LockedTablesScreen() {
         <TouchableOpacity
           style={styles.tableContent}
           onPress={() => {
-            if (status === 4) {
+            if (status === 5) {
               Alert.alert("Locked Table", `Table ${item.tableNumber} is locked. Continue order processing?`, [
+                { text: "Cancel", style: "cancel" },
+                { text: "Continue Order", onPress: () => continueWithOrder(item.tableId, item.tableNumber, item.diningSection) },
+              ]);
+            } else if (status === 4) {
+              Alert.alert("Overtime Table", `Table ${item.tableNumber} is in overtime. Continue order processing?`, [
                 { text: "Cancel", style: "cancel" },
                 { text: "Continue Order", onPress: () => continueWithOrder(item.tableId, item.tableNumber, item.diningSection) },
               ]);
@@ -317,22 +322,22 @@ export default function LockedTablesScreen() {
           }}
         >
           <Ionicons
-            name={status === 4 ? "lock-closed" : status !== 0 ? "restaurant" : "lock-open-outline"}
+            name={status === 5 ? "lock-closed" : status === 4 ? "time" : status !== 0 ? "restaurant" : "lock-open-outline"}
             size={iconSize}
             color={status === 0 ? Theme.textSecondary : ui.color}
           />
           <Text style={[styles.tableNumber, { fontSize: numberSize }]}>{item.tableNumber}</Text>
-          <Text style={[styles.tableStatus, status === 4 && { color: "#F44336" }, status !== 0 && styles.activeStatus, { fontSize: statusSize, color: status === 0 ? Theme.textMuted : ui.color }]}>
+          <Text style={[styles.tableStatus, (status === 5 || status === 4) && { color: "#F44336" }, status !== 0 && styles.activeStatus, { fontSize: statusSize, color: status === 0 ? Theme.textMuted : ui.color }]}>
             {ui.text}
           </Text>
-          {status === 4 && lockedName ? (
+          {(status === 5 || status === 4) && lockedName ? (
             <Text style={{ fontSize: statusSize - 1, color: ui.color, fontWeight: 'bold', marginTop: 4 }} numberOfLines={1}>
               {lockedName}
             </Text>
           ) : null}
         </TouchableOpacity>
 
-        {status === 4 && (
+        {(status === 5 || status === 4) && (
           <TouchableOpacity
             style={styles.unlockBtn}
             onPress={() => unlockTable(item.tableId, item.tableNumber)}
