@@ -703,6 +703,10 @@ export default function MenuScreen() {
       >
         {isInitialLoading ? (
           <GroupSkeleton />
+        ) : groups.length === 0 ? (
+          <View style={styles.emptyNavState}>
+            <Text style={styles.emptyNavText}>No Dishgroup added</Text>
+          </View>
         ) : (
           <ScrollView
             horizontal
@@ -775,8 +779,17 @@ export default function MenuScreen() {
                     contentContainerStyle={[
                       styles.listPadding,
                       columns === 1 && { gap: gap },
+                      filteredItems.length === 0 && { flex: 1, justifyContent: 'center' }
                     ]}
                     showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                      !isLoadingDishes && !isInitialLoading ? (
+                        <View style={styles.emptyItemsState}>
+                          <Ionicons name="restaurant-outline" size={64} color={Theme.textMuted} />
+                          <Text style={styles.emptyItemsText}>No dish items added</Text>
+                        </View>
+                      ) : null
+                    }
                   />
                 )}
               </View>
@@ -825,8 +838,17 @@ export default function MenuScreen() {
                       contentContainerStyle={[
                         styles.listPadding,
                         columns === 1 && { gap: gap },
+                        filteredItems.length === 0 && { flex: 1, justifyContent: 'center' }
                       ]}
                       showsVerticalScrollIndicator={false}
+                      ListEmptyComponent={
+                        !isLoadingDishes && !isInitialLoading ? (
+                          <View style={styles.emptyItemsState}>
+                            <Ionicons name="restaurant-outline" size={64} color={Theme.textMuted} />
+                            <Text style={styles.emptyItemsText}>No dish items added</Text>
+                          </View>
+                        ) : null
+                      }
                     />
                   )}
                 </View>
@@ -1325,4 +1347,32 @@ const styles = StyleSheet.create({
     ...Theme.shadowSm,
   },
   customBtnTextAdd: { color: "#fff", fontSize: 16, fontFamily: Fonts.black },
+  
+  emptyNavState: {
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Theme.bgMuted,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  emptyNavText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Theme.textMuted,
+  },
+  emptyItemsState: {
+    flex: 1,
+    height: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 15,
+  },
+  emptyItemsText: {
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+    color: Theme.textMuted,
+  },
 });
