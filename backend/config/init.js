@@ -102,6 +102,47 @@ async function initDB(pool) {
             ALTER TABLE [dbo].[SettlementHeader] ADD CancellationReason NVARCHAR(255);
         `);
 
+    // 6. Table: CartItems (Persistence)
+    await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[CartItems](
+                    [ItemId] [nvarchar](128) NOT NULL PRIMARY KEY,
+                    [CartId] [nvarchar](max) NULL,
+                    [ProductId] [nvarchar](128) NULL,
+                    [Quantity] [int] NULL,
+                    [Cost] [decimal](18, 2) NULL,
+                    [OrderNo] [nvarchar](max) NULL,
+                    [OrderConfirmQty] [int] NULL,
+                    [DateCreated] [datetime] DEFAULT GETDATE()
+                )
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'IsTakeaway')
+            ALTER TABLE [dbo].[CartItems] ADD IsTakeaway BIT DEFAULT 0;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'IsVoided')
+            ALTER TABLE [dbo].[CartItems] ADD IsVoided BIT DEFAULT 0;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Note')
+            ALTER TABLE [dbo].[CartItems] ADD Note NVARCHAR(MAX);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'ModifiersJSON')
+            ALTER TABLE [dbo].[CartItems] ADD ModifiersJSON NVARCHAR(MAX);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Spicy')
+            ALTER TABLE [dbo].[CartItems] ADD Spicy NVARCHAR(50);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Salt')
+            ALTER TABLE [dbo].[CartItems] ADD Salt NVARCHAR(50);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Oil')
+            ALTER TABLE [dbo].[CartItems] ADD Oil NVARCHAR(50);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Sugar')
+            ALTER TABLE [dbo].[CartItems] ADD Sugar NVARCHAR(50);
+        `);
+
     console.log("✅ Database schema is up to date.");
   } catch (err) {
     console.error("❌ initDB ERROR:", err.message);

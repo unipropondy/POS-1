@@ -127,11 +127,21 @@ router.post("/save-cart", async (req, res) => {
           .input("productId", sql.NVarChar(128), cleanProdId)
           .input("orderNo", sql.NVarChar(sql.MAX), cleanOrderNo)
           .input("cost", sql.Decimal(18, 2), item.price || 0)
+          .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
+          .input("isVoided", sql.Bit, item.isVoided ? 1 : 0)
+          .input("note", sql.NVarChar(sql.MAX), item.note || "")
+          .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
+          .input("spicy", sql.NVarChar(50), item.spicy || "")
+          .input("salt", sql.NVarChar(50), item.salt || "")
+          .input("oil", sql.NVarChar(50), item.oil || "")
+          .input("sugar", sql.NVarChar(50), item.sugar || "")
           .query(`
             INSERT INTO [dbo].[CartItems] 
-            (ItemId, CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty)
+            (ItemId, CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty, 
+             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar)
             VALUES 
-            (@itemId, @cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty)
+            (@itemId, @cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty, 
+             @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar)
           `);
       }
       
@@ -174,7 +184,26 @@ router.get("/cart/:tableId", async (req, res) => {
       `);
 
     console.log(`🔍 [CartFetch] Found ${result.recordset.length} items`);
-    res.json(result.recordset);
+    
+    // Parse JSON and flags for frontend
+    const items = result.recordset.map(item => ({
+      ...item,
+      id: item.ProductId,
+      lineItemId: item.ItemId,
+      qty: item.Quantity,
+      name: item.name,
+      price: item.price || item.Cost,
+      modifiers: item.ModifiersJSON ? JSON.parse(item.ModifiersJSON) : [],
+      isTakeaway: !!item.IsTakeaway,
+      isVoided: !!item.IsVoided,
+      note: item.Note,
+      spicy: item.Spicy,
+      salt: item.Salt,
+      oil: item.Oil,
+      sugar: item.Sugar
+    }));
+
+    res.json(items);
   } catch (err) {
     console.error("❌ [CartFetch] ERROR:", err.message);
     res.status(500).json({ error: err.message });

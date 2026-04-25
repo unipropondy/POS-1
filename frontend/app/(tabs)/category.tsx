@@ -25,6 +25,8 @@ import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
 import {
   getContextId,
   setCartItemsGlobal,
+  fetchCartFromDBGlobal,
+  setCurrentContext,
   useCartStore,
 } from "../../stores/cartStore";
 import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
@@ -582,6 +584,13 @@ export default function Category() {
     }
 
     setOrderContext(newContext);
+    const contextId = getContextId(newContext);
+    if (contextId) {
+      setCurrentContext(contextId);
+      if (item.id) {
+        fetchCartFromDBGlobal(item.id);
+      }
+    }
 
     if (tableData && tableData.status === "HOLD") {
       const helds = getHeldOrders();
