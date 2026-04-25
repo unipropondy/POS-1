@@ -61,7 +61,7 @@ type CartState = {
   applyDiscount: (discount: DiscountInfo) => void;
   clearDiscount: () => void;
 
-  setCartItems: (contextId: string, items: CartItem[]) => void;
+  setCartItems: (contextId: string, items: CartItem[], skipSync?: boolean) => void;
   updateCartItemQty: (
     lineItemId: string,
     newQty: number,
@@ -216,13 +216,16 @@ export const useCartStore = create<CartState>()(
 
       /* ================= SET ================= */
 
-      setCartItems: (contextId, items) => {
+      setCartItems: (contextId, items, skipSync = false) => {
         set((state) => ({
           carts: {
             ...state.carts,
             [contextId]: items,
           },
         }));
+        if (!skipSync) {
+          get().syncCartWithDB(contextId);
+        }
       },
 
       updateCartItemQty: (lineItemId, newQty, discount) => {
@@ -488,8 +491,8 @@ export const clearCart = () => useCartStore.getState().clearCart();
 export const setCurrentContext = (contextId: string | null) =>
   useCartStore.getState().setCurrentContext(contextId);
 
-export const setCartItemsGlobal = (contextId: string, items: CartItem[]) =>
-  useCartStore.getState().setCartItems(contextId, items);
+export const setCartItemsGlobal = (contextId: string, items: CartItem[], skipSync?: boolean) =>
+  useCartStore.getState().setCartItems(contextId, items, skipSync);
 
 export const subscribeCart = (listener: () => void) =>
   useCartStore.subscribe(listener);
