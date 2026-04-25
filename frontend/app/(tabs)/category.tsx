@@ -52,8 +52,8 @@ const getStatusUI = (status: number) => {
     case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
     case 2: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
     case 3: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
-    case 4: return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
-    case 5: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 4: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 5: return { text: "LOCKED", color: "#ef4444", lightBg: "#FEF2F2" };
     case 0:
     default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" }; // Gray
   }
@@ -90,7 +90,7 @@ const TableItemComponent = React.memo(({
   let timeText = "";
   let billAmount = tableData?.billAmount || 0;
 
-  if (tableData && tableData.startTime && status !== 0 && status !== 4) {
+  if (tableData && tableData.startTime && status !== 0 && status !== 5) {
     const time = new Date(tableData.startTime);
     timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
   }
@@ -141,7 +141,7 @@ const TableItemComponent = React.memo(({
           </View>
         )}
         
-        {status === 4 && (
+        {status === 5 && (
           <View style={styles.lockedOverlay}>
             <Ionicons name="lock-closed" size={Math.max(14, itemSize * 0.2)} color={ui.color} />
             {tableData?.lockedByName ? (
@@ -548,7 +548,7 @@ export default function Category() {
       return;
     }
 
-    if (status === 2 || status === 3 || status === 5) {
+    if (status === 2 || status === 3 || status === 4) {
       // For occupied tables, set context and go to summary/menu
       const section = getSectionFromDiningSection(item.DiningSection);
       setOrderContext({ 
@@ -561,7 +561,7 @@ export default function Category() {
       return;
     }
 
-    if (status === 4) {
+    if (status === 5) {
       Alert.alert(
         "Table Locked",
         `Table ${item.label} is reserved. What would you like to do?`,

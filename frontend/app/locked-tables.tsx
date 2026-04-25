@@ -38,8 +38,8 @@ const getStatusUI = (status: number) => {
     case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
     case 2: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
     case 3: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
-    case 4: return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
-    case 5: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 4: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 5: return { text: "LOCKED", color: "#ef4444", lightBg: "#FEF2F2" };
     case 0:
     default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" };
   }
@@ -112,7 +112,7 @@ export default function LockedTablesScreen() {
               const tId = String(table.id || table.TableId || "").replace(/^\{|\}$/g, "").trim();
             const tNum = table.label || table.TableNumber;
             const status = Number(table.Status) || 0;
-            const isLocked = status === 4;
+            const isLocked = status === 5;
 
             return {
               tableId: tId,
@@ -208,8 +208,8 @@ export default function LockedTablesScreen() {
 
       if (res.ok) {
         setLockModalVisible(false);
-        setAllTables((prev) => prev.map((t) => t.tableId === lockingTableId ? { ...t, isLocked: true, status: 4 } : t));
-        setLockedTables((prev) => [...prev, { tableId: lockingTableId, tableNumber: lockingTableNumber, status: 4 }]);
+        setAllTables((prev) => prev.map((t) => t.tableId === lockingTableId ? { ...t, isLocked: true, status: 5 } : t));
+        setLockedTables((prev) => [...prev, { tableId: lockingTableId, tableNumber: lockingTableNumber, status: 5 }]);
         fetchData();
       } else {
         const data = await res.json();

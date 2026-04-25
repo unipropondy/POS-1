@@ -90,8 +90,8 @@ router.get("/locked", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT TableId as tableId, TableNumber as tableNumber, DiningSection, LockedByName as lockedByName
-      FROM TableMaster WHERE Status = 4
+      SELECT TableId as tableId, TableNumber as tableNumber, DiningSection, LockedByName as lockedByName, Status as status
+      FROM TableMaster WHERE Status = 5
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -111,14 +111,14 @@ router.post("/lock-persistent", async (req, res) => {
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
 
     await request.query(`
-      UPDATE TableMaster SET Status = 4, LockedByName = @lockedByName 
+      UPDATE TableMaster SET Status = 5, LockedByName = @lockedByName 
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
     `);
 
     // 🔥 Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: 4 });
+      io.emit("table_status_updated", { tableId: cleanTableId, status: 5 });
     }
 
     res.json({ success: true });
@@ -209,7 +209,7 @@ router.put("/:tableId/status", async (req, res) => {
     await request.query(`
       UPDATE TableMaster 
       SET Status = @status, 
-          LockedByName = CASE WHEN @status = 4 THEN @lockedByName ELSE NULL END,
+          LockedByName = CASE WHEN @status = 5 THEN @lockedByName ELSE NULL END,
           StartTime = CASE 
             -- Status 1 (Dining) or 3 (Hold) starts the timer
             WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
