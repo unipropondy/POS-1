@@ -244,19 +244,42 @@ router.post("/add-item", async (req, res) => {
     const newItemId = require("crypto").randomUUID();
 
     await pool.request()
-      .input("itemId", sql.NVarChar(128), newItemId)
       .input("cartId", sql.NVarChar(128), cleanTableId)
-      .input("qty", sql.Int, item.qty || 1)
       .input("productId", sql.NVarChar(128), cleanProdId)
-      .input("orderNo", sql.NVarChar(128), cleanOrderNo)
+      .input("qty", sql.Int, item.qty || 1)
       .input("cost", sql.Decimal(18, 2), item.price || 0)
       .input("note", sql.NVarChar(sql.MAX), item.note || "")
       .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
+      .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
+      .input("status", sql.NVarChar(20), "NEW")
       .query(`
-        INSERT INTO [dbo].[CartItems] 
-        (ItemId, CartId, Quantity, ProductId, OrderNo, Cost, DateCreated, OrderConfirmQty, Note, ModifiersJSON)
-        VALUES 
-        (@itemId, @cartId, @qty, @productId, @orderNo, @cost, GETDATE(), @qty, @note, @modifiersJSON)
+        IF EXISTS (
+          SELECT 1 FROM [dbo].[CartItems] 
+          WHERE CartId = @cartId 
+            AND ProductId = @productId 
+            AND Status = @status
+            AND IsTakeaway = @isTakeaway
+            AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
+            AND (Note = @note OR (Note IS NULL AND @note = ''))
+        )
+        BEGIN
+          UPDATE [dbo].[CartItems] 
+          SET Quantity = Quantity + @qty, 
+              OrderConfirmQty = ISNULL(OrderConfirmQty, 0) + @qty
+          WHERE CartId = @cartId 
+            AND ProductId = @productId 
+            AND Status = @status
+            AND IsTakeaway = @isTakeaway
+            AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
+            AND (Note = @note OR (Note IS NULL AND @note = ''))
+        END
+        ELSE
+        BEGIN
+          INSERT INTO [dbo].[CartItems] 
+          (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway)
+          VALUES 
+          (NEWID(), @cartId, @productId, @qty, @cost, 'PENDING', @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway)
+        END
       `);
 
     const updated = await syncTableStatus(req, cleanTableId);
