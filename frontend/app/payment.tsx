@@ -324,6 +324,8 @@ export default function PaymentScreen() {
   /* ================= PAYMENT ================= */
 
   const confirmPayment = async () => {
+    if (processing) return;
+
     if (total > 0 && isCashMethod(method) && (paidNum < total && Math.abs(paidNum - total) > 0.01)) {
       showToast({ type: "warning", message: "Insufficient Payment", subtitle: `Please enter at least $${total.toFixed(2)}` });
       return;

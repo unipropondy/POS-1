@@ -251,6 +251,7 @@ export default function MenuScreen() {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [searchText, setSearchText] = useState("");
   const [allDishes, setAllDishes] = useState<any[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
 
   // Modifier Modal State
   const [modifiers, setModifiers] = useState<any[]>([]);
@@ -410,6 +411,9 @@ export default function MenuScreen() {
 
   const openModifiers = React.useCallback(
     async (dish: any) => {
+      if (isAdding) return;
+      setIsAdding(true);
+      
       setSelectedDish(dish);
       setSelectedModifierIds([]);
       setCustomMods([]);
@@ -429,48 +433,22 @@ export default function MenuScreen() {
             kitchens.find((k) => k.CategoryId === selectedKitchenId)
               ?.KitchenTypeName || "Kitchen";
 
-          addToCartGlobal({
+          await addToCartGlobal({
             id: dish.DishId,
             name: dish.Name,
             price: dish.Price || 0,
             categoryName: currentKitchenName,
           });
 
-          // 🔥 FIXED ROUTE: /api/menu/order/add
-          fetch(`${API_URL}/api/menu/order/add`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              dishId: dish.DishId,
-              name: dish.Name,
-              price: dish.Price,
-              qty: 1,
-            }),
-          });
-
           setModifiers([]);
           setShowModifier(false);
         }
       } catch (err) {
-        fetch(`${API_URL}/api/menu/order/add`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            dishId: dish.DishId,
-            name: dish.Name,
-            price: dish.Price,
-            qty: 1,
-          }),
-        });
         console.error(err);
         const currentKitchenName =
           kitchens.find((k) => k.CategoryId === selectedKitchenId)
             ?.KitchenTypeName || "Kitchen";
-        addToCartGlobal({
+        await addToCartGlobal({
           id: dish.DishId,
           name: dish.Name,
           price: dish.Price || 0,
@@ -480,6 +458,7 @@ export default function MenuScreen() {
         setShowModifier(false);
       } finally {
         setLoadingModifiers(false);
+        setIsAdding(false);
       }
     },
     [selectedKitchenId, kitchens],

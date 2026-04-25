@@ -253,33 +253,41 @@ router.post("/add-item", async (req, res) => {
       .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
       .input("status", sql.NVarChar(20), "NEW")
       .query(`
-        IF EXISTS (
-          SELECT 1 FROM [dbo].[CartItems] 
-          WHERE CartId = @cartId 
-            AND ProductId = @productId 
-            AND Status = @status
-            AND IsTakeaway = @isTakeaway
-            AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
-            AND (Note = @note OR (Note IS NULL AND @note = ''))
-        )
-        BEGIN
-          UPDATE TOP (1) [dbo].[CartItems] 
-          SET Quantity = Quantity + @qty, 
-              OrderConfirmQty = ISNULL(OrderConfirmQty, 0) + @qty
-          WHERE CartId = @cartId 
-            AND ProductId = @productId 
-            AND Status = @status
-            AND IsTakeaway = @isTakeaway
-            AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
-            AND (Note = @note OR (Note IS NULL AND @note = ''))
-        END
-        ELSE
-        BEGIN
-          INSERT INTO [dbo].[CartItems] 
-          (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway)
-          VALUES 
-          (NEWID(), @cartId, @productId, @qty, @cost, 'PENDING', @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway)
-        END
+        BEGIN TRANSACTION;
+        BEGIN TRY
+          IF EXISTS (
+            SELECT 1 FROM [dbo].[CartItems] WITH (UPDLOCK, HOLDLOCK)
+            WHERE CartId = @cartId 
+              AND ProductId = @productId 
+              AND Status = @status
+              AND IsTakeaway = @isTakeaway
+              AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
+              AND (Note = @note OR (Note IS NULL AND @note = ''))
+          )
+          BEGIN
+            UPDATE [dbo].[CartItems] 
+            SET Quantity = Quantity + @qty, 
+                OrderConfirmQty = ISNULL(OrderConfirmQty, 0) + @qty
+            WHERE CartId = @cartId 
+              AND ProductId = @productId 
+              AND Status = @status
+              AND IsTakeaway = @isTakeaway
+              AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
+              AND (Note = @note OR (Note IS NULL AND @note = ''));
+          END
+          ELSE
+          BEGIN
+            INSERT INTO [dbo].[CartItems] 
+            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway)
+            VALUES 
+            (NEWID(), @cartId, @productId, @qty, @cost, 'PENDING', @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway);
+          END
+          COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+          ROLLBACK TRANSACTION;
+          THROW;
+        END CATCH
       `);
 
     const updated = await syncTableStatus(req, cleanTableId);
