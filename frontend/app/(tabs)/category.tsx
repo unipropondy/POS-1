@@ -607,9 +607,6 @@ export default function Category() {
     const contextId = getContextId(newContext);
     if (contextId) {
       setCurrentContext(contextId);
-      if (item.id) {
-        fetchCartFromDBGlobal(item.id);
-      }
     }
 
     if (tableData && tableData.status === "HOLD") {

@@ -158,6 +158,20 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     }
   }, [orderContext?.tableId]);
 
+  useEffect(() => {
+    const handleCartUpdate = (data: { tableId: string }) => {
+      if (orderContext?.tableId && String(data.tableId) === String(orderContext.tableId)) {
+        console.log(`🔌 [Socket] Cart updated for table ${data.tableId}, re-fetching...`);
+        useCartStore.getState().fetchCartFromDB(orderContext.tableId);
+      }
+    };
+
+    socket.on("cart_updated", handleCartUpdate);
+    return () => {
+      socket.off("cart_updated", handleCartUpdate);
+    };
+  }, [orderContext?.tableId]);
+
   const displayItems = useMemo(() => {
     const sentItems: (OrderItem | CartItem)[] = activeOrder?.items || [];
     return [...sentItems, ...cart];

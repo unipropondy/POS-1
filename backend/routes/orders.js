@@ -80,6 +80,7 @@ async function syncTableStatus(req, tableId) {
           status: updated.Status,
           totalAmount: updated.TotalAmount 
         });
+        io.emit("cart_updated", { tableId: cleanId });
       }
     }
     return updated;
@@ -139,10 +140,14 @@ router.post("/complete", async (req, res) => {
 
     // Clear CartItems on payment complete
     await pool.request()
-      .input("cartId", sql.VarChar(100), cleanId)
-      .query("DELETE FROM [CartItems] WHERE [CartId] = @cartId");
+      .input("tid", sql.UniqueIdentifier, cleanId)
+      .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
 
-    await updateTableStatus(req, tableId, 0); // 0 = Available
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("table_status_updated", { tableId: cleanId, status: 0, totalAmount: 0 });
+      io.emit("cart_updated", { tableId: cleanId });
+    }
     res.json({ success: true, status: 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -507,7 +507,7 @@ router.post("/save", async (req, res) => {
     const pool = await poolPromise;
     const {
       totalAmount, paymentMethod, items, subTotal, taxAmount,
-      discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId
+      discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId, tableId
     } = req.body;
 
     console.log(`[SAVE SALE] Starting transaction. Items: ${items?.length}, Total: ${totalAmount}, Method: ${paymentMethod}`);
@@ -649,6 +649,26 @@ router.post("/save", async (req, res) => {
           .input("MemberId", memberId)
           .input("Amount", totalAmount || 0)
           .query(`UPDATE MemberMaster SET CurrentBalance = CurrentBalance + @Amount WHERE MemberId = @MemberId`);
+      }
+
+      // 4. Cleanup Table & Cart on success
+      if (tableId) {
+        const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
+        console.log(`[SAVE SALE] Cleaning up table: ${cleanTableId}`);
+        
+        await transaction.request()
+          .input("cartId", sql.NVarChar(128), cleanTableId)
+          .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+          
+        await transaction.request()
+          .input("tid", sql.UniqueIdentifier, cleanTableId)
+          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
+
+        const io = req.app.get("io");
+        if (io) {
+          io.emit("table_status_updated", { tableId: cleanTableId, status: 0, totalAmount: 0 });
+          io.emit("cart_updated", { tableId: cleanTableId });
+        }
       }
 
       await transaction.commit();

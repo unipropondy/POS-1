@@ -275,7 +275,8 @@ export default function PaymentScreen() {
         discountType: discount?.type || "fixed",
         totalAmount: total,
         paymentMethod: method,
-        cashierId: "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88"
+        cashierId: "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88",
+        tableId: context?.tableId
       };
       
       let generatedOrderId = null;

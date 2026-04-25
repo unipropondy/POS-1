@@ -301,56 +301,6 @@ export default function MenuScreen() {
 
   const isFetchingCart = React.useRef(false);
 
-  // ✅ Auto-load cart from DB on mount (Persistence Fix)
-  useEffect(() => {
-    if (orderContext?.tableId && currentContextId && cart.length === 0 && !isFetchingCart.current) {
-      isFetchingCart.current = true;
-      console.log("🔄 [Persistence] Fetching cart from DB for Table:", orderContext.tableId);
-      fetch(`${API_URL}/api/orders/cart/${orderContext.tableId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data) && data.length > 0) {
-            const mappedItems = data.map((dbItem: any, index: number) => ({
-              lineItemId: `db-${dbItem.ItemId}-${Date.now()}-${index}`,
-              id: dbItem.ProductId,
-              name: dbItem.name || "Unknown Item",
-              price: dbItem.Cost || dbItem.price || 0,
-              qty: dbItem.Quantity,
-              modifiers: [], 
-              categoryName: "Menu",
-              isSent: dbItem.OrderNo !== "PENDING"
-            }));
-            
-            console.log("✅ [Persistence] Restoring items:", mappedItems.length);
-            setCartItemsGlobal(currentContextId, mappedItems);
-          }
-        })
-        .catch(err => console.error("Fetch Cart Error:", err))
-        .finally(() => {
-          isFetchingCart.current = false;
-        });
-    }
-  }, [orderContext?.tableId, currentContextId]);
-
-  // ✅ Auto-sync to DB on every change (Real-time Persistence)
-  useEffect(() => {
-    if (orderContext?.tableId && !isFetchingCart.current) {
-      const syncTimeout = setTimeout(() => {
-        console.log("💾 [Persistence] Syncing cart to DB (Items:", cart.length, ")...");
-        fetch(`${API_URL}/api/orders/save-cart`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            tableId: orderContext.tableId, 
-            orderId: activeOrder?.orderId || "PENDING", 
-            items: cart 
-          }),
-        }).catch(err => console.error("Auto-sync Error:", err));
-      }, 1000); // Debounce sync by 1s
-      return () => clearTimeout(syncTimeout);
-    }
-  }, [cart, orderContext?.tableId]);
-
   const cartItemsCount = useMemo(() => {
     const draftCount = cart.length;
     const sentCount = (activeOrder?.items || []).length;
