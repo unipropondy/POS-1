@@ -166,64 +166,73 @@ router.post("/save-cart", async (req, res) => {
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
-    // 1. Always Clear old cart for this table first
-    await pool.request()
-      .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
-      .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
 
-    const io = req.app.get("io");
+    try {
+      // 1. Always Clear old cart for this table first
+      await transaction.request()
+        .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
+        .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
 
-    // 2. If we have items, insert them and set table to DINING (1)
-    if (items && items.length > 0) {
-      for (const item of items) {
-        const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
-        const cleanOrderNo = String(orderId || "PENDING").replace(/^\{|\}$/g, "").trim();
-        const newItemId = require("crypto").randomUUID();
+      const io = req.app.get("io");
+
+      // 2. If we have items, insert them and set table to DINING (1)
+      if (items && items.length > 0) {
+        for (const item of items) {
+          const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
+          const cleanOrderNo = String(orderId || "PENDING").replace(/^\{|\}$/g, "").trim();
+          const newItemId = require("crypto").randomUUID();
+          
+          await transaction.request()
+            .input("itemId", sql.NVarChar(128), newItemId)
+            .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
+            .input("qty", sql.Int, item.qty || 1)
+            .input("productId", sql.NVarChar(128), cleanProdId)
+            .input("orderNo", sql.NVarChar(sql.MAX), cleanOrderNo)
+            .input("cost", sql.Decimal(18, 2), item.price || 0)
+            .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
+            .input("isVoided", sql.Bit, item.isVoided ? 1 : 0)
+            .input("note", sql.NVarChar(sql.MAX), item.note || "")
+            .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
+            .input("spicy", sql.NVarChar(50), item.spicy || "")
+            .input("salt", sql.NVarChar(50), item.salt || "")
+            .input("oil", sql.NVarChar(50), item.oil || "")
+            .input("sugar", sql.NVarChar(50), item.sugar || "")
+            .input("status", sql.NVarChar(20), item.status || "NEW")
+            .query(`
+              INSERT INTO [dbo].[CartItems] 
+              (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
+               IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status)
+              VALUES 
+              (@itemId, @cartId, @productId, @qty, @cost, @orderNo, @qty, GETDATE(), 
+               @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status)
+            `);
+        }
+
+        // Update table status to 1 (Occupied/Dining)
+        await transaction.request()
+          .input("tableId", sql.UniqueIdentifier, cleanTableId)
+          .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
         
-        await pool.request()
-          .input("itemId", sql.NVarChar(128), newItemId)
-          .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
-          .input("qty", sql.Int, item.qty || 1)
-          .input("productId", sql.NVarChar(128), cleanProdId)
-          .input("orderNo", sql.NVarChar(sql.MAX), cleanOrderNo)
-          .input("cost", sql.Decimal(18, 2), item.price || 0)
-          .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
-          .input("isVoided", sql.Bit, item.isVoided ? 1 : 0)
-          .input("note", sql.NVarChar(sql.MAX), item.note || "")
-          .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
-          .input("spicy", sql.NVarChar(50), item.spicy || "")
-          .input("salt", sql.NVarChar(50), item.salt || "")
-          .input("oil", sql.NVarChar(50), item.oil || "")
-          .input("sugar", sql.NVarChar(50), item.sugar || "")
-          .input("status", sql.NVarChar(20), item.status || "NEW")
-          .query(`
-            INSERT INTO [dbo].[CartItems] 
-            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
-             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status)
-            VALUES 
-            (@itemId, @cartId, @productId, @qty, @cost, @orderNo, @qty, GETDATE(), 
-             @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status)
-          `);
+        if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
+        console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
+      } else {
+        // 3. If items are empty, reset table to Available (0)
+        await transaction.request()
+          .input("tableId", sql.UniqueIdentifier, cleanTableId)
+          .query("UPDATE TableMaster SET Status = 0, StartTime = NULL WHERE TableId = @tableId");
+        
+        if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
+        console.log(`🧹 [CartSave] Cart cleared. Table Status -> 0`);
       }
 
-      // Update table status to 1 (Occupied/Dining)
-      await pool.request()
-        .input("tableId", sql.UniqueIdentifier, cleanTableId)
-        .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
-      
-      if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
-      console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
-    } else {
-      // 3. If items are empty, reset table to Available (0)
-      await pool.request()
-        .input("tableId", sql.UniqueIdentifier, cleanTableId)
-        .query("UPDATE TableMaster SET Status = 0, StartTime = NULL WHERE TableId = @tableId");
-      
-      if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
-      console.log(`🧹 [CartSave] Cart cleared. Table Status -> 0`);
+      await transaction.commit();
+      res.json({ success: true });
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
     }
-
-    res.json({ success: true });
     
     // Sync table status & total in background
     syncTableStatus(req, cleanTableId).catch(err => console.error("Sync Error:", err));

@@ -597,7 +597,7 @@ export default function Category() {
       } catch (err) {
         console.error("❌ [Category] Failed to fetch occupied table cart:", err);
       }
-      router.push("/summary");
+      router.push("/menu/thai_kitchen");
       return;
     }
 
