@@ -140,9 +140,12 @@ export default function PaymentScreen() {
   const { enabled: gstEnabled, percentage: gstPercentage, registrationNumber: gstRegNo, taxMode, loadSettings: loadGst } = useGstStore();
 
   useEffect(() => {
-    loadGst();
-    fetchPaymentMethods();
-    usePaymentSettingsStore.getState().fetchSettings();
+    const init = async () => {
+      await loadGst();
+      await usePaymentSettingsStore.getState().fetchSettings();
+      await fetchPaymentMethods();
+    };
+    init();
   }, []);
 
   const fetchPaymentMethods = async () => {
@@ -170,18 +173,42 @@ export default function PaymentScreen() {
         return true;
       });
 
-      setPaymentMethods(deduped);
-      if (deduped.length > 0) {
-        setMethod(deduped[0].payMode);
-        fetchPaymentDetail(deduped[0].payMode, deduped[0]);
+      // 1. Get settings for filtering
+      const { settings } = usePaymentSettingsStore.getState();
+      const hasUPI = settings.upiId && settings.upiId.trim().length > 0;
+      const hasPayNow = settings.payNowQrUrl && settings.payNowQrUrl.trim().length > 0;
+
+      // 2. Filter list based on configuration
+      const filtered = deduped.filter(m => {
+        const mUpper = m.payMode.toUpperCase().trim();
+        const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONE") || mUpper.includes("PAYTM");
+        const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR") || mUpper.includes("PAY-NOW");
+
+        if (isUPI && !hasUPI) return false;
+        if (isPayNow && !hasPayNow) return false;
+        return true;
+      });
+
+      setPaymentMethods(filtered);
+      if (filtered.length > 0) {
+        setMethod(filtered[0].payMode);
+        fetchPaymentDetail(filtered[0].payMode, filtered[0]);
       }
     } catch {
+      const { settings } = usePaymentSettingsStore.getState();
+      const hasUPI = settings.upiId && settings.upiId.trim().length > 0;
+      const hasPayNow = settings.payNowQrUrl && settings.payNowQrUrl.trim().length > 0;
+
       const fallback = [
         { payMode: "CAS",    description: "CASH",   icon: "money-bill-wave", commission: 0, serviceCharge: 0, isEntertainment: false, isVoucher: false, position: 1 },
         { payMode: "NETS",   description: "NETS",   icon: "exchange-alt",   commission: 0, serviceCharge: 0, isEntertainment: false, isVoucher: false, position: 2 },
         { payMode: "MASTER", description: "MASTER", icon: "cc-mastercard",  commission: 0, serviceCharge: 0, isEntertainment: false, isVoucher: false, position: 3 },
-        { payMode: "PAYNOW", description: "PayNow", icon: "qrcode",         commission: 0, serviceCharge: 0, isEntertainment: false, isVoucher: false, position: 4 },
       ];
+      
+      if (hasPayNow) {
+        fallback.push({ payMode: "PAYNOW", description: "PayNow", icon: "qrcode", commission: 0, serviceCharge: 0, isEntertainment: false, isVoucher: false, position: 4 });
+      }
+
       setPaymentMethods(fallback);
       setSelectedDetail(fallback[0]);
     } finally {
@@ -351,20 +378,26 @@ export default function PaymentScreen() {
     const upiId = settings.upiId;
     const payNowUrl = settings.payNowQrUrl;
     
-    const mUpper = method.toUpperCase();
-    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONEPE") || mUpper.includes("PAYTM");
-    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR");
+    const mUpper = method.toUpperCase().trim();
+    // Broad match for UPI/QR variants
+    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONE") || mUpper.includes("PAYTM");
+    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR") || mUpper.includes("PAY-NOW");
 
-    if (isUPI && upiId) {
+    // Only show QR modal if the ID/URL actually exists
+    if (isUPI && upiId && upiId.trim().length > 0) {
+      console.log("🔗 Showing UPI QR Modal");
       setIsUPIVisible(true);
       return;
     }
 
-    if (isPayNow && payNowUrl) {
+    if (isPayNow && payNowUrl && payNowUrl.trim().length > 0) {
+      console.log("🔗 Showing PayNow QR Modal");
       setIsPayNowVisible(true);
       return;
     }
 
+    // Otherwise, proceed with manual settlement (No QR configured)
+    console.log("💳 Proceeding with Manual Settlement (No QR)");
     executeFinalPayment();
   };
 
@@ -599,8 +632,8 @@ export default function PaymentScreen() {
                     <View style={styles.methodGrid}>
                       {(() => {
                         const rows: PaymentMethod[][] = [];
-                        for (let i = 0; i < paymentMethods.length; i += 2) {
-                          rows.push(paymentMethods.slice(i, i + 2));
+                        for (let i = 0; i < paymentMethods.length; i += 3) {
+                          rows.push(paymentMethods.slice(i, i + 3));
                         }
                         return rows.map((row, rowIdx) => (
                           <View key={rowIdx} style={styles.methodColumnWrapper}>
@@ -616,7 +649,7 @@ export default function PaymentScreen() {
                               >
                                 <FontAwesome5
                                   name={m.icon}
-                                  size={20}
+                                  size={16}
                                   color={method === m.payMode ? "#fff" : Theme.textMuted}
                                 />
                                 <Text
@@ -627,8 +660,14 @@ export default function PaymentScreen() {
                                 </Text>
                               </TouchableOpacity>
                             ))}
-                            {/* Pad last row if odd number of items */}
-                            {row.length === 1 && <View style={styles.methodCardEmpty} />}
+                            {/* Pad last row if needed for 3-column alignment */}
+                            {row.length === 1 && (
+                              <>
+                                <View style={styles.methodCardEmpty} />
+                                <View style={styles.methodCardEmpty} />
+                              </>
+                            )}
+                            {row.length === 2 && <View style={styles.methodCardEmpty} />}
                           </View>
                         ));
                       })()}
@@ -893,8 +932,8 @@ const styles = StyleSheet.create({
 
   leftPane: {
     flex: 0.8,
-    padding: 16,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: Theme.bgCard,
     ...Theme.shadowMd,
     borderWidth: 1,
@@ -902,8 +941,8 @@ const styles = StyleSheet.create({
   },
   centerPane: {
     flex: 2,
-    padding: 16,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: Theme.bgCard,
     ...Theme.shadowLg,
     borderWidth: 1,
@@ -911,8 +950,8 @@ const styles = StyleSheet.create({
   },
   rightPane: {
     flex: 1,
-    padding: 16,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: Theme.bgCard,
     ...Theme.shadowMd,
     borderWidth: 1,
@@ -928,7 +967,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   grandTotal: {
-    fontSize: 32,
+    fontSize: 26,
     fontFamily: Fonts.black,
     color: Theme.primary,
   },
@@ -944,12 +983,12 @@ const styles = StyleSheet.create({
   },
   breakLabel: {
     color: Theme.textSecondary,
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: Fonts.medium,
   },
   breakValue: {
     color: Theme.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: Fonts.extraBold,
   },
 
@@ -963,15 +1002,15 @@ const styles = StyleSheet.create({
   },
   methodCard: {
     flex: 1,
-    height: 70,
-    borderRadius: 14,
+    height: 52,
+    borderRadius: 12,
     backgroundColor: Theme.bgMuted,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Theme.border,
-    gap: 6,
-    paddingHorizontal: 8,
+    gap: 4,
+    paddingHorizontal: 4,
   },
   methodsLoading: {
     flexDirection: "row",
@@ -1123,24 +1162,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Theme.bgInput,
-    borderRadius: 12,
-    height: 56,
-    paddingHorizontal: 15,
-    marginBottom: 12,
-    overflow: "hidden", // Prevent outline/input escape
+    borderRadius: 10,
+    height: 48,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    overflow: "hidden", 
   },
   currency: {
     color: Theme.primary,
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: Fonts.black,
-    marginRight: 8,
+    marginRight: 6,
   },
   cashInput: {
     flex: 1,
     color: Theme.textPrimary,
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: Fonts.black,
-    paddingLeft: 8, // Space from the $ symbol
+    paddingLeft: 6, 
     margin: 0,
     height: "100%",
     ...Platform.select({
@@ -1158,9 +1197,9 @@ const styles = StyleSheet.create({
   },
   quickBtn: {
     backgroundColor: Theme.bgMuted,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     minWidth: "22%",
     alignItems: "center",
     borderWidth: 1,
@@ -1169,43 +1208,43 @@ const styles = StyleSheet.create({
   quickText: {
     color: Theme.textPrimary,
     fontFamily: Fonts.black,
-    fontSize: 16,
+    fontSize: 14,
   },
 
   changeBox: {
-    marginBottom: 20,
+    marginBottom: 15,
     backgroundColor: Theme.primaryLight,
-    padding: 12,
-    borderRadius: 14,
+    padding: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Theme.primaryBorder,
   },
   changeLabel: {
     color: Theme.primaryDark,
     fontFamily: Fonts.bold,
-    fontSize: 12,
+    fontSize: 11,
   },
   changeValue: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: Fonts.black,
     color: Theme.primary,
   },
 
   confirmBtn: {
     backgroundColor: Theme.primary,
-    height: 56,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     ...Theme.shadowMd,
     marginTop: "auto",
   },
   confirmText: {
     color: "#fff",
     fontFamily: Fonts.black,
-    fontSize: 18,
+    fontSize: 16,
   },
   disabled: {
     backgroundColor: Theme.textMuted,
