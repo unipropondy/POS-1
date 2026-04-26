@@ -7,7 +7,8 @@ import {
   StyleSheet,
   Alert,
   Image,
-  Dimensions
+  Dimensions,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from "../../constants/theme";
@@ -50,75 +51,76 @@ const PayNowPaymentModal: React.FC<PayNowPaymentModalProps> = ({
     );
   };
 
-  if (!settings.payNowQrUrl) return null;
-
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>PayNow QR Payment</Text>
-              <Text style={styles.subtitle}>{settings.shopName}</Text>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title} numberOfLines={1}>PayNow QR Payment</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{settings.shopName}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={Theme.textPrimary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={Theme.textPrimary} />
-            </TouchableOpacity>
-          </View>
 
-          {/* Amount Box */}
-          <View style={styles.amountContainer}>
-            <Text style={styles.amountLabel}>Please Transfer Exactly</Text>
-            <Text style={styles.amountValue}>${amount.toFixed(2)}</Text>
-          </View>
+            {/* Amount Box */}
+            <View style={styles.amountContainer}>
+              <Text style={styles.amountLabel}>Please Transfer Exactly</Text>
+              <Text style={styles.amountValue}>${amount.toFixed(2)}</Text>
+            </View>
 
-          {/* Static QR Image */}
-          <View style={styles.qrContainer}>
-            <View style={styles.qrBox}>
-              <Image 
-                source={{ 
-                  uri: settings.payNowQrUrl.startsWith('data:') 
+            {/* Static QR Image */}
+            <View style={styles.qrContainer}>
+              <View style={styles.qrBox}>
+                <Image 
+                  source={{ 
+                  uri: settings.payNowQrUrl?.startsWith('data:') 
                     ? settings.payNowQrUrl 
-                    : `${API_URL}${settings.payNowQrUrl}` 
-                }} 
-                style={styles.qrImage}
-                resizeMode="contain"
-              />
+                    : `${API_URL}${settings.payNowQrUrl || ''}` 
+                  }} 
+                  style={styles.qrImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.qrSubtext}>
+                Scan this PayNow QR and enter the amount above
+              </Text>
             </View>
-            <Text style={styles.qrSubtext}>
-              Scan this PayNow QR and enter the amount above
-            </Text>
-          </View>
 
-          {/* Action Button */}
-          <TouchableOpacity
-            style={styles.successButton}
-            onPress={handleManualSuccess}
-          >
-            <Ionicons name="checkmark-circle" size={24} color="#fff" />
-            <Text style={styles.successButtonText}>Payment Received</Text>
-          </TouchableOpacity>
+            {/* Action Button */}
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={handleManualSuccess}
+            >
+              <Ionicons name="checkmark-circle" size={24} color="#fff" />
+              <Text style={styles.successButtonText}>Payment Received</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.failedButton}
-            onPress={() => {
-              Alert.alert('Cancel Payment', 'Cancel this PayNow transaction?', [
-                { text: 'No', style: 'cancel' },
-                {
-                  text: 'Yes',
-                  onPress: () => {
-                    if (onFailed) onFailed();
-                    onClose();
+            <TouchableOpacity
+              style={styles.failedButton}
+              onPress={() => {
+                Alert.alert('Cancel Payment', 'Cancel this PayNow transaction?', [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes',
+                    onPress: () => {
+                      if (onFailed) onFailed();
+                      onClose();
+                    }
                   }
-                }
-              ]);
-            }}
-          >
-            <Text style={styles.failedButtonText}>Cancel Transaction</Text>
-          </TouchableOpacity>
-
+                ]);
+              }}
+            >
+              <Text style={styles.failedButtonText}>Cancel Transaction</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -131,23 +133,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    width: '90%',
-    maxWidth: 420,
+    width: '100%',
+    maxWidth: 450,
+    maxHeight: '90%', // Prevent overflow
     backgroundColor: '#fff',
     borderRadius: 28,
-    padding: 24,
+    overflow: 'hidden', // Required for borderRadius with ScrollView
     ...Theme.shadowLg,
+  },
+  scrollContent: {
+    padding: 24,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 20,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: Theme.textPrimary,
   },
@@ -157,7 +164,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    padding: 4,
+    padding: 8,
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
   },
@@ -177,7 +184,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   amountValue: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '900',
     color: '#0284C7',
   },
@@ -186,8 +193,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   qrBox: {
-    width: 250,
-    height: 250,
+    width: width > 500 ? 250 : 200,
+    height: width > 500 ? 250 : 200,
     backgroundColor: '#fff',
     borderRadius: 20,
     elevation: 8,
@@ -215,7 +222,7 @@ const styles = StyleSheet.create({
   successButton: {
     flexDirection: 'row',
     backgroundColor: '#22c55e',
-    padding: 18,
+    padding: 16,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -228,7 +235,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   failedButton: {
-    padding: 12,
+    padding: 8,
     alignItems: 'center',
   },
   failedButtonText: {

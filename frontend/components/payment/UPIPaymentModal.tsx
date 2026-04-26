@@ -6,12 +6,16 @@ import {
   Modal,
   StyleSheet,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { Theme } from "../../constants/theme";
 import { usePaymentSettingsStore } from "../../stores/paymentSettingsStore";
+
+const { width } = Dimensions.get('window');
 
 interface UPIPaymentModalProps {
   visible: boolean;
@@ -70,85 +74,88 @@ const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
   if (!settings.upiId) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>UPI QR Payment</Text>
-              <Text style={styles.subtitle}>{settings.shopName}</Text>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title} numberOfLines={1}>UPI QR Payment</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{settings.shopName}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={Theme.textPrimary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={Theme.textPrimary} />
+
+            {/* Amount Box */}
+            <View style={styles.amountContainer}>
+              <Text style={styles.amountLabel}>Total Amount to Collect</Text>
+              <Text style={styles.amountValue}>${amount.toFixed(2)}</Text>
+            </View>
+
+            {/* QR Code Container */}
+            <View style={styles.qrContainer}>
+              {showQR ? (
+                <View style={styles.qrBox}>
+                  <QRCode
+                    value={generateUPIUrl()}
+                    size={width > 500 ? 220 : 180}
+                    color="#000"
+                    backgroundColor="#fff"
+                  />
+                </View>
+              ) : (
+                <View style={[styles.qrBox, styles.qrLoader]}>
+                  <ActivityIndicator size="large" color={Theme.primary} />
+                </View>
+              )}
+              <Text style={styles.qrSubtext}>
+                Ask customer to scan with any UPI App
+              </Text>
+            </View>
+
+            {/* Instructions */}
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle-outline" size={20} color={Theme.primary} />
+              <Text style={styles.infoText}>
+                1. Customer scans and pays on their phone.{"\n"}
+                2. Verify the notification on your device.{"\n"}
+                3. Click "Payment Received" below to finish.
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={handleManualSuccess}
+            >
+              <Ionicons name="checkmark-circle" size={24} color="#fff" />
+              <Text style={styles.successButtonText}>Payment Received</Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Amount Box */}
-          <View style={styles.amountContainer}>
-            <Text style={styles.amountLabel}>Total Amount to Collect</Text>
-            <Text style={styles.amountValue}>${amount.toFixed(2)}</Text>
-          </View>
-
-          {/* QR Code Container */}
-          <View style={styles.qrContainer}>
-            {showQR ? (
-              <View style={styles.qrBox}>
-                <QRCode
-                  value={generateUPIUrl()}
-                  size={220}
-                  color="#000"
-                  backgroundColor="#fff"
-                />
-              </View>
-            ) : (
-              <View style={[styles.qrBox, styles.qrLoader]}>
-                <ActivityIndicator size="large" color={Theme.primary} />
-              </View>
-            )}
-            <Text style={styles.qrSubtext}>
-              Ask customer to scan with any UPI App
-            </Text>
-          </View>
-
-          {/* Instructions */}
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle-outline" size={20} color={Theme.primary} />
-            <Text style={styles.infoText}>
-              1. Customer scans and pays on their phone.{"\n"}
-              2. Verify the notification on your device.{"\n"}
-              3. Click "Payment Received" below to finish.
-            </Text>
-          </View>
-
-          {/* Action Buttons */}
-          <TouchableOpacity
-            style={styles.successButton}
-            onPress={handleManualSuccess}
-          >
-            <Ionicons name="checkmark-circle" size={24} color="#fff" />
-            <Text style={styles.successButtonText}>Payment Received</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.failedButton}
-            onPress={() => {
-              Alert.alert('Cancel Payment', 'Are you sure you want to cancel this UPI transaction?', [
-                { text: 'No', style: 'cancel' },
-                {
-                  text: 'Yes, Cancel',
-                  onPress: () => {
-                    if (onFailed) onFailed();
-                    onClose();
+            <TouchableOpacity
+              style={styles.failedButton}
+              onPress={() => {
+                Alert.alert('Cancel Payment', 'Are you sure you want to cancel this UPI transaction?', [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    onPress: () => {
+                      if (onFailed) onFailed();
+                      onClose();
+                    }
                   }
-                }
-              ]);
-            }}
-          >
-            <Text style={styles.failedButtonText}>Cancel Transaction</Text>
-          </TouchableOpacity>
-
+                ]);
+              }}
+            >
+              <Text style={styles.failedButtonText}>Cancel Transaction</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -161,23 +168,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    width: '90%',
-    maxWidth: 420,
+    width: '100%',
+    maxWidth: 450,
+    maxHeight: '90%',
     backgroundColor: '#fff',
     borderRadius: 28,
-    padding: 24,
+    overflow: 'hidden',
     ...Theme.shadowLg,
+  },
+  scrollContent: {
+    padding: 24,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 20,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: Theme.textPrimary,
   },
@@ -187,7 +199,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    padding: 4,
+    padding: 8,
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
   },
@@ -207,7 +219,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   amountValue: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '900',
     color: Theme.primary,
   },
@@ -226,8 +238,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   qrLoader: {
-    width: 250,
-    height: 250,
+    width: width > 500 ? 250 : 210,
+    height: width > 500 ? 250 : 210,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -254,7 +266,7 @@ const styles = StyleSheet.create({
   successButton: {
     flexDirection: 'row',
     backgroundColor: '#22c55e',
-    padding: 18,
+    padding: 16,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -267,7 +279,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   failedButton: {
-    padding: 12,
+    padding: 8,
     alignItems: 'center',
   },
   failedButtonText: {
