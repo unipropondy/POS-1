@@ -67,7 +67,7 @@ router.get("/all", async (req, res) => {
     let query = `
       SELECT TableId AS id, CAST(TableNumber AS VARCHAR(50)) AS label,
       CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName,
-      Status, StartTime, ISNULL(TotalAmount, 0) as totalAmount
+      Status, StartTime, ISNULL(TotalAmount, 0) as totalAmount, CurrentOrderId as currentOrderId
       FROM TableMaster
     `;
 

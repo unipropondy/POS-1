@@ -132,10 +132,12 @@ export const useCartStore = create<CartState>()(
       /* ================= ADD ================= */
 
       addToCartGlobal: async (item) => {
-        const { currentContextId, fetchCartFromDB } = get();
-        if (!currentContextId) return "";
+        const { fetchCartFromDB } = get();
+        const orderContext = useOrderContextStore.getState().currentOrder;
+        const tableId = orderContext?.tableId;
+        
+        if (!tableId) return "";
 
-        const tableId = currentContextId.split("_").pop() || "";
         const targetLineItemId = uuidv4();
 
         try {
@@ -160,12 +162,13 @@ export const useCartStore = create<CartState>()(
       /* ================= REMOVE ================= */
 
       removeFromCartGlobal: async (lineItemId) => {
-        const { carts, currentContextId, fetchCartFromDB } = get();
-        if (!currentContextId) return;
-
-        const tableId = currentContextId.split("_").pop() || "";
+        const { fetchCartFromDB, carts, currentContextId } = get();
+        const orderContext = useOrderContextStore.getState().currentOrder;
+        const tableId = orderContext?.tableId;
+        
+        if (!tableId || !currentContextId) return;
         const currentCart = carts[currentContextId] || [];
-        const item = currentCart.find((p) => p.lineItemId === lineItemId);
+        const item = currentCart.find((p: CartItem) => p.lineItemId === lineItemId);
         if (!item) return;
 
         try {
@@ -192,10 +195,11 @@ export const useCartStore = create<CartState>()(
       /* ================= CLEAR ================= */
 
       clearCart: async () => {
-        const { currentContextId, fetchCartFromDB } = get();
-        if (!currentContextId) return;
-
-        const tableId = currentContextId.split("_").pop() || "";
+        const { fetchCartFromDB } = get();
+        const orderContext = useOrderContextStore.getState().currentOrder;
+        const tableId = orderContext?.tableId;
+        
+        if (!tableId) return;
 
         try {
           await fetch(`${API_URL}/api/orders/save-cart`, {

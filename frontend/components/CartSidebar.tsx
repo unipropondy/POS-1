@@ -308,10 +308,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       });
 
       router.replace(`/(tabs)/category?section=${orderContext.section}`);
-      clearCartStandalone();
     } else {
       router.push("/summary");
-      clearCartStandalone();
     }
   };
 

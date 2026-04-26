@@ -318,9 +318,9 @@ export default function Category() {
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    socket.on("table_status_updated", ({ tableId, status, totalAmount, startTime }) => {
+    socket.on("table_status_updated", ({ tableId, status, totalAmount, startTime, currentOrderId }) => {
       console.log(
-        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Total ${totalAmount}, Time ${startTime}`,
+        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Order ${currentOrderId}, Total ${totalAmount}`,
       );
       setAllTables((prev) =>
         prev.map((t) =>
@@ -330,6 +330,7 @@ export default function Category() {
                 Status: Number(status),
                 totalAmount: Number(totalAmount || 0),
                 StartTime: startTime,
+                currentOrderId: currentOrderId,
               }
             : t,
         ),
@@ -344,7 +345,7 @@ export default function Category() {
             tableId,
             getSectionFromDiningSection(table.DiningSection),
             table.label,
-            "SYNC",
+            currentOrderId || "SYNC",
             status === 5
               ? "LOCKED"
               : status === 1
@@ -466,6 +467,7 @@ export default function Category() {
             StartTime: item.StartTime,
             lockedByName: item.lockedByName,
             totalAmount: Number(item.totalAmount) || 0,
+            currentOrderId: item.currentOrderId,
           }))
           .filter((item) => item.id && item.label);
         
@@ -478,7 +480,7 @@ export default function Category() {
             t.id,
             getSectionFromDiningSection(t.DiningSection),
             t.label,
-            "FETCH",
+            (t as any).currentOrderId || "EMPTY",
             t.Status === 5 ? "LOCKED" : 
             t.Status === 1 ? "SENT" : 
             t.Status === 2 ? "BILL_REQUESTED" : 
