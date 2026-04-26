@@ -32,7 +32,7 @@ router.post("/update", async (req, res) => {
           SET 
             UPI_ID = @UPI,
             ShopName = @Shop,
-            PayNow_QR_Url = CASE WHEN @QR IS NOT NULL THEN @QR ELSE PayNow_QR_Url END,
+            PayNow_QR_Url = @QR,
             UpdatedOn = GETDATE()
         END
         ELSE
