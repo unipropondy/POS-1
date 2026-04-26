@@ -17,6 +17,8 @@ const attendanceRoutes = require("./routes/attendance");
 const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/orders");
 const serverRoutes = require("./routes/servers");
+const settingsRoutes = require("./routes/settings");
+const uploadRoutes = require("./routes/upload");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -65,6 +67,7 @@ app.use(
   }),
 );
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // 🔄 Database Connection Check (for all API routes)
 app.use("/api", dbCheck);
@@ -80,6 +83,8 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/servers", serverRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Root Endpoints
 app.get("/", (req, res) => res.send("POS Backend Modular Running"));

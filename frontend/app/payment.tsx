@@ -37,6 +37,9 @@ import {
 } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { useGstStore } from "../stores/gstStore";
+import { usePaymentSettingsStore } from "../stores/paymentSettingsStore";
+import UPIPaymentModal from "../components/payment/UPIPaymentModal";
+import PayNowPaymentModal from "../components/payment/PayNowPaymentModal";
 
 const formatSection = (sec: string) => {
   if (!sec) return "";
@@ -130,6 +133,8 @@ export default function PaymentScreen() {
   const [loadingMethods, setLoadingMethods] = useState(true);
   const [selectedDetail, setSelectedDetail] = useState<PaymentMethod | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [isUPIVisible, setIsUPIVisible] = useState(false);
+  const [isPayNowVisible, setIsPayNowVisible] = useState(false);
   const { enabled: gstEnabled, percentage: gstPercentage, registrationNumber: gstRegNo, taxMode, loadSettings: loadGst } = useGstStore();
 
   useEffect(() => {
@@ -338,6 +343,25 @@ export default function PaymentScreen() {
       return;
     }
 
+    // --- QR PAYMENT CHECK ---
+    const { settings } = usePaymentSettingsStore.getState();
+    const upiId = settings.upiId;
+    const payNowUrl = settings.payNowQrUrl;
+
+    if (method.toUpperCase() === "UPI" && upiId) {
+      setIsUPIVisible(true);
+      return;
+    }
+
+    if (method.toUpperCase() === "PAYNOW" && payNowUrl) {
+      setIsPayNowVisible(true);
+      return;
+    }
+
+    executeFinalPayment();
+  };
+
+  const executeFinalPayment = async () => {
     setProcessing(true);
 
     const saveResult: any = await saveSaleToDatabase();
@@ -778,6 +802,19 @@ export default function PaymentScreen() {
         </KeyboardAvoidingView>
 
       </View>
+      <UPIPaymentModal
+        visible={isUPIVisible}
+        onClose={() => setIsUPIVisible(false)}
+        amount={total}
+        onSuccess={() => executeFinalPayment()}
+      />
+
+      <PayNowPaymentModal
+        visible={isPayNowVisible}
+        onClose={() => setIsPayNowVisible(false)}
+        amount={total}
+        onSuccess={() => executeFinalPayment()}
+      />
     </SafeAreaView>
   );
 }

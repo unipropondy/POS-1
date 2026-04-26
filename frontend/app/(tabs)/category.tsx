@@ -33,6 +33,8 @@ import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
 import { setOrderContext, OrderContext } from "../../stores/orderContextStore";
 import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
 import { useAuthStore } from "../../stores/authStore";
+import { usePaymentSettingsStore } from "../../stores/paymentSettingsStore";
+import StoreSettingsModal from "../../components/payment/StoreSettingsModal";
 
 // --- MOBILE SOLID COLORS ---
 const SOLID_LIGHT_GREEN = '#F0FDF4'; 
@@ -230,6 +232,7 @@ export default function Category() {
   const [allTables, setAllTables] = useState<TableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const sectionScrollRef = useRef<ScrollView>(null);
 
   const tables = useTableStatusStore((s: any) => s.tables);
@@ -298,6 +301,7 @@ export default function Category() {
   useEffect(() => {
     fetchTables();
     fetchLockedTables();
+    usePaymentSettingsStore.getState().fetchSettings();
   }, []);
 
   useFocusEffect(
@@ -802,6 +806,20 @@ export default function Category() {
             </TouchableOpacity>
           )}
 
+          {/* Store Settings Gear */}
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={() => setIsSettingsVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="settings-outline" size={20} color={Theme.textSecondary} />
+            {isTablet && isLandscape && (
+              <Text style={[styles.headerActionText, { color: Theme.textSecondary }]}>
+                Settings
+              </Text>
+            )}
+          </TouchableOpacity>
+
           {/* NEW CONSOLIDATED MENU BUTTON */}
           <TouchableOpacity
             style={[styles.headerActionBtn, { backgroundColor: Theme.primaryLight, borderColor: Theme.primaryBorder }]}
@@ -1005,6 +1023,10 @@ export default function Category() {
             </TouchableOpacity>
           </View>
         }
+      />
+      <StoreSettingsModal 
+        visible={isSettingsVisible} 
+        onClose={() => setIsSettingsVisible(false)} 
       />
     </SafeAreaView>
   );

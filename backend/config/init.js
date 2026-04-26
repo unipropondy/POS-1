@@ -146,6 +146,24 @@ async function initDB(pool) {
             ALTER TABLE [dbo].[CartItems] ADD Status NVARCHAR(20) DEFAULT 'NEW';
         `);
 
+    // 7. Table: AppSettings (UPI, PayNow, Shop Info)
+    await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[AppSettings]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[AppSettings](
+                    [Id] [int] IDENTITY(1,1) PRIMARY KEY,
+                    [UPI_ID] [nvarchar](255) NULL,
+                    [PayNow_QR_Url] [nvarchar](max) NULL,
+                    [ShopName] [nvarchar](255) NULL,
+                    [UpdatedOn] [datetime] DEFAULT GETDATE()
+                );
+                
+                -- Insert a default row if it doesn't exist
+                INSERT INTO [dbo].[AppSettings] (UPI_ID, ShopName)
+                VALUES (NULL, 'My Restaurant');
+            END
+        `);
+
     console.log("✅ Database schema is up to date.");
   } catch (err) {
     console.error("❌ initDB ERROR:", err.message);
