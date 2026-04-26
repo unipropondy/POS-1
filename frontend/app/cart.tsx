@@ -474,7 +474,18 @@ export default function CartScreen() {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
         try {
-          // ✅ Use new synchronized status API
+          // 1. Save Cart first
+          await fetch(`${API_URL}/api/orders/save-cart`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              tableId: tableId, 
+              orderId: targetOrderId, 
+              items: cart 
+            }),
+          });
+
+          // 2. Then set status to Dining
           await fetch(`${API_URL}/api/orders/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -594,6 +605,18 @@ export default function CartScreen() {
                       const tableId = orderContext.tableId || currentTableData?.tableId;
                       if (tableId) {
                         try {
+                          // 1. Save Cart first so syncTableStatus has items to count
+                          await fetch(`${API_URL}/api/orders/save-cart`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ 
+                              tableId: tableId, 
+                              orderId: targetOrderId, 
+                              items: cart 
+                            }),
+                          });
+
+                          // 2. Then set status to Hold
                           await fetch(`${API_URL}/api/orders/hold`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },

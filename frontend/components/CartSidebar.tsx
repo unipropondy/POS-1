@@ -293,14 +293,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         }
       }
 
-      // 🔥 Update Backend
-      fetch(`${API_URL}/api/tables/status`, {
-        method: "PUT",
+      // 🔥 Update Backend using synchronized API
+      await fetch(`${API_URL}/api/orders/checkout`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          tableId: orderContext.tableId, 
-          status: 2 // 2 = Checkout
-        }),
+        body: JSON.stringify({ tableId: orderContext.tableId }),
       }).catch(err => console.error("Checkout Sync Error:", err));
 
       // 🔥 Sync with KDS: Remove order from kitchen display when bill is requested
@@ -347,13 +344,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         payableAmount,
       );
 
-      // ✅ 1. Sync Status to Occupied (1)
-      fetch(`${API_URL}/api/tables/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId: orderContext.tableId, status: 1 }),
-      }).catch(err => console.error("Status Sync Error:", err));
-
       // ✅ 2. Persistent Save to DB
       try {
         await fetch(`${API_URL}/api/orders/save-cart`, {
@@ -365,8 +355,15 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             items: updatedCart 
           }),
         });
+
+        // ✅ 3. After saving items, sync status to Occupied (1) using the synchronized API
+        await fetch(`${API_URL}/api/orders/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tableId: orderContext.tableId }),
+        });
       } catch (err) {
-        console.error("Cart Save Error:", err);
+        console.error("Cart Save/Send Error:", err);
       }
 
       // ✅ 3. Update local cart store (skip sync because we just did it manually above)
@@ -808,6 +805,18 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       activeOrder?.orderId || getNextOrderId();
                     if (orderContext.tableId) {
                       try {
+                        // 1. Save Cart first
+                        await fetch(`${API_URL}/api/orders/save-cart`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ 
+                            tableId: orderContext.tableId, 
+                            orderId: targetOrderId, 
+                            items: cart 
+                          }),
+                        });
+
+                        // 2. Then set status to Hold
                         await fetch(`${API_URL}/api/orders/hold`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
