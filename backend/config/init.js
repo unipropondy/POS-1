@@ -170,6 +170,19 @@ async function initDB(pool) {
             END
         `);
 
+    // 8. Table: OrderSequences (Atomic Numbering)
+    await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[OrderSequences]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[OrderSequences](
+                    [RestaurantId] [uniqueidentifier] NOT NULL,
+                    [SequenceDate] [date] NOT NULL,
+                    [LastNumber] [int] NOT NULL DEFAULT 0,
+                    PRIMARY KEY ([RestaurantId], [SequenceDate])
+                );
+            END
+        `);
+
     console.log("✅ Database schema is up to date.");
   } catch (err) {
     console.error("❌ initDB ERROR:", err.message);

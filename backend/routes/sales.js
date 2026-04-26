@@ -404,17 +404,37 @@ router.post("/save", async (req, res) => {
         let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
         console.log(`[SAVE SALE] BusinessUnitId resolved to: ${businessUnitId}`);
 
-    // 2. Insert SettlementHeader
+    // 2. Atomic Order ID Generation
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Attempt to increment the counter for today. If it doesn't exist, we'll handle the insert.
+    let seqResult = await transaction.request()
+        .input("RestId", sql.UniqueIdentifier, businessUnitId)
+        .input("Today", sql.Date, todayStr)
+        .query(`
+          UPDATE OrderSequences 
+          SET LastNumber = LastNumber + 1 
+          OUTPUT INSERTED.LastNumber
+          WHERE RestaurantId = @RestId AND SequenceDate = @Today
+        `);
 
-    const dailyCountRes = await transaction.request()
-        .input("TodayStart", sql.DateTime, startOfDay)
-        .input("TodayEnd", sql.DateTime, endOfDay)
-        .query(`SELECT COUNT(*) as currentCount FROM SettlementHeader WHERE LastSettlementDate BETWEEN @TodayStart AND @TodayEnd`);
+    let dailySequence;
+    if (seqResult.recordset.length > 0) {
+        dailySequence = seqResult.recordset[0].LastNumber;
+    } else {
+        // First order of the day for this restaurant
+        await transaction.request()
+            .input("RestId", sql.UniqueIdentifier, businessUnitId)
+            .input("Today", sql.Date, todayStr)
+            .query(`
+              INSERT INTO OrderSequences (RestaurantId, SequenceDate, LastNumber)
+              VALUES (@RestId, @Today, 1)
+            `);
+        dailySequence = 1;
+    }
 
-    const dailySequence = (dailyCountRes.recordset[0].currentCount || 0) + 1;
+    console.log(`[SAVE SALE] Assigned Sequence #${dailySequence} for Restaurant ${businessUnitId}`);
 
     const headerResult = await transaction.request()
       .input("SettlementID", sql.UniqueIdentifier, settlementId)
@@ -434,9 +454,10 @@ router.post("/save", async (req, res) => {
       .input("ManualAmount", sql.Money, totalAmount || 0)
       .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
       .input("CreatedOn", sql.DateTime, now)
+      .input("OrderId", sql.Int, dailySequence)
       .query(`
-        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn)
-        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
+        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, OrderId)
+        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @OrderId)
       `);
 
     // 3. Insert SettlementTotalSales
