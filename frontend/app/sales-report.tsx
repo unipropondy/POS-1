@@ -148,9 +148,9 @@ export default function SalesReport() {
           setCategoryReport(
             Array.isArray(data)
               ? data.map((row: any) => ({
-                  CategoryName: row.categoryName,
-                  Sold: row.totalQty ?? row.totalQuantitySold,
-                  SalesAmount: row.totalAmount ?? row.totalSalesAmount,
+                  CategoryName: row.categoryName || row.CategoryName || "Unmapped",
+                  Sold: row.totalQty ?? row.totalQuantitySold ?? 0,
+                  SalesAmount: row.totalAmount ?? row.totalSalesAmount ?? 0,
                 }))
               : [],
           );
@@ -159,11 +159,11 @@ export default function SalesReport() {
           setDishReport(
             Array.isArray(data)
               ? data.map((row: any) => ({
-                  DishName: row.dishName,
-                  CategoryName: row.categoryName,
-                  SubCategoryName: row.subCategoryName,
-                  Sold: row.totalQty ?? row.quantitySold,
-                  SalesAmount: row.totalAmount ?? row.totalSalesAmount,
+                  DishName: row.dishName || row.DishName || "Unknown Dish",
+                  CategoryName: row.categoryName || row.CategoryName || "Unmapped",
+                  SubCategoryName: row.subCategoryName || row.SubCategoryName || "Unmapped",
+                  Sold: row.totalQty ?? row.quantitySold ?? 0,
+                  SalesAmount: row.totalAmount ?? row.totalSalesAmount ?? 0,
                 }))
               : [],
           );
