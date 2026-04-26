@@ -1223,9 +1223,16 @@ export default function SalesReport() {
                     <Text style={styles.modalTitle}>
                       Order #{formatOrderId(selectedOrder)}
                     </Text>
-                    <Text style={styles.modalSub}>
-                      {new Date(selectedOrder?.SettlementDate).toLocaleString()}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 }}>
+                      <Text style={styles.modalSub}>
+                        {new Date(selectedOrder?.SettlementDate).toLocaleString()}
+                      </Text>
+                      <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary + '15', borderColor: Theme.primary + '30', paddingHorizontal: 6 }]}>
+                        <Text style={{ color: Theme.primary, fontFamily: Fonts.black, fontSize: 9 }}>
+                          {selectedOrder?.PayMode || 'CASH'}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedOrder(null)}>
                     <Ionicons
