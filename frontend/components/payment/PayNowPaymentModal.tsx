@@ -78,7 +78,11 @@ const PayNowPaymentModal: React.FC<PayNowPaymentModalProps> = ({
           <View style={styles.qrContainer}>
             <View style={styles.qrBox}>
               <Image 
-                source={{ uri: `${API_URL}${settings.payNowQrUrl}` }} 
+                source={{ 
+                  uri: settings.payNowQrUrl.startsWith('data:') 
+                    ? settings.payNowQrUrl 
+                    : `${API_URL}${settings.payNowQrUrl}` 
+                }} 
                 style={styles.qrImage}
                 resizeMode="contain"
               />

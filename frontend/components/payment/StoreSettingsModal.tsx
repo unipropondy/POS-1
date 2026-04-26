@@ -90,57 +90,19 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6, // Compressed for DB storage
+      base64: true, // ⚡️ GET BASE64 DATA
     });
 
     if (!result.canceled && result.assets[0]) {
-      uploadImage(result.assets[0].uri);
+      const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setQrCodeUrl(base64Data);
+      Alert.alert("Ready", "QR Screenshot processed. Click 'Save All' to apply.");
     }
   };
 
-  const uploadImage = async (uri: string) => {
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      const filename = uri.split('/').pop() || 'qr_code.jpg';
-      
-      // 🌐 WEB COMPATIBILITY: Fetch the blob from the URI first
-      if (Platform.OS === 'web') {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        formData.append('image', blob, filename);
-      } else {
-        // 📱 NATIVE: Append as an object
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image`;
-        formData.append('image', {
-          uri,
-          name: filename,
-          type,
-        } as any);
-      }
+  // We no longer need the separate uploadImage function as we save base64 directly
 
-      const response = await fetch(`${API_URL}/api/upload`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setQrCodeUrl(data.imageUrl);
-        Alert.alert("Success", "QR Code image uploaded successfully!");
-      } else {
-        throw new Error(data.error || "Upload failed");
-      }
-    } catch (error: any) {
-      Alert.alert("Upload Error", error.message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -249,7 +211,10 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
               <Text style={styles.label}>Static QR Image (PayNow)</Text>
               {qrCodeUrl ? (
                 <View style={styles.previewContainer}>
-                  <Image source={{ uri: `${API_URL}${qrCodeUrl}` }} style={styles.qrPreview} />
+                  <Image 
+                    source={{ uri: qrCodeUrl.startsWith('data:') ? qrCodeUrl : `${API_URL}${qrCodeUrl}` }} 
+                    style={styles.qrPreview} 
+                  />
                   <TouchableOpacity style={styles.removeBtn} onPress={() => setQrCodeUrl("")}>
                     <Ionicons name="trash-outline" size={20} color="#fff" />
                   </TouchableOpacity>
