@@ -111,7 +111,7 @@ const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
                 <View style={styles.qrBox}>
                   <QRCode
                     value={generateUPIUrl()}
-                    size={width > 500 ? 220 : 180}
+                    size={160}
                     color="#000"
                     backgroundColor="#fff"
                   />
@@ -123,16 +123,6 @@ const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
               )}
               <Text style={styles.qrSubtext}>
                 Ask customer to scan with any UPI App
-              </Text>
-            </View>
-
-            {/* Instructions */}
-            <View style={styles.infoBox}>
-              <Ionicons name="information-circle-outline" size={20} color={Theme.primary} />
-              <Text style={styles.infoText}>
-                1. Customer scans and pays on their phone.{"\n"}
-                2. Verify the notification on your device.{"\n"}
-                3. Click "Payment Received" below to finish.
               </Text>
             </View>
 
@@ -186,119 +176,105 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    maxWidth: 450,
-    maxHeight: '90%',
+    maxWidth: 320,
+    maxHeight: '85%',
     backgroundColor: '#fff',
-    borderRadius: 28,
+    borderRadius: 20,
     overflow: 'hidden',
     ...Theme.shadowLg,
   },
   scrollContent: {
-    padding: 24,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
     color: Theme.textPrimary,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: Theme.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   closeBtn: {
-    padding: 8,
+    padding: 6,
     backgroundColor: '#F1F5F9',
-    borderRadius: 12,
+    borderRadius: 10,
   },
   amountContainer: {
     backgroundColor: '#F8FAFC',
-    padding: 16,
-    borderRadius: 16,
+    padding: 10,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   amountLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: Theme.textSecondary,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   amountValue: {
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: '900',
     color: Theme.primary,
   },
   qrContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 10,
   },
   qrBox: {
-    padding: 15,
+    padding: 10,
     backgroundColor: '#fff',
-    borderRadius: 20,
-    elevation: 8,
+    borderRadius: 16,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
   qrLoader: {
-    width: width > 500 ? 250 : 210,
-    height: width > 500 ? 250 : 210,
+    width: width > 500 ? 180 : 150,
+    height: width > 500 ? 180 : 150,
     justifyContent: 'center',
     alignItems: 'center',
   },
   qrSubtext: {
-    fontSize: 13,
+    fontSize: 11,
     color: Theme.textSecondary,
-    marginTop: 12,
+    marginTop: 8,
     fontWeight: '500',
-  },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#F0F9FF',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 24,
-    gap: 10,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#0369A1',
-    lineHeight: 18,
   },
   successButton: {
     flexDirection: 'row',
     backgroundColor: '#22c55e',
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 10,
   },
   successButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '800',
   },
   failedButton: {
-    padding: 8,
+    padding: 6,
     alignItems: 'center',
   },
   failedButtonText: {
     color: '#ef4444',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

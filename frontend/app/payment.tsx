@@ -376,7 +376,27 @@ export default function PaymentScreen() {
       return;
     }
 
-    // --- QR PAYMENT CHECK (SKIP MODALS, NOW INLINE) ---
+    // --- QR PAYMENT CHECK ---
+    const { settings } = usePaymentSettingsStore.getState();
+    const upiId = settings.upiId;
+    const payNowUrl = settings.payNowQrUrl;
+    
+    const mUpper = method.toUpperCase().trim();
+    // Broad match for UPI/QR variants
+    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONE") || mUpper.includes("PAYTM");
+    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR") || mUpper.includes("PAY-NOW");
+
+    // Only show QR modal if the ID/URL actually exists
+    if (isUPI && upiId && upiId.trim().length > 0) {
+      setIsUPIVisible(true);
+      return;
+    }
+
+    if (isPayNow && payNowUrl && payNowUrl.trim().length > 0) {
+      setIsPayNowVisible(true);
+      return;
+    }
+
     executeFinalPayment();
   };
 
@@ -721,10 +741,6 @@ export default function PaymentScreen() {
                       );
                     }
 
-                    const mUpper = method.toUpperCase().trim();
-                    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONE") || mUpper.includes("PAYTM");
-                    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR") || mUpper.includes("PAY-NOW");
-
                     const detailRows = [
                       { label: "Payment Mode",   value: sel.payMode        || "—" },
                       { label: "Description",    value: sel.description    || "—" },
@@ -745,71 +761,36 @@ export default function PaymentScreen() {
                           </View>
                         </View>
 
-                        <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
-                          {isUPI && settings.upiId ? (
-                            <View style={styles.qrContainerInline}>
-                              <View style={styles.qrBoxInline}>
-                                <QRCode
-                                  value={`upi://pay?pa=${settings.upiId.trim()}&pn=${encodeURIComponent(settings.shopName.replace(/[&?=]/g, '').trim())}&am=${total.toFixed(2)}&cu=INR`}
-                                  size={180}
-                                  color="#000"
-                                  backgroundColor="#fff"
-                                />
-                              </View>
-                              <Text style={styles.qrSubtextInline}>Scan with any UPI App</Text>
-                              <Text style={styles.qrAmountInline}>Amount: ${total.toFixed(2)}</Text>
-                            </View>
-                          ) : isPayNow && settings.payNowQrUrl ? (
-                            <View style={styles.qrContainerInline}>
-                              <View style={styles.qrBoxInline}>
-                                <Image 
-                                  source={{ 
-                                    uri: settings.payNowQrUrl?.startsWith('data:') 
-                                      ? settings.payNowQrUrl 
-                                      : `${API_URL}${settings.payNowQrUrl || ''}` 
-                                  }} 
-                                  style={styles.qrImageInline}
-                                  resizeMode="contain"
-                                />
-                              </View>
-                              <Text style={styles.qrSubtextInline}>Scan PayNow QR to pay</Text>
-                              <Text style={styles.qrAmountInline}>Amount: ${total.toFixed(2)}</Text>
-                            </View>
-                          ) : (
-                            <View>
-                              {/* Column header row */}
-                              <View style={styles.detailTableHeader}>
-                                <Text style={[styles.detailCol, styles.detailColHeader]}>FIELD</Text>
-                                <Text style={[styles.detailColValue, styles.detailColHeader]}>VALUE</Text>
-                              </View>
+                        {/* Column header row */}
+                        <View style={styles.detailTableHeader}>
+                          <Text style={[styles.detailCol, styles.detailColHeader]}>FIELD</Text>
+                          <Text style={[styles.detailColValue, styles.detailColHeader]}>VALUE</Text>
+                        </View>
 
-                              {/* Data rows */}
-                              {detailRows.map((row, i) => (
-                                <View
-                                  key={row.label}
-                                  style={[
-                                    styles.detailTableRow,
-                                    i % 2 === 0 && styles.detailTableRowAlt,
-                                    row.highlight && styles.detailTableRowHighlight,
-                                  ]}
-                                >
-                                  <Text style={[styles.detailCol, row.highlight && styles.detailHighlightLabel]}>
-                                    {row.label}
-                                  </Text>
-                                  <Text style={[styles.detailColValue, row.highlight && styles.detailHighlightValue]}>
-                                    {row.value}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          )}
-                        </ScrollView>
+                        {/* Data rows */}
+                        {detailRows.map((row, i) => (
+                          <View
+                            key={row.label}
+                            style={[
+                              styles.detailTableRow,
+                              i % 2 === 0 && styles.detailTableRowAlt,
+                              row.highlight && styles.detailTableRowHighlight,
+                            ]}
+                          >
+                            <Text style={[styles.detailCol, row.highlight && styles.detailHighlightLabel]}>
+                              {row.label}
+                            </Text>
+                            <Text style={[styles.detailColValue, row.highlight && styles.detailHighlightValue]}>
+                              {row.value}
+                            </Text>
+                          </View>
+                        ))}
 
                         {/* Confirm note */}
                         <View style={styles.methodConfirmNote}>
                           <Ionicons name="information-circle-outline" size={14} color={Theme.textMuted} />
                           <Text style={styles.methodConfirmNoteText}>
-                            Verify payment, then click "Complete Settlement" below
+                            Press "Complete Settlement" to confirm payment via {sel.description}
                           </Text>
                         </View>
                       </View>
