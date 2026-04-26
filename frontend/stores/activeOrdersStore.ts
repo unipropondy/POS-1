@@ -42,6 +42,7 @@ type ActiveOrdersState = {
   markItemReady: (orderId: string, lineItemId: string) => void;
   markItemServed: (orderId: string, lineItemId: string) => void;
   fetchActiveKitchenOrders: () => Promise<void>;
+  updateOrderId: (oldId: string, newId: string) => void;
 };
 
 /* ================= STORE ================= */
@@ -292,6 +293,18 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
     } catch (err) {
       console.error("❌ [ActiveOrdersStore] Fetch failed:", err);
     }
+  },
+
+  /* ================= UPDATE ORDER ID ================= */
+  updateOrderId: (oldId, newId) => {
+    const { activeOrders } = get();
+    console.log(`🔄 [Store] Updating Order ID: ${oldId} -> ${newId}`);
+    
+    set({
+      activeOrders: activeOrders.map((o) => 
+        o.orderId === oldId ? { ...o, orderId: newId } : o
+      )
+    });
   },
 }),
   {

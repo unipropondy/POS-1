@@ -753,7 +753,11 @@ export default function Category() {
           tableId: item.id,
         };
       } else {
-        newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
+        newContext = { 
+          orderType: "TAKEAWAY" as const, 
+          takeawayNo: item.label,
+          tableId: item.id 
+        };
       }
 
       setOrderContext(newContext);

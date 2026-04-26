@@ -331,66 +331,68 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       return item;
     });
 
-    if (orderContext.orderType === "DINE_IN") {
-      updateTableStatus(
-        orderContext.tableId || "",
-        orderContext.section!,
-        orderContext.tableNo!,
-        targetOrderId,
-        "SENT",
-        undefined,
-        undefined,
-        payableAmount,
-      );
+    // ✅ 2. Persistent Save to DB
+    try {
+      await fetch(`${API_URL}/api/orders/save-cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          tableId: orderContext.tableId, 
+          orderId: targetOrderId, 
+          items: updatedCart 
+        }),
+      });
 
-      // ✅ 2. Persistent Save to DB
-      try {
-        await fetch(`${API_URL}/api/orders/save-cart`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            tableId: orderContext.tableId, 
-            orderId: targetOrderId, 
-            items: updatedCart 
-          }),
-        });
-
-        // ✅ 3. After saving items, sync status to Occupied (1) using the synchronized API
-        await fetch(`${API_URL}/api/orders/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tableId: orderContext.tableId }),
-        });
-      } catch (err) {
-        console.error("Cart Save/Send Error:", err);
+      // ✅ 3. After saving items, sync status to Occupied (1) using the synchronized API
+      const sendRes = await fetch(`${API_URL}/api/orders/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableId: orderContext.tableId }),
+      });
+      
+      const sendData = await sendRes.json();
+      if (sendData.success && sendData.currentOrderId) {
+        console.log(`✨ [Sync] Backend returned Professional ID: ${sendData.currentOrderId}`);
+        useCartStore.getState().setTableOrderId(orderContext.tableId!, sendData.currentOrderId);
+        useActiveOrdersStore.getState().updateOrderId(targetOrderId, sendData.currentOrderId);
+        
+        // Update local status with the NEW professional ID
+        updateTableStatus(
+          orderContext.tableId || "",
+          orderContext.section || "TAKEAWAY",
+          orderContext.orderType === "DINE_IN" ? orderContext.tableNo! : orderContext.takeawayNo!,
+          sendData.currentOrderId,
+          "SENT",
+          undefined,
+          undefined,
+          payableAmount,
+        );
       }
-
-      // ✅ 3. Update local cart store (skip sync because we just did it manually above)
-      if (currentContextId) {
-        useCartStore.getState().setCartItems(currentContextId, updatedCart, true);
-      }
-
-      // ✅ 4. Navigate away
-      router.replace(`/(tabs)/category?section=${orderContext.section}`);
-    } else {
-      updateTableStatus(
-        "",
-        "TAKEAWAY",
-        orderContext.takeawayNo!,
-        targetOrderId,
-        "SENT",
-        undefined,
-        undefined,
-        payableAmount,
-      );
-      router.replace(`/(tabs)/category?section=TAKEAWAY`);
+    } catch (err) {
+      console.error("Cart Save/Send Error:", err);
     }
+
+    // ✅ 4. Update local cart store
+    if (currentContextId) {
+      useCartStore.getState().setCartItems(currentContextId, updatedCart, true);
+    }
+
+    // ✅ 5. Notify Kitchen via Socket (Real-Time)
+    const finalOrderId = (typeof sendData !== 'undefined' && sendData?.currentOrderId) || targetOrderId;
+    socket.emit("new_order", {
+      orderId: finalOrderId,
+      context: orderContext,
+      items: unsentItems,
+    });
 
     showToast({
       type: "success",
       message: "Order Sent",
-      subtitle: "Kitchen has been notified.",
+      subtitle: `Kitchen notified. Order #${finalOrderId}`,
     });
+
+    // ✅ 6. Navigate away
+    router.replace(`/(tabs)/category?section=${orderContext.section}`);
   };
 
   const renderEmptyState = () => (

@@ -84,6 +84,7 @@ type CartState = {
 
   syncCartWithDB: (contextId: string) => Promise<void>;
   fetchCartFromDB: (tableId: string) => Promise<void>;
+  setTableOrderId: (tableId: string, orderId: string | null) => void;
 };
 
 /* ================= STORE ================= */
@@ -454,6 +455,15 @@ export const useCartStore = create<CartState>()(
         } catch (err) {
           console.error("❌ [CartStore] Fetch failed:", err);
         }
+      },
+      setTableOrderId: (tableId, orderId) => {
+        const { tableOrderIds } = get();
+        set({
+          tableOrderIds: {
+            ...tableOrderIds,
+            [tableId]: orderId,
+          },
+        });
       },
     }),
     {

@@ -120,9 +120,18 @@ export default function PaymentScreen() {
 
   const carts = useCartStore((s: any) => s.carts);
   const currentContextId = useCartStore((s: any) => s.currentContextId);
+  const tableOrderIds = useCartStore((s: any) => s.tableOrderIds);
+
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
   }, [carts, currentContextId]);
+
+  const displayOrderId = useMemo(() => {
+    if (context?.tableId) {
+      return tableOrderIds[context.tableId] || activeOrder?.orderId;
+    }
+    return activeOrder?.orderId;
+  }, [context, tableOrderIds, activeOrder]);
 
   const discount = useCartStore((s: any) => {
     const id = s.currentContextId;
@@ -547,7 +556,7 @@ export default function PaymentScreen() {
           </TouchableOpacity>
 
           <View style={styles.orderInfo}>
-            <Text style={styles.orderTitle}>Order #{activeOrder?.orderId}</Text>
+            <Text style={styles.orderTitle}>Order #{displayOrderId || activeOrder?.orderId}</Text>
             <Text style={styles.orderSub}>
               {context?.orderType === "DINE_IN"
                 ? `Table ${context?.tableNo} • ${formatSection(context?.section || "")}`

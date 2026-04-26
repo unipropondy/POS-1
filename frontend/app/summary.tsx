@@ -65,9 +65,18 @@ export default function SummaryScreen() {
 
   const carts = useCartStore((s: any) => s.carts);
   const currentContextId = useCartStore((s: any) => s.currentContextId);
+  const tableOrderIds = useCartStore((s: any) => s.tableOrderIds);
+
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
   }, [carts, currentContextId]);
+
+  const displayOrderId = useMemo(() => {
+    if (context?.tableId) {
+      return tableOrderIds[context.tableId] || activeOrder?.orderId;
+    }
+    return activeOrder?.orderId;
+  }, [context, tableOrderIds, activeOrder]);
 
   const hasHydrated = useActiveOrdersStore((s: any) => s._hasHydrated);
 
@@ -232,7 +241,7 @@ export default function SummaryScreen() {
             </Pressable>
 
             <View style={styles.headerTitleContainer}>
-              <Text style={[styles.title, !isLandscape && { fontSize: 18 }]} numberOfLines={1}>Order Summary</Text>
+              <Text style={[styles.title, !isLandscape && { fontSize: 18 }]} numberOfLines={1}>Order #{displayOrderId || activeOrder?.orderId}</Text>
               {context.orderType === "DINE_IN" ? (
                 <Text style={[styles.contextText, !isLandscape && { fontSize: 11 }]} numberOfLines={1}>
                   Dine-In • {formatSection(context.section || "")} • Table {context.tableNo}
