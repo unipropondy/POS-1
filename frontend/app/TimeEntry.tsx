@@ -249,6 +249,13 @@ export default function TimeEntryScreen() {
               <Text style={styles.title}>TIME <Text style={styles.titleSpan}>ENTRY</Text></Text>
               <Text style={styles.timeText}>{currentTime.toLocaleTimeString()}</Text>
             </View>
+            <TouchableOpacity 
+              onPress={() => router.push("/waiters")} 
+              style={styles.waiterBtnHeader}
+            >
+              <MaterialCommunityIcons name="account-group" size={24} color={Theme.primary} />
+              <Text style={styles.waiterBtnText}>Waiter</Text>
+            </TouchableOpacity>
           </View>
 
           {/* User Display Badge */}
@@ -402,6 +409,29 @@ const styles = StyleSheet.create({
     borderColor: Theme.border,
     ...Theme.shadowSm,
     zIndex: 10,
+  },
+  waiterBtnHeader: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: Theme.bgCard,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.border,
+    gap: 6,
+    ...Theme.shadowSm,
+    zIndex: 10,
+  },
+  waiterBtnText: {
+    fontFamily: Fonts.black,
+    fontSize: 12,
+    color: Theme.primary,
+    textTransform: 'uppercase',
   },
   title: { alignSelf: 'center', fontFamily: Fonts.black, fontSize: 32, color: Theme.textPrimary, letterSpacing: 0.5 },
   titleSpan: { color: Theme.primary },

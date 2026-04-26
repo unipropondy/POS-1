@@ -15,7 +15,6 @@
         "backgroundColor": "#FF8C00",
         "foregroundImage": "./assets/images/logo.png"
       },
-      "predictiveBackGestureEnabled": false,
       "package": "com.javi06.pos1",
       "versionCode": 1
     },

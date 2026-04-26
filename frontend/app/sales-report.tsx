@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -179,7 +180,9 @@ export default function SalesReport() {
   );
 
   const handleReportPress = (reportType: DetailReportType) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     if (detailReportType === reportType) {
       fetchDetailReport(reportType);
       return;
@@ -239,7 +242,9 @@ export default function SalesReport() {
   };
 
   const onRefresh = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     setRefreshing(true);
     await fetchData();
     if (detailReportType) {
@@ -251,12 +256,15 @@ export default function SalesReport() {
     if (!order) return "";
     const rawId = String(order.OrderId || order.BillNo || "");
     if (rawId.includes("-")) return rawId;
-    
-    const d = order.SettlementDate ? new Date(order.SettlementDate) : new Date();
-    const datePart = d.getFullYear().toString() + 
-                     (d.getMonth() + 1).toString().padStart(2, '0') + 
-                     d.getDate().toString().padStart(2, '0');
-    return `${datePart}-${rawId.padStart(4, '0')}`;
+
+    const d = order.SettlementDate
+      ? new Date(order.SettlementDate)
+      : new Date();
+    const datePart =
+      d.getFullYear().toString() +
+      (d.getMonth() + 1).toString().padStart(2, "0") +
+      d.getDate().toString().padStart(2, "0");
+    return `${datePart}-${rawId.padStart(4, "0")}`;
   };
 
   const formatCurrency = (amount: number) => {
@@ -353,9 +361,15 @@ export default function SalesReport() {
   const filteredMetrics = useMemo(() => {
     const filtered = filteredSales;
     return {
-      TotalSales: filtered.reduce((acc: number, s: any) => acc + s.SysAmount, 0),
+      TotalSales: filtered.reduce(
+        (acc: number, s: any) => acc + s.SysAmount,
+        0,
+      ),
       TotalTransactions: filtered.length,
-      TotalItems: filtered.reduce((acc: number, s: any) => acc + (s.ReceiptCount || 0), 0),
+      TotalItems: filtered.reduce(
+        (acc: number, s: any) => acc + (s.ReceiptCount || 0),
+        0,
+      ),
       Cash: filtered
         .filter((s: any) => s.PayMode === "CASH")
         .reduce((acc: number, s: any) => acc + s.SysAmount, 0),
@@ -401,14 +415,18 @@ export default function SalesReport() {
   }, [filteredMetrics, paymentMix]);
 
   const togglePaymentMode = (mode: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     setActivePaymentModes((prev) =>
       prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode],
     );
   };
 
   const toggleOrderType = (type: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     setActiveOrderTypes((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
     );
@@ -487,7 +505,9 @@ export default function SalesReport() {
             />
             <TouchableOpacity
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (Platform.OS !== "web") {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
                 setDetailReportType(null);
                 setCategoryReport([]);
                 setDishReport([]);
@@ -848,7 +868,7 @@ export default function SalesReport() {
                       styles.activeReportSwitchText,
                   ]}
                 >
-                  Dish Sales Report
+                  Item Sales Report
                 </Text>
               </TouchableOpacity>
             </View>
@@ -856,190 +876,224 @@ export default function SalesReport() {
             {renderDetailReport()}
 
             {/* Charts Section */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chartsScrollContent}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chartsScrollContent}
+            >
               <View style={styles.chartsContainer}>
                 {/* Pie Chart */}
-                <View style={[styles.chartCard, { width: SCREEN_W > 768 ? Math.max(300, (SCREEN_W - 64) / 3) : 300 }]}>
-                <View style={styles.chartCardHeader}>
-                  <Text style={styles.cardTitle}>PAYMENT CHANNEL MIX</Text>
-                  <Ionicons name="pie-chart" size={14} color={Theme.primary} />
-                </View>
-                <View style={styles.chartContainer}>
-                  {filteredMetrics.TotalSales > 0 ? (
-                    <View style={styles.pieChartWrapper}>
-                      <PieChart
-                        data={[
-                          {
-                            value: filteredMetrics.Cash,
-                            color: "#22c55e",
-                            label: "CASH",
-                          },
-                          {
-                            value: filteredMetrics.Card,
-                            color: "#818cf8",
-                            label: "CARD",
-                          },
-                          {
-                            value: filteredMetrics.Nets,
-                            color: "#3b82f6",
-                            label: "NETS",
-                          },
-                          {
-                            value: filteredMetrics.PayNow,
-                            color: "#f59e0b",
-                            label: "DIGITAL",
-                          },
-                        ].filter((d) => d.value > 0)}
-                        donut
-                        radius={70}
-                        innerRadius={50}
-                        innerCircleColor={Theme.bgCard}
-                        showText={false}
-                        strokeColor={Theme.bgCard}
-                        strokeWidth={2}
-                        centerLabelComponent={() => (
-                          <View style={styles.pieDonutCenter}>
-                            {paymentMixCenterRows.map((row) => (
-                              <Text
-                                key={row.key}
-                                style={styles.pieDonutCenterLine}
-                                numberOfLines={1}
-                              >
+                <View
+                  style={[
+                    styles.chartCard,
+                    {
+                      width:
+                        SCREEN_W > 768
+                          ? Math.max(300, (SCREEN_W - 64) / 3)
+                          : 300,
+                    },
+                  ]}
+                >
+                  <View style={styles.chartCardHeader}>
+                    <Text style={styles.cardTitle}>PAYMENT CHANNEL MIX</Text>
+                    <Ionicons
+                      name="pie-chart"
+                      size={14}
+                      color={Theme.primary}
+                    />
+                  </View>
+                  <View style={styles.chartContainer}>
+                    {filteredMetrics.TotalSales > 0 ? (
+                      <View style={styles.pieChartWrapper}>
+                        <PieChart
+                          data={[
+                            {
+                              value: filteredMetrics.Cash,
+                              color: "#22c55e",
+                              label: "CASH",
+                            },
+                            {
+                              value: filteredMetrics.Card,
+                              color: "#818cf8",
+                              label: "CARD",
+                            },
+                            {
+                              value: filteredMetrics.Nets,
+                              color: "#3b82f6",
+                              label: "NETS",
+                            },
+                            {
+                              value: filteredMetrics.PayNow,
+                              color: "#f59e0b",
+                              label: "DIGITAL",
+                            },
+                          ].filter((d) => d.value > 0)}
+                          donut
+                          radius={70}
+                          innerRadius={50}
+                          innerCircleColor={Theme.bgCard}
+                          showText={false}
+                          strokeColor={Theme.bgCard}
+                          strokeWidth={2}
+                          centerLabelComponent={() => (
+                            <View style={styles.pieDonutCenter}>
+                              {paymentMixCenterRows.map((row) => (
                                 <Text
-                                  style={[
-                                    styles.pieDonutCenterPct,
-                                    { color: row.color },
-                                  ]}
+                                  key={row.key}
+                                  style={styles.pieDonutCenterLine}
+                                  numberOfLines={1}
                                 >
-                                  {row.pct.toFixed(0)}%
+                                  <Text
+                                    style={[
+                                      styles.pieDonutCenterPct,
+                                      { color: row.color },
+                                    ]}
+                                  >
+                                    {row.pct.toFixed(0)}%
+                                  </Text>
+                                  <Text style={styles.pieDonutCenterTag}>
+                                    {" "}
+                                    {row.key}
+                                  </Text>
                                 </Text>
-                                <Text style={styles.pieDonutCenterTag}>
-                                  {" "}
-                                  {row.key}
-                                </Text>
-                              </Text>
-                            ))}
+                              ))}
+                            </View>
+                          )}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.emptyChartPlaceholder}>
+                        <Ionicons
+                          name="pie-chart-outline"
+                          size={40}
+                          color={Theme.textMuted}
+                        />
+                        <Text style={styles.emptyChartText}>No sales data</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                <View
+                  style={[
+                    styles.chartCard,
+                    {
+                      width:
+                        SCREEN_W > 768
+                          ? Math.max(300, (SCREEN_W - 64) / 3)
+                          : 300,
+                    },
+                  ]}
+                >
+                  <View style={styles.chartCardHeader}>
+                    <Text style={styles.cardTitle}>ORDER TYPES</Text>
+                    <Ionicons
+                      name="layers-outline"
+                      size={14}
+                      color={Theme.primary}
+                    />
+                  </View>
+                  <View style={styles.orderTypeStats}>
+                    {(() => {
+                      const dineIn = sales.filter(
+                        (s) => !s.OrderType || s.OrderType === "DINE-IN",
+                      ).length;
+                      const takeaway = sales.filter(
+                        (s) => s.OrderType === "TAKEAWAY",
+                      ).length;
+                      const total = dineIn + takeaway;
+                      return (
+                        <>
+                          <View style={styles.statRow}>
+                            <View style={styles.statLabel}>
+                              <Text style={styles.statIcon}>🪑</Text>
+                              <Text style={styles.statName}>Dine-In</Text>
+                            </View>
+                            <Text
+                              style={[
+                                styles.statValue,
+                                { color: Theme.primary },
+                              ]}
+                            >
+                              {total > 0
+                                ? ((dineIn / total) * 100).toFixed(0)
+                                : 0}
+                              %
+                            </Text>
                           </View>
+                          <View style={styles.statRow}>
+                            <View style={styles.statLabel}>
+                              <Text style={styles.statIcon}>🛍️</Text>
+                              <Text style={styles.statName}>Takeaway</Text>
+                            </View>
+                            <Text
+                              style={[
+                                styles.statValue,
+                                { color: Theme.warning },
+                              ]}
+                            >
+                              {total > 0
+                                ? ((takeaway / total) * 100).toFixed(0)
+                                : 0}
+                              %
+                            </Text>
+                          </View>
+                        </>
+                      );
+                    })()}
+                  </View>
+                </View>
+
+                <View
+                  style={[
+                    styles.chartCard,
+                    {
+                      width:
+                        SCREEN_W > 768
+                          ? Math.max(300, (SCREEN_W - 64) / 3)
+                          : 300,
+                    },
+                  ]}
+                >
+                  <View style={styles.chartCardHeader}>
+                    <Text style={styles.cardTitle}>KEY METRICS</Text>
+                    <Ionicons
+                      name="bar-chart-outline"
+                      size={14}
+                      color={Theme.primary}
+                    />
+                  </View>
+                  <View style={styles.metricsStats}>
+                    <View style={styles.metricRow}>
+                      <Text style={styles.metricLabel}>Conversion</Text>
+                      <Text style={styles.metricValueSmall}>
+                        {filteredMetrics.TotalTransactions}
+                      </Text>
+                    </View>
+                    <View style={styles.metricRow}>
+                      <Text style={styles.metricLabel}>Avg Items</Text>
+                      <Text style={styles.metricValueSmall}>
+                        {filteredMetrics.TotalTransactions > 0
+                          ? (
+                              filteredMetrics.TotalItems /
+                              filteredMetrics.TotalTransactions
+                            ).toFixed(1)
+                          : 0}
+                      </Text>
+                    </View>
+                    <View style={styles.metricRow}>
+                      <Text style={styles.metricLabel}>Per Item</Text>
+                      <Text style={styles.metricValueSmall}>
+                        {formatCurrency(
+                          filteredMetrics.TotalItems > 0
+                            ? filteredMetrics.TotalSales /
+                                filteredMetrics.TotalItems
+                            : 0,
                         )}
-                      />
+                      </Text>
                     </View>
-                  ) : (
-                    <View style={styles.emptyChartPlaceholder}>
-                      <Ionicons
-                        name="pie-chart-outline"
-                        size={40}
-                        color={Theme.textMuted}
-                      />
-                      <Text style={styles.emptyChartText}>No sales data</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.chartCard,
-                  { width: SCREEN_W > 768 ? Math.max(300, (SCREEN_W - 64) / 3) : 300 },
-                ]}
-              >
-                <View style={styles.chartCardHeader}>
-                  <Text style={styles.cardTitle}>ORDER TYPES</Text>
-                  <Ionicons
-                    name="layers-outline"
-                    size={14}
-                    color={Theme.primary}
-                  />
-                </View>
-                <View style={styles.orderTypeStats}>
-                  {(() => {
-                    const dineIn = sales.filter(
-                      (s) => !s.OrderType || s.OrderType === "DINE-IN",
-                    ).length;
-                    const takeaway = sales.filter(
-                      (s) => s.OrderType === "TAKEAWAY",
-                    ).length;
-                    const total = dineIn + takeaway;
-                    return (
-                      <>
-                        <View style={styles.statRow}>
-                          <View style={styles.statLabel}>
-                            <Text style={styles.statIcon}>🪑</Text>
-                            <Text style={styles.statName}>Dine-In</Text>
-                          </View>
-                          <Text
-                            style={[styles.statValue, { color: Theme.primary }]}
-                          >
-                            {total > 0
-                              ? ((dineIn / total) * 100).toFixed(0)
-                              : 0}
-                            %
-                          </Text>
-                        </View>
-                        <View style={styles.statRow}>
-                          <View style={styles.statLabel}>
-                            <Text style={styles.statIcon}>🛍️</Text>
-                            <Text style={styles.statName}>Takeaway</Text>
-                          </View>
-                          <Text
-                            style={[styles.statValue, { color: Theme.warning }]}
-                          >
-                            {total > 0
-                              ? ((takeaway / total) * 100).toFixed(0)
-                              : 0}
-                            %
-                          </Text>
-                        </View>
-                      </>
-                    );
-                  })()}
-                </View>
-              </View>
-
-              <View 
-                style={[
-                  styles.chartCard,
-                  { width: SCREEN_W > 768 ? Math.max(300, (SCREEN_W - 64) / 3) : 300 },
-                ]}
-              >
-                <View style={styles.chartCardHeader}>
-                  <Text style={styles.cardTitle}>KEY METRICS</Text>
-                  <Ionicons
-                    name="bar-chart-outline"
-                    size={14}
-                    color={Theme.primary}
-                  />
-                </View>
-                <View style={styles.metricsStats}>
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Conversion</Text>
-                    <Text style={styles.metricValueSmall}>
-                      {filteredMetrics.TotalTransactions}
-                    </Text>
-                  </View>
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Avg Items</Text>
-                    <Text style={styles.metricValueSmall}>
-                      {filteredMetrics.TotalTransactions > 0
-                        ? (
-                            filteredMetrics.TotalItems /
-                            filteredMetrics.TotalTransactions
-                          ).toFixed(1)
-                        : 0}
-                    </Text>
-                  </View>
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Per Item</Text>
-                    <Text style={styles.metricValueSmall}>
-                      {formatCurrency(
-                        filteredMetrics.TotalItems > 0
-                          ? filteredMetrics.TotalSales /
-                              filteredMetrics.TotalItems
-                          : 0,
-                      )}
-                    </Text>
                   </View>
                 </View>
-              </View>
               </View>
             </ScrollView>
 
