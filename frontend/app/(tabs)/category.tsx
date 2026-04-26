@@ -806,19 +806,6 @@ export default function Category() {
             </TouchableOpacity>
           )}
 
-          {/* Store Settings Gear */}
-          <TouchableOpacity
-            style={styles.headerActionBtn}
-            onPress={() => setIsSettingsVisible(true)}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="settings-outline" size={20} color={Theme.textSecondary} />
-            {isTablet && isLandscape && (
-              <Text style={[styles.headerActionText, { color: Theme.textSecondary }]}>
-                Settings
-              </Text>
-            )}
-          </TouchableOpacity>
 
           {/* NEW CONSOLIDATED MENU BUTTON */}
           <TouchableOpacity
@@ -901,6 +888,16 @@ export default function Category() {
                   <Text style={styles.menuItemText}>Sales Report</Text>
                 </TouchableOpacity>
               )}
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => { setIsMenuVisible(false); setIsSettingsVisible(true); }}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: Theme.textSecondary + '10' }]}>
+                  <Ionicons name="settings-outline" size={18} color={Theme.textSecondary} />
+                </View>
+                <Text style={styles.menuItemText}>Store Settings</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.menuItem}

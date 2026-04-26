@@ -281,9 +281,9 @@ router.get("/dish", async (req, res) => {
       .query(`
         WITH AppItemRows AS (
           SELECT
-            ISNULL(dm.Name, sid.DishName) AS DishName,
+            ISNULL(sid.DishName, ISNULL(dm.Name, 'Unknown')) AS DishName,
             dm.DishId,
-            ISNULL(cm.CategoryName, 'Unmapped') AS CategoryName,
+            ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')) AS CategoryName,
             COALESCE(sid.CategoryId, dg.CategoryId) AS CategoryId,
             CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3)) AS Sold,
             CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2)) AS SalesAmount,
@@ -345,7 +345,7 @@ router.get("/category", async (req, res) => {
     const result = await pool.request().query(`
         WITH AppReport AS (
           SELECT
-            ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
+            ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
             SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
             SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
           FROM SettlementHeader sh
@@ -399,9 +399,9 @@ router.get("/dish", async (req, res) => {
     const result = await pool.request().query(`
         WITH AppReport AS (
           SELECT
-            ISNULL(d.Name, sid.DishName) AS dishName,
-            ISNULL(cm.CategoryName, 'Unmapped') AS categoryName,
-            ISNULL(dg.DishGroupName, 'Unmapped') AS subCategoryName,
+            ISNULL(sid.DishName, ISNULL(d.Name, 'Unknown')) AS dishName,
+            ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
+            ISNULL(sid.SubCategoryName, ISNULL(dg.DishGroupName, 'Unmapped')) AS subCategoryName,
             SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
             SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
           FROM SettlementHeader sh
@@ -594,9 +594,10 @@ router.post("/save", async (req, res) => {
             .input("DishId", sql.UniqueIdentifier, dishId)
             .input("DishName", sql.NVarChar(255), item.dish_name || item.name || "")
             .query(`
-              SELECT TOP 1 d.DishId, d.DishGroupId, dg.CategoryId
+              SELECT TOP 1 d.DishId, d.DishGroupId, dg.CategoryId, cm.CategoryName, dg.DishGroupName
               FROM DishMaster d
               LEFT JOIN DishGroupMaster dg ON d.DishGroupId = dg.DishGroupId
+              LEFT JOIN CategoryMaster cm ON dg.CategoryId = cm.CategoryId
               WHERE (@DishId IS NOT NULL AND d.DishId = @DishId)
                  OR (@DishId IS NULL AND LTRIM(RTRIM(LOWER(d.Name))) = LTRIM(RTRIM(LOWER(@DishName))))
             `);
@@ -608,11 +609,13 @@ router.post("/save", async (req, res) => {
             .input("SubCategoryId", sql.UniqueIdentifier, toGuidOrNull(meta.DishGroupId))
             .input("CategoryId", sql.UniqueIdentifier, toGuidOrNull(meta.CategoryId))
             .input("DishName", sql.NVarChar(255), item.dish_name || item.name || "Unknown")
+            .input("CategoryName", sql.NVarChar(255), meta.CategoryName || item.categoryName || "Unmapped")
+            .input("SubCategoryName", sql.NVarChar(255), meta.DishGroupName || "Unmapped")
             .input("Qty", sql.Int, item.qty || 1)
             .input("Price", sql.Decimal(18, 2), item.price || 0)
             .input("OrderDateTime", sql.DateTime, new Date()).query(`
-              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, SubCategoryId, CategoryId, DishName, Qty, Price, OrderDateTime)
-              VALUES (@SettlementID, @DishId, @DishGroupId, @SubCategoryId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime)
+              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, SubCategoryId, CategoryId, DishName, Qty, Price, OrderDateTime, CategoryName, SubCategoryName)
+              VALUES (@SettlementID, @DishId, @DishGroupId, @SubCategoryId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime, @CategoryName, @SubCategoryName)
             `);
         }
       }

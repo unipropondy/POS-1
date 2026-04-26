@@ -409,6 +409,8 @@ export const useCartStore = create<CartState>()(
               tableId,
               items: Array.from(mergedItems.values()).map(item => ({
                 id: item.id,
+                name: item.name,
+                categoryName: item.categoryName,
                 qty: item.qty,
                 price: item.price,
                 note: item.note,
