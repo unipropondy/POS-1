@@ -124,7 +124,7 @@ router.post("/lock-persistent", async (req, res) => {
     // 🔥 Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: 5 });
+      io.emit("table_status_updated", { tableId: cleanTableId, status: 5, totalAmount: 0 });
     }
 
     res.json({ success: true });
@@ -156,7 +156,7 @@ router.post("/unlock-persistent", async (req, res) => {
     // 🔥 Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
+      io.emit("table_status_updated", { tableId: cleanTableId, status: 0, totalAmount: 0 });
     }
 
     res.json({ success: true });
@@ -202,13 +202,24 @@ router.put("/status", async (req, res) => {
         .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
     }
 
-    // 🔥 Emit socket event
+    // ✅ Get current total to include in socket
+    const tableRes = await pool.request()
+      .input("tableId", sql.VarChar(50), cleanTableId)
+      .query("SELECT TotalAmount FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+    
+    const currentTotal = tableRes.recordset[0]?.TotalAmount || 0;
+
+    // 🔥 Emit socket event with TotalAmount
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: Number(status) });
+      io.emit("table_status_updated", { 
+        tableId: cleanTableId, 
+        status: Number(status),
+        totalAmount: currentTotal
+      });
     }
 
-    res.json({ success: true });
+    res.json({ success: true, totalAmount: currentTotal });
   } catch (err) {
     console.error("UPDATE STATUS ERROR:", err);
     res.status(500).json({ error: "Error updating" });
@@ -256,8 +267,19 @@ router.put("/:tableId/status", async (req, res) => {
 
     // 🔥 Emit socket event for real-time sync across devices
     const io = req.app.get("io");
+    // ✅ Get current total to include in socket
+    const tableRes = await pool.request()
+      .input("tableId", sql.VarChar(50), cleanTableId)
+      .query("SELECT TotalAmount FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+    
+    const currentTotal = tableRes.recordset[0]?.TotalAmount || 0;
+
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: Number(status) });
+      io.emit("table_status_updated", { 
+        tableId: cleanTableId, 
+        status: Number(status),
+        totalAmount: currentTotal
+      });
     }
 
     res.json({ success: true, status: Number(status) });

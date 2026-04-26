@@ -96,8 +96,14 @@ router.post("/send", async (req, res) => {
     const { tableId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
-    await updateTableStatus(req, tableId, 1); // 1 = Dining
-    res.json({ success: true, status: 1 });
+    const pool = await poolPromise;
+    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+    await pool.request()
+      .input("tableId", sql.VarChar(50), cleanId)
+      .query("UPDATE TableMaster SET Status = 1 WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+
+    const updated = await syncTableStatus(req, tableId);
+    res.json({ success: true, ...updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -109,8 +115,16 @@ router.post("/hold", async (req, res) => {
     const { tableId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
-    await updateTableStatus(req, tableId, 3); // 3 = Hold
-    res.json({ success: true, status: 3 });
+    // Use syncTableStatus which updates both Status (to 3) and TotalAmount
+    const pool = await poolPromise;
+    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+    
+    await pool.request()
+      .input("tableId", sql.VarChar(50), cleanId)
+      .query("UPDATE TableMaster SET Status = 3 WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+
+    const updated = await syncTableStatus(req, tableId);
+    res.json({ success: true, ...updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -122,8 +136,14 @@ router.post("/checkout", async (req, res) => {
     const { tableId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
-    await updateTableStatus(req, tableId, 2); // 2 = Checkout
-    res.json({ success: true, status: 2 });
+    const pool = await poolPromise;
+    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+    await pool.request()
+      .input("tableId", sql.VarChar(50), cleanId)
+      .query("UPDATE TableMaster SET Status = 2 WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+
+    const updated = await syncTableStatus(req, tableId);
+    res.json({ success: true, ...updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
