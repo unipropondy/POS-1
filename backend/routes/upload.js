@@ -37,17 +37,30 @@ const upload = multer({
 });
 
 // 🔹 POST Upload
-router.post("/", upload.single("image"), (req, res) => {
-  try {
+router.post("/", (req, res) => {
+  upload.single("image")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      console.error("❌ Multer Error:", err.message);
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+      console.error("❌ Unknown Upload Error:", err);
+      return res.status(500).json({ error: `Server error: ${err.message}` });
+    }
+
     if (!req.file) {
+      console.error("❌ No file received in request");
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`;
-    res.json({ success: true, imageUrl });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+      const imageUrl = `/uploads/${req.file.filename}`;
+      console.log("✅ File uploaded successfully:", imageUrl);
+      res.json({ success: true, imageUrl });
+    } catch (saveErr) {
+      console.error("❌ Final Save Error:", saveErr);
+      res.status(500).json({ error: "Failed to process uploaded file" });
+    }
+  });
 });
 
 module.exports = router;
