@@ -415,6 +415,7 @@ export default function KDSScreen() {
             keyExtractor={(item: any) => item.orderId}
             numColumns={numColumns}
             key={numColumns}
+            extraData={time}
             contentContainerStyle={styles.listContainer}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
