@@ -368,7 +368,9 @@ router.get("/cart/:tableId", async (req, res) => {
         SELECT c.*, d.Name as name, d.CurrentCost as price
         FROM [dbo].[CartItems] c
         LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
-        WHERE c.CartId = @cartId
+        WHERE c.CartId = @cartId 
+           OR c.CartId = (SELECT TOP 1 CAST(TableId AS VARCHAR(50)) FROM TableMaster WHERE LTRIM(RTRIM(TableNo)) = @cartId)
+           OR c.CartId = (SELECT TOP 1 LTRIM(RTRIM(TableNo)) FROM TableMaster WHERE CAST(TableId AS VARCHAR(50)) = @cartId)
       `);
 
     console.log(`🔍 [CartFetch] Found ${result.recordset.length} items`);
