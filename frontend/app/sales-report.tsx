@@ -119,6 +119,7 @@ export default function SalesReport() {
         const reportFilter = filterType.toLowerCase();
         const params = new URLSearchParams({
           filter: reportFilter,
+          date: selectedDate,
           t: Date.now().toString(),
         });
 

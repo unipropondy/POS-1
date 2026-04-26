@@ -10,7 +10,7 @@ const generateRandomBillId = () => {
 
 const normalizeReportPayModeSql = (columnName = "sts.PayMode") => `
   CASE
-    WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, 'CASH')))) IN ('CAS', 'CASH') THEN 'CASH'
+    WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) IN ('CAS', 'CASH', '') THEN 'CASH'
     WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) IN ('CARD', 'VISA', 'MASTER', 'MASTERCARD', 'AMEX', 'DINERS') THEN 'CARD'
     WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) IN ('PAYNOW', 'GRAB', 'FOODPANDA') THEN 'PAYNOW'
     WHEN UPPER(LTRIM(RTRIM(ISNULL(${columnName}, '')))) = 'NETS' THEN 'NETS'
@@ -41,17 +41,18 @@ const getReportDateRange = (req) => {
   return { start, end };
 };
 
-const getReportDateWhereSql = (filter = "daily", saleDateColumn = "sh.LastSettlementDate") => {
+const getReportDateWhereSql = (filter = "daily", saleDateColumn = "sh.LastSettlementDate", date = null) => {
+  const targetDate = date ? `'${date}'` : 'GETDATE()';
   switch (String(filter).toLowerCase()) {
     case "weekly":
-      return `${saleDateColumn} >= DATEADD(DAY, -7, GETDATE())`;
+      return `${saleDateColumn} >= DATEADD(DAY, -7, CAST(${targetDate} AS DATE)) AND ${saleDateColumn} <= CAST(${targetDate} AS DATE)`;
     case "monthly":
-      return `MONTH(${saleDateColumn}) = MONTH(GETDATE()) AND YEAR(${saleDateColumn}) = YEAR(GETDATE())`;
+      return `MONTH(${saleDateColumn}) = MONTH(CAST(${targetDate} AS DATE)) AND YEAR(${saleDateColumn}) = YEAR(CAST(${targetDate} AS DATE))`;
     case "yearly":
-      return `YEAR(${saleDateColumn}) = YEAR(GETDATE())`;
+      return `YEAR(${saleDateColumn}) = YEAR(CAST(${targetDate} AS DATE))`;
     case "daily":
     default:
-      return `CAST(${saleDateColumn} AS DATE) = CAST(GETDATE() AS DATE)`;
+      return `CAST(${saleDateColumn} AS DATE) = CAST(${targetDate} AS DATE)`;
   }
 };
 
@@ -338,14 +339,15 @@ router.get("/category", async (req, res) => {
     res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
     const filter = normalizeReportFilter(req.query.filter);
-    const appDateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate");
-    const legacyDateWhereSql = getReportDateWhereSql(filter, "InvoiceDate");
-    console.log(`[REPORT API] type=category filter=${filter}`);
+    const date = req.query.date;
+    const appDateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate", date);
+    const legacyDateWhereSql = getReportDateWhereSql(filter, "InvoiceDate", date);
+    console.log(`[REPORT API] type=category filter=${filter} date=${date || 'today'}`);
 
     const result = await pool.request().query(`
         WITH AppReport AS (
           SELECT
-            ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.CategoryName)), ''), ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
             SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
             SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
           FROM SettlementHeader sh
@@ -357,7 +359,7 @@ router.get("/category", async (req, res) => {
           WHERE ${appDateWhereSql}
             AND ISNULL(sh.IsCancelled, 0) = 0
             AND ISNULL(sid.Qty, 0) > 0
-          GROUP BY ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped'))
+          GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(sid.CategoryName)), ''), ISNULL(cm.CategoryName, 'Unmapped'))
         ),
         LegacyReport AS (
           SELECT
@@ -392,16 +394,17 @@ router.get("/dish", async (req, res) => {
     res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
     const filter = normalizeReportFilter(req.query.filter);
-    const appDateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate");
-    const legacyDateWhereSql = getReportDateWhereSql(filter, "InvoiceDate");
-    console.log(`[REPORT API] type=dish filter=${filter}`);
+    const date = req.query.date;
+    const appDateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate", date);
+    const legacyDateWhereSql = getReportDateWhereSql(filter, "InvoiceDate", date);
+    console.log(`[REPORT API] type=dish filter=${filter} date=${date || 'today'}`);
 
     const result = await pool.request().query(`
         WITH AppReport AS (
           SELECT
-            ISNULL(sid.DishName, ISNULL(d.Name, 'Unknown')) AS dishName,
-            ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
-            ISNULL(sid.SubCategoryName, ISNULL(dg.DishGroupName, 'Unmapped')) AS subCategoryName,
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.DishName)), ''), ISNULL(d.Name, 'Unknown')) AS dishName,
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.CategoryName)), ''), ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.SubCategoryName)), ''), ISNULL(dg.DishGroupName, 'Unmapped')) AS subCategoryName,
             SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
             SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
           FROM SettlementHeader sh
@@ -413,7 +416,10 @@ router.get("/dish", async (req, res) => {
           WHERE ${appDateWhereSql}
             AND ISNULL(sh.IsCancelled, 0) = 0
             AND ISNULL(sid.Qty, 0) > 0
-          GROUP BY ISNULL(sid.DishName, ISNULL(d.Name, 'Unknown')), ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')), ISNULL(sid.SubCategoryName, ISNULL(dg.DishGroupName, 'Unmapped'))
+          GROUP BY 
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.DishName)), ''), ISNULL(d.Name, 'Unknown')), 
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.CategoryName)), ''), ISNULL(cm.CategoryName, 'Unmapped')), 
+            ISNULL(NULLIF(LTRIM(RTRIM(sid.SubCategoryName)), ''), ISNULL(dg.DishGroupName, 'Unmapped'))
         ),
         LegacyReport AS (
           SELECT
