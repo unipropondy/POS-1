@@ -274,7 +274,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         payableAmount,
       );
       
-      // ✅ Persistent Save to cartitems table before checkout
       if (cart.length > 0) {
         let targetOrderId = activeOrder?.orderId || getNextOrderId();
         appendOrder(targetOrderId, orderContext, cart);
@@ -294,14 +293,12 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         }
       }
 
-      // 🔥 Update Backend using synchronized API
       await fetch(`${API_URL}/api/orders/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tableId: orderContext.tableId }),
       }).catch(err => console.error("Checkout Sync Error:", err));
 
-      // 🔥 Sync with KDS: Remove order from kitchen display when bill is requested
       socket.emit("order_status_update", {
         orderId: activeOrder?.orderId || "PAYMENT",
         action: "CLOSE",
@@ -319,11 +316,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
     let targetOrderId = activeOrder?.orderId || getNextOrderId();
     
-    // 1. Mark as sent in local activeOrder store (for KDS)
     appendOrder(targetOrderId, orderContext, unsentItems);
     markItemsSent(targetOrderId);
 
-    // 2. Prepare the FULL updated cart for persistence
     const updatedCart = cart.map(item => {
       if (!item.status || item.status === "NEW") {
         return { ...item, status: "SENT" as const };
@@ -331,7 +326,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       return item;
     });
 
-    // ✅ 2. Persistent Save to DB
     try {
       await fetch(`${API_URL}/api/orders/save-cart`, {
         method: "POST",
@@ -343,7 +337,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         }),
       });
 
-      // ✅ 3. After saving items, sync status to Occupied (1) using the synchronized API
       const sendRes = await fetch(`${API_URL}/api/orders/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -352,11 +345,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       
       const sendData = await sendRes.json();
       if (sendData.success && sendData.currentOrderId) {
-        console.log(`✨ [Sync] Backend returned Professional ID: ${sendData.currentOrderId}`);
         useCartStore.getState().setTableOrderId(orderContext.tableId!, sendData.currentOrderId);
         useActiveOrdersStore.getState().updateOrderId(targetOrderId, sendData.currentOrderId);
         
-        // Update local status with the NEW professional ID
         updateTableStatus(
           orderContext.tableId || "",
           orderContext.section || "TAKEAWAY",
@@ -368,30 +359,27 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           payableAmount,
         );
       }
+      
+      const finalOrderId = (sendData && sendData.currentOrderId) || targetOrderId;
+      socket.emit("new_order", {
+        orderId: finalOrderId,
+        context: orderContext,
+        items: unsentItems,
+      });
+
+      showToast({
+        type: "success",
+        message: "Order Sent",
+        subtitle: `Kitchen notified. Order #${finalOrderId}`,
+      });
     } catch (err) {
       console.error("Cart Save/Send Error:", err);
     }
 
-    // ✅ 4. Update local cart store
     if (currentContextId) {
       useCartStore.getState().setCartItems(currentContextId, updatedCart, true);
     }
 
-    // ✅ 5. Notify Kitchen via Socket (Real-Time)
-    const finalOrderId = (typeof sendData !== 'undefined' && sendData?.currentOrderId) || targetOrderId;
-    socket.emit("new_order", {
-      orderId: finalOrderId,
-      context: orderContext,
-      items: unsentItems,
-    });
-
-    showToast({
-      type: "success",
-      message: "Order Sent",
-      subtitle: `Kitchen notified. Order #${finalOrderId}`,
-    });
-
-    // ✅ 6. Navigate away
     router.replace(`/(tabs)/category?section=${orderContext.section}`);
   };
 
@@ -417,14 +405,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
     return (
       <View style={[styles.itemContainer, isExpanded && styles.itemExpanded]}>
-        {/* Status indicator bar (Left) */}
-        <View
-          style={[
-            styles.statusBar,
-            { backgroundColor: isSent ? "#22C55E" : "#3B82F6" },
-          ]}
-        />
-
+        <View style={[styles.statusBar, { backgroundColor: isSent ? "#22C55E" : "#3B82F6" }]} />
         <Pressable
           style={styles.itemHeader}
           onPress={() => {
@@ -436,43 +417,15 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         >
           {(!isPhone || isLandscape) && (
             <View style={styles.itemIndexWrap}>
-              <Ionicons
-                name="chevron-forward"
-                size={12}
-                color={Theme.textMuted}
-                style={styles.chevron}
-              />
+              <Ionicons name="chevron-forward" size={12} color={Theme.textMuted} style={styles.chevron} />
               <Text style={styles.itemIndex}>{index + 1}</Text>
             </View>
           )}
 
           <View style={styles.itemInfo}>
-            <View
-              style={[
-                styles.itemMainRow,
-                isPhone && {
-                  alignItems: "center",
-                  gap: 6,
-                },
-              ]}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  flex: 1,
-                }}
-              >
-                <Text
-                  style={[
-                    styles.itemName,
-                    (isSent || isVoided) && styles.textMuted,
-                    isVoided && styles.strikeThrough,
-                    isPhone && { fontSize: 13, flex: 1 },
-                  ]}
-                  numberOfLines={1}
-                >
+            <View style={[styles.itemMainRow, isPhone && { alignItems: "center", gap: 6 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", flex: 1 }}>
+                <Text style={[styles.itemName, (isSent || isVoided) && styles.textMuted, isVoided && styles.strikeThrough, isPhone && { fontSize: 13, flex: 1 }]} numberOfLines={1}>
                   {item.name}
                 </Text>
                 {item.isTakeaway && (
@@ -482,222 +435,59 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 )}
               </View>
 
-              <View
-                style={[
-                  styles.statusTag,
-                  {
-                    backgroundColor: isVoided
-                      ? Theme.danger + "10"
-                      : isSent
-                        ? "#22C55E15"
-                        : "#3B82F615",
-                    borderColor: isVoided
-                      ? Theme.danger + "30"
-                      : isSent
-                        ? "#22C55E30"
-                        : "#3B82F630",
-                    paddingVertical: isPhone ? 2 : 4,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusTagText,
-                    {
-                      fontSize: isPhone ? 8 : 9,
-                      color: isVoided
-                        ? Theme.danger
-                        : isSent
-                          ? "#15803D"
-                          : "#1D4ED8",
-                    },
-                  ]}
-                >
+              <View style={[styles.statusTag, { 
+                backgroundColor: isVoided ? Theme.danger + "10" : isSent ? "#22C55E15" : "#3B82F615",
+                borderColor: isVoided ? Theme.danger + "30" : isSent ? "#22C55E30" : "#3B82F630",
+                paddingVertical: isPhone ? 2 : 4,
+              }]}>
+                <Text style={[styles.statusTagText, { fontSize: isPhone ? 8 : 9, color: isVoided ? Theme.danger : isSent ? "#15803D" : "#1D4ED8" }]}>
                   {isVoided ? "VOIDED" : isSent ? "SENT" : "NEW"}
                 </Text>
               </View>
             </View>
 
-            {/* MODIFIERS & NOTES LIST - VERTICAL STACK */}
             <View style={styles.modifierListSmall}>
-              {item.modifiers &&
-                item.modifiers.length > 0 &&
-                item.modifiers.map((m: any, idx: number) => (
-                  <Text
-                    key={`${m.ModifierId}-${idx}`}
-                    style={styles.modifierTextSmall}
-                  >
-                    • {m.ModifierName}
-                    {m.Price > 0 ? ` (+$${m.Price.toFixed(2)})` : ""}
-                  </Text>
-                ))}
-
-              {item.note || item.notes ? (
-                <Text style={styles.modifierTextSmall}>
-                  • Note: {item.note || item.notes}
-                </Text>
-              ) : null}
+              {item.modifiers && item.modifiers.map((m: any, idx: number) => (
+                <Text key={`${m.ModifierId}-${idx}`} style={styles.modifierTextSmall}>• {m.ModifierName}{m.Price > 0 ? ` (+$${m.Price.toFixed(2)})` : ""}</Text>
+              ))}
+              {(item.note || item.notes) ? <Text style={styles.modifierTextSmall}>• Note: {item.note || item.notes}</Text> : null}
             </View>
 
-            {/* INLINE QTY CONTROL ON MAIN ROW */}
             <View style={[styles.inlineControls, isPhone && { marginTop: 8 }]}>
               {isSent || isVoided ? (
-                <View style={styles.sentLabel}>
-                  <Text style={styles.sentQtyText}>QTY: {item.qty}</Text>
-                </View>
+                <View style={styles.sentLabel}><Text style={styles.sentQtyText}>QTY: {item.qty}</Text></View>
               ) : (
-                <View
-                  style={[
-                    styles.qtyControlSmall,
-                    isPhone && {
-                      backgroundColor: Theme.bgCard,
-                      borderWidth: 1,
-                      borderColor: Theme.border,
-                    },
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={[
-                      styles.qtyBtnSmall,
-                      isPhone && { width: 32, height: 32 },
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      updateCartItemQty(
-                        item.lineItemId,
-                        Math.max(0, item.qty - 1),
-                      );
-                    }}
-                  >
-                    <Ionicons
-                      name="remove"
-                      size={isPhone ? 20 : 18}
-                      color={Theme.primary}
-                    />
+                <View style={[styles.qtyControlSmall, isPhone && { backgroundColor: Theme.bgCard, borderWidth: 1, borderColor: Theme.border }]}>
+                  <TouchableOpacity style={[styles.qtyBtnSmall, isPhone && { width: 32, height: 32 }]} onPress={(e) => { e.stopPropagation(); updateCartItemQty(item.lineItemId, Math.max(0, item.qty - 1)); }}>
+                    <Ionicons name="remove" size={isPhone ? 20 : 18} color={Theme.primary} />
                   </TouchableOpacity>
-                  <Text
-                    style={[
-                      styles.qtyTextSmall,
-                      isPhone && { paddingHorizontal: 12, fontSize: 14 },
-                    ]}
-                  >
-                    {item.qty}
-                  </Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.qtyBtnSmall,
-                      isPhone && { width: 32, height: 32 },
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      updateCartItemQty(item.lineItemId, item.qty + 1);
-                    }}
-                  >
-                    <Ionicons
-                      name="add"
-                      size={isPhone ? 20 : 18}
-                      color={Theme.primary}
-                    />
+                  <Text style={[styles.qtyTextSmall, isPhone && { paddingHorizontal: 12, fontSize: 14 }]}>{item.qty}</Text>
+                  <TouchableOpacity style={[styles.qtyBtnSmall, isPhone && { width: 32, height: 32 }]} onPress={(e) => { e.stopPropagation(); updateCartItemQty(item.lineItemId, item.qty + 1); }}>
+                    <Ionicons name="add" size={isPhone ? 20 : 18} color={Theme.primary} />
                   </TouchableOpacity>
                 </View>
               )}
-
               <View style={{ flex: 1 }} />
-
               <View style={[styles.priceContainer, { alignItems: "flex-end" }]}>
                 {item.discount > 0 ? (
                   <View style={{ alignItems: "flex-end" }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.itemPrice,
-                          {
-                            fontSize: isPhone ? 10 : 11,
-                            textDecorationLine: "line-through",
-                            color: Theme.textMuted,
-                            minWidth: 0,
-                          },
-                        ]}
-                      >
-                        ${((item.price || 0) * item.qty).toFixed(2)}
-                      </Text>
-                      <View
-                        style={[
-                          styles.discountBadge,
-                          isPhone && { paddingHorizontal: 3 },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.discountBadgeText,
-                            isPhone && { fontSize: 8 },
-                          ]}
-                        >
-                          -{item.discount}%
-                        </Text>
-                      </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Text style={[styles.itemPrice, { fontSize: isPhone ? 10 : 11, textDecorationLine: "line-through", color: Theme.textMuted, minWidth: 0 }]}>${((item.price || 0) * item.qty).toFixed(2)}</Text>
+                      <View style={[styles.discountBadge, isPhone && { paddingHorizontal: 3 }]}><Text style={[styles.discountBadgeText, isPhone && { fontSize: 8 }]}>-{item.discount}%</Text></View>
                     </View>
-                    <Text
-                      style={[
-                        styles.itemPrice,
-                        { color: "#22C55E", fontSize: isPhone ? 15 : 16 },
-                        isVoided && styles.strikeThrough,
-                      ]}
-                    >
-                      $
-                      {(
-                        (item.price || 0) *
-                        item.qty *
-                        (1 - (item.discount || 0) / 100)
-                      ).toFixed(2)}
-                    </Text>
+                    <Text style={[styles.itemPrice, { color: "#22C55E", fontSize: isPhone ? 15 : 16 }, isVoided && styles.strikeThrough]}>${((item.price || 0) * item.qty * (1 - (item.discount || 0) / 100)).toFixed(2)}</Text>
                   </View>
                 ) : (
-                  <Text
-                    style={[
-                      styles.itemPrice,
-                      isPhone && { fontSize: 15 },
-                      isVoided && styles.strikeThrough,
-                    ]}
-                  >
-                    ${((item.price || 0) * item.qty).toFixed(2)}
-                  </Text>
+                  <Text style={[styles.itemPrice, isPhone && { fontSize: 15 }, isVoided && styles.strikeThrough]}>${((item.price || 0) * item.qty).toFixed(2)}</Text>
                 )}
               </View>
-
               {isSent && !isVoided ? (
-                <TouchableOpacity
-                  style={[styles.deleteBtn, { marginLeft: 10 }]}
-                  onPress={() => {
-                    setItemToVoid(item);
-                    setShowCancelModal(true);
-                  }}
-                >
+                <TouchableOpacity style={[styles.deleteBtn, { marginLeft: 10 }]} onPress={() => { setItemToVoid(item); setShowCancelModal(true); }}>
                   <Ionicons name="trash" size={20} color={Theme.danger} />
                 </TouchableOpacity>
               ) : !isSent && !isVoided ? (
-                <TouchableOpacity
-                  style={[styles.deleteBtn, { marginLeft: 10 }]}
-                  onPress={() => {
-                    removeFromCartGlobal(item.lineItemId);
-                    showToast({
-                      type: "info",
-                      message: "Removed",
-                      subtitle: `${item.name} deleted`,
-                    });
-                  }}
-                >
-                  <Ionicons
-                    name="trash-outline"
-                    size={20}
-                    color={Theme.textMuted}
-                  />
+                <TouchableOpacity style={[styles.deleteBtn, { marginLeft: 10 }]} onPress={() => { removeFromCartGlobal(item.lineItemId); showToast({ type: "info", message: "Removed", subtitle: `${item.name} deleted` }); }}>
+                  <Ionicons name="trash-outline" size={20} color={Theme.textMuted} />
                 </TouchableOpacity>
               ) : null}
             </View>
