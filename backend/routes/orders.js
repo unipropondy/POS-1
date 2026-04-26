@@ -454,6 +454,72 @@ router.post("/sync/:tableId", async (req, res) => {
   }
 });
 
+// ✅ Fetch All Active Kitchen Orders (For KDS/Kitchen Status Sync)
+router.get("/active-kitchen", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT 
+        c.*, 
+        d.Name as name, 
+        d.CurrentCost as price,
+        t.TableNumber as tableNo,
+        t.DiningSection as section,
+        t.TableId as tableId,
+        t.CurrentOrderId as tableOrderId
+      FROM [dbo].[CartItems] c
+      LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
+      LEFT JOIN [dbo].[TableMaster] t ON CAST(c.CartId AS NVARCHAR(128)) = CAST(t.TableId AS NVARCHAR(128))
+      WHERE c.Status IN ('SENT', 'READY')
+      ORDER BY c.DateCreated ASC
+    `);
+
+    // Group items by OrderNo or tableOrderId
+    const ordersMap = new Map();
+
+    result.recordset.forEach(row => {
+      const orderId = row.OrderNo && row.OrderNo !== 'PENDING' ? row.OrderNo : row.tableOrderId;
+      if (!orderId) return;
+
+      if (!ordersMap.has(orderId)) {
+        ordersMap.set(orderId, {
+          orderId,
+          context: {
+            orderType: row.tableNo ? "DINE_IN" : "TAKEAWAY",
+            tableNo: row.tableNo,
+            section: row.section,
+            tableId: row.tableId,
+            takeawayNo: !row.tableNo ? (row.OrderNo || row.CartId) : null
+          },
+          items: [],
+          createdAt: new Date(row.DateCreated).getTime()
+        });
+      }
+
+      const order = ordersMap.get(orderId);
+      order.items.push({
+        id: row.ProductId,
+        lineItemId: row.ItemId,
+        qty: row.Quantity,
+        name: row.name || "Unknown",
+        price: row.price || row.Cost,
+        status: row.Status,
+        sentAt: new Date(row.DateCreated).getTime(),
+        readyAt: row.Status === 'READY' ? new Date(row.DateCreated).getTime() : null, // Fallback
+        modifiers: row.ModifiersJSON ? JSON.parse(row.ModifiersJSON) : [],
+        isTakeaway: !!row.IsTakeaway,
+        isVoided: !!row.IsVoided,
+        note: row.Note
+      });
+    });
+
+    res.json(Array.from(ordersMap.values()));
+  } catch (err) {
+    console.error("❌ [ActiveKitchen] ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ✅ Fetch Cart Items Persistent
 router.get("/cart/:tableId", async (req, res) => {
   try {

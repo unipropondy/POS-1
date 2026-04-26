@@ -184,6 +184,7 @@ export default function KDSScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    useActiveOrdersStore.getState().fetchActiveKitchenOrders();
     const interval = setInterval(() => setTime(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);

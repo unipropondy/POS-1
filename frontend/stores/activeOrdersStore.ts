@@ -41,6 +41,7 @@ type ActiveOrdersState = {
   voidOrderItem: (orderId: string, lineItemId: string) => void;
   markItemReady: (orderId: string, lineItemId: string) => void;
   markItemServed: (orderId: string, lineItemId: string) => void;
+  fetchActiveKitchenOrders: () => Promise<void>;
 };
 
 /* ================= STORE ================= */
@@ -263,6 +264,34 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
         };
       }),
     });
+  },
+
+  /* ================= FETCH FROM DB ================= */
+  fetchActiveKitchenOrders: async () => {
+    try {
+      const { API_URL } = require("../constants/Config");
+      const res = await fetch(`${API_URL}/api/orders/active-kitchen`);
+      if (!res.ok) throw new Error("Failed to fetch active kitchen orders");
+      const data = await res.json();
+      
+      // Merge with existing orders (avoid duplicates)
+      const currentOrders = get().activeOrders;
+      const merged = [...data];
+      
+      // If we have local NEW (unsent) orders, we keep them
+      currentOrders.forEach(local => {
+        if (!merged.find(m => m.orderId === local.orderId)) {
+          // If it's not in the DB kitchen list, it might be a local NEW order
+          if (local.items.some(i => i.status === "NEW")) {
+            merged.push(local);
+          }
+        }
+      });
+
+      set({ activeOrders: merged });
+    } catch (err) {
+      console.error("❌ [ActiveOrdersStore] Fetch failed:", err);
+    }
   },
 }),
   {

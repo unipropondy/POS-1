@@ -20,6 +20,10 @@ export default function KitchenStatusScreen() {
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
   const markItemServed = useActiveOrdersStore((s) => s.markItemServed);
 
+  React.useEffect(() => {
+    useActiveOrdersStore.getState().fetchActiveKitchenOrders();
+  }, []);
+
   const groupedOrders = useMemo(() => {
     return activeOrders
       .map((order) => {
