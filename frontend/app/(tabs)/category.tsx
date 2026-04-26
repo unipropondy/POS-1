@@ -100,7 +100,7 @@ const TableItemComponent = React.memo(
 
     // Use ONLY ui values derived from status
     const borderColor = status === 0 ? Theme.border : ui.color;
-    const bgColor = (Platform.OS !== 'web' && status !== 0) ? ui.lightBg : Theme.bgCard;
+    const bgColor = status !== 0 ? ui.lightBg : Theme.bgCard;
     const textColor = status === 0 ? Theme.textPrimary : ui.color;
     const labelColor = Theme.textPrimary;
 
