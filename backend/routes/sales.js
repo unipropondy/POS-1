@@ -357,7 +357,7 @@ router.get("/category", async (req, res) => {
           WHERE ${appDateWhereSql}
             AND ISNULL(sh.IsCancelled, 0) = 0
             AND ISNULL(sid.Qty, 0) > 0
-          GROUP BY ISNULL(cm.CategoryName, 'Unmapped')
+          GROUP BY ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped'))
         ),
         LegacyReport AS (
           SELECT
@@ -413,7 +413,7 @@ router.get("/dish", async (req, res) => {
           WHERE ${appDateWhereSql}
             AND ISNULL(sh.IsCancelled, 0) = 0
             AND ISNULL(sid.Qty, 0) > 0
-          GROUP BY ISNULL(d.Name, sid.DishName), ISNULL(cm.CategoryName, 'Unmapped'), ISNULL(dg.DishGroupName, 'Unmapped')
+          GROUP BY ISNULL(sid.DishName, ISNULL(d.Name, 'Unknown')), ISNULL(sid.CategoryName, ISNULL(cm.CategoryName, 'Unmapped')), ISNULL(sid.SubCategoryName, ISNULL(dg.DishGroupName, 'Unmapped'))
         ),
         LegacyReport AS (
           SELECT
