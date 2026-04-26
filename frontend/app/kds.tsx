@@ -226,7 +226,7 @@ export default function KDSScreen() {
     let fresh = 0, warn = 0, critical = 0;
     kitchenOrders.forEach((order: any) => {
       const latestSent = Math.max(...order.items.map((i: any) => i.sentAt || order.createdAt));
-      const mins = Math.floor((time - latestSent) / 60000);
+      const mins = Math.floor(Math.max(0, time - latestSent) / 60000);
       const u = getUrgency(mins);
       if (u === "fresh") fresh++;
       else if (u === "warn") warn++;
@@ -249,7 +249,7 @@ export default function KDSScreen() {
 
   const renderOrder = ({ item }: any) => {
     const latestSent = Math.max(...item.items.map((i: any) => i.sentAt || item.createdAt));
-    const elapsed = time - latestSent;
+    const elapsed = Math.max(0, time - latestSent);
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
     const urgency = getUrgency(minutes);
