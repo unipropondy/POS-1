@@ -11,10 +11,12 @@ import { useActiveOrdersStore } from "../stores/activeOrdersStore";
 export function useKdsSocket() {
   const appendOrder = useActiveOrdersStore((s) => s.appendOrder);
   const closeActiveOrder = useActiveOrdersStore((s) => s.closeActiveOrder);
+  const markItemReady = useActiveOrdersStore((s) => s.markItemReady);
+  const markItemServed = useActiveOrdersStore((s) => s.markItemServed);
+
   const voidOrderItem = useActiveOrdersStore((s) => s.voidOrderItem);
 
   useEffect(() => {
-    // Fired by the backend when the POS sends a new order to the kitchen
     const handleNewOrder = (payload: {
       orderId: string;
       context: any;
@@ -24,7 +26,6 @@ export function useKdsSocket() {
       appendOrder(payload.orderId, payload.context, payload.items);
     };
 
-    // Fired when an order is closed or an item is voided
     const handleStatusUpdate = (payload: {
       orderId: string;
       action: "CLOSE" | "VOID";
@@ -38,14 +39,29 @@ export function useKdsSocket() {
       }
     };
 
+    const handleItemStatusUpdated = (payload: {
+      orderId: string;
+      lineItemId: string;
+      status: "READY" | "SERVED" | "SENT";
+    }) => {
+      console.log(`✨ [KDS] Item status synced: ${payload.lineItemId} -> ${payload.status}`);
+      if (payload.status === "READY") {
+        markItemReady(payload.orderId, payload.lineItemId, true);
+      } else if (payload.status === "SERVED") {
+        markItemServed(payload.orderId, payload.lineItemId, true);
+      }
+    };
+
     socket.on("new_order", handleNewOrder);
     socket.on("order_status_update", handleStatusUpdate);
+    socket.on("item_status_updated", handleItemStatusUpdated);
 
     return () => {
       socket.off("new_order", handleNewOrder);
       socket.off("order_status_update", handleStatusUpdate);
+      socket.off("item_status_updated", handleItemStatusUpdated);
     };
-  }, [appendOrder, closeActiveOrder, voidOrderItem]);
+  }, [appendOrder, closeActiveOrder, voidOrderItem, markItemReady, markItemServed]);
 
   return socket;
 }

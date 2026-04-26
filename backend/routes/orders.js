@@ -444,6 +444,32 @@ router.post("/remove-item", async (req, res) => {
   }
 });
 
+// ✅ Update Individual Item Status (READY, SERVED, etc.)
+router.post("/update-item-status", async (req, res) => {
+  try {
+    const { orderId, lineItemId, status } = req.body;
+    if (!lineItemId || !status) return res.status(400).json({ error: "Missing parameters" });
+
+    const pool = await poolPromise;
+    await pool.request()
+      .input("itemId", sql.NVarChar(128), lineItemId)
+      .input("status", sql.NVarChar(20), status)
+      .query("UPDATE CartItems SET Status = @status WHERE ItemId = @itemId");
+
+    // Broadcast update via socket
+    const io = req.app.get("io");
+    if (io) {
+      console.log(`📢 [Socket] Broadcasting status update: ${lineItemId} -> ${status}`);
+      io.emit("item_status_updated", { orderId, lineItemId, status });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ [UpdateStatus] ERROR:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ✅ Sync Manual Trigger
 router.post("/sync/:tableId", async (req, res) => {
   try {

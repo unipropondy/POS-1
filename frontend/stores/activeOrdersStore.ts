@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CartItem, DiscountInfo, getContextId, useCartStore } from "./cartStore";
 import { OrderContext } from "./orderContextStore";
+import { API_URL } from "../constants/Config";
 
 /* ================= TYPES ================= */
 
@@ -39,8 +40,8 @@ type ActiveOrdersState = {
   // 🔥 NEW FUNCTIONS
   updateOrderDiscount: (context: OrderContext, discount: DiscountInfo) => void;
   voidOrderItem: (orderId: string, lineItemId: string) => void;
-  markItemReady: (orderId: string, lineItemId: string) => void;
-  markItemServed: (orderId: string, lineItemId: string) => void;
+  markItemReady: (orderId: string, lineItemId: string, skipSync?: boolean) => void;
+  markItemServed: (orderId: string, lineItemId: string, skipSync?: boolean) => void;
   fetchActiveKitchenOrders: () => Promise<void>;
   updateOrderId: (oldId: string, newId: string) => void;
 };
@@ -221,39 +222,48 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
     });
   },
   /* ================= MARK ITEM READY ================= */
-  markItemReady: (orderId, lineItemId) => {
+  markItemReady: async (orderId, lineItemId, skipSync) => {
     const { activeOrders } = get();
     const now = Date.now();
 
+    // 1. Update Local State
     set({
       activeOrders: activeOrders.map((order) => {
         if (order.orderId !== orderId) return order;
-
         return {
           ...order,
           items: order.items.map((item) => {
             if (item.lineItemId === lineItemId) {
-              return { 
-                ...item, 
-                status: "READY",
-                readyAt: now 
-              };
+              return { ...item, status: "READY", readyAt: now };
             }
             return item;
           }),
         };
       }),
     });
+
+    // 2. Persist to Backend (unless already synced from socket)
+    if (!skipSync) {
+      try {
+        await fetch(`${API_URL}/api/orders/update-item-status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId, lineItemId, status: "READY" }),
+        });
+      } catch (err) {
+        console.error("❌ [Store] markItemReady sync failed:", err);
+      }
+    }
   },
 
   /* ================= MARK ITEM SERVED ================= */
-  markItemServed: (orderId, lineItemId) => {
+  markItemServed: async (orderId, lineItemId, skipSync) => {
     const { activeOrders } = get();
 
+    // 1. Update Local State
     set({
       activeOrders: activeOrders.map((order) => {
         if (order.orderId !== orderId) return order;
-
         return {
           ...order,
           items: order.items.map((item) => {
@@ -265,6 +275,19 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
         };
       }),
     });
+
+    // 2. Persist to Backend
+    if (!skipSync) {
+      try {
+        await fetch(`${API_URL}/api/orders/update-item-status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId, lineItemId, status: "SERVED" }),
+        });
+      } catch (err) {
+        console.error("❌ [Store] markItemServed sync failed:", err);
+      }
+    }
   },
 
   /* ================= FETCH FROM DB ================= */

@@ -14,11 +14,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useActiveOrdersStore } from "../stores/activeOrdersStore";
+import { useKdsSocket } from "../hooks/useKdsSocket";
 
 export default function KitchenStatusScreen() {
   const router = useRouter();
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
   const markItemServed = useActiveOrdersStore((s) => s.markItemServed);
+
+  useKdsSocket();
 
   React.useEffect(() => {
     useActiveOrdersStore.getState().fetchActiveKitchenOrders();
