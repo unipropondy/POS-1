@@ -393,7 +393,7 @@ router.post("/save", async (req, res) => {
     try {
       const settlementIdResult = await transaction.request().query(`SELECT NEWID() AS id`);
       const settlementId = settlementIdResult.recordset[0].id;
-      const billNo = generateRandomBillId();
+      let billNo = ""; // Will be set to displayOrderId later
 
         console.log(`[SAVE SALE] Step 1: Resolving BusinessUnitId...`);
         const bizRow = await transaction.request().query(`
@@ -434,7 +434,8 @@ router.post("/save", async (req, res) => {
         dailySequence = 1;
     }
 
-    console.log(`[SAVE SALE] Assigned Sequence #${dailySequence} for Restaurant ${businessUnitId}`);
+    const displayOrderId = `${todayStr.replace(/-/g, '')}-${String(dailySequence).padStart(4, '0')}`;
+    console.log(`[SAVE SALE] Assigned Sequence #${dailySequence} (${displayOrderId}) for Restaurant ${businessUnitId}`);
 
     const headerResult = await transaction.request()
       .input("SettlementID", sql.UniqueIdentifier, settlementId)
@@ -443,7 +444,7 @@ router.post("/save", async (req, res) => {
       .input("TotalTax", sql.Money, taxAmount || 0)
       .input("DiscountAmount", sql.Money, discountAmount || 0)
       .input("DiscountType", sql.NVarChar(50), discountType || "fixed")
-      .input("BillNo", sql.NVarChar(50), billNo)
+      .input("BillNo", sql.NVarChar(50), displayOrderId) // Use displayOrderId here
       .input("OrderType", sql.NVarChar(50), orderType || "DINE-IN")
       .input("TableNo", sql.NVarChar(50), tableNo || null)
       .input("Section", sql.NVarChar(100), section || null)
@@ -454,10 +455,9 @@ router.post("/save", async (req, res) => {
       .input("ManualAmount", sql.Money, totalAmount || 0)
       .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
       .input("CreatedOn", sql.DateTime, now)
-      .input("OrderId", sql.Int, dailySequence)
       .query(`
-        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, OrderId)
-        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @OrderId)
+        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn)
+        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
       `);
 
     // 3. Insert SettlementTotalSales
@@ -566,13 +566,7 @@ router.post("/save", async (req, res) => {
 
       await transaction.commit();
       
-      // Format OrderId as #YYYYMMDD-NNNN
-      const datePart = now.getFullYear().toString() + 
-                     (now.getMonth() + 1).toString().padStart(2, '0') + 
-                     now.getDate().toString().padStart(2, '0');
-      const displayOrderId = `${datePart}-${dailySequence.toString().padStart(4, '0')}`;
-
-      res.json({ success: true, settlementId, billNo, orderId: displayOrderId });
+      res.json({ success: true, settlementId, billNo: displayOrderId, orderId: displayOrderId });
     } catch (err) {
       if (transaction) await transaction.rollback();
       throw err;
