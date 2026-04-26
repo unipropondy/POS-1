@@ -105,7 +105,7 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
     /* ================= UPDATE EXISTING ORDER ================= */
 
     const updatedOrders = [...activeOrders];
-    const existingOrder = { ...updatedOrders[existingOrderIndex] };
+    const existingOrder = { ...updatedOrders[existingOrderIndex], orderId }; // 🔥 Update to latest ID (Professional)
 
     existingOrder.items = [...existingOrder.items];
 

@@ -190,11 +190,11 @@ router.post("/send", async (req, res) => {
       .input("orderId", sql.NVarChar(50), currentOrderId)
       .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
     
-    // Also update all NEW cart items with this Order ID
+    // Also update all NEW cart items with this Order ID and reset timing to NOW
     await pool.request()
       .input("cartId", sql.NVarChar(128), cleanId)
       .input("orderId", sql.NVarChar(50), currentOrderId)
-      .query("UPDATE CartItems SET OrderNo = @orderId WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING')");
+      .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE() WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING')");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
@@ -438,6 +438,17 @@ router.post("/remove-item", async (req, res) => {
     }
 
     const updated = await syncTableStatus(req, cleanTableId);
+
+    // Broadcast removal/void to KDS
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("item_status_updated", { 
+        orderId: updated.currentOrderId, 
+        lineItemId: itemId, 
+        status: "VOIDED" 
+      });
+    }
+
     res.json({ success: true, ...updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -504,7 +515,8 @@ router.get("/active-kitchen", async (req, res) => {
     const ordersMap = new Map();
 
     result.recordset.forEach(row => {
-      const orderId = row.OrderNo && row.OrderNo !== 'PENDING' ? row.OrderNo : row.tableOrderId;
+      // Prioritize the professional tableOrderId (from TableMaster) over the internal OrderNo
+      const orderId = row.tableOrderId || (row.OrderNo && row.OrderNo !== 'PENDING' ? row.OrderNo : row.CartId);
       if (!orderId) return;
 
       if (!ordersMap.has(orderId)) {

@@ -42,13 +42,15 @@ export function useKdsSocket() {
     const handleItemStatusUpdated = (payload: {
       orderId: string;
       lineItemId: string;
-      status: "READY" | "SERVED" | "SENT";
+      status: "READY" | "SERVED" | "SENT" | "VOIDED";
     }) => {
       console.log(`✨ [KDS] Item status synced: ${payload.lineItemId} -> ${payload.status}`);
       if (payload.status === "READY") {
         markItemReady(payload.orderId, payload.lineItemId, true);
       } else if (payload.status === "SERVED") {
         markItemServed(payload.orderId, payload.lineItemId, true);
+      } else if (payload.status === "VOIDED") {
+        voidOrderItem(payload.orderId, payload.lineItemId);
       }
     };
 
