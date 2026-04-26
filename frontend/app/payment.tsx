@@ -140,6 +140,7 @@ export default function PaymentScreen() {
   useEffect(() => {
     loadGst();
     fetchPaymentMethods();
+    usePaymentSettingsStore.getState().fetchSettings();
   }, []);
 
   const fetchPaymentMethods = async () => {
@@ -347,13 +348,17 @@ export default function PaymentScreen() {
     const { settings } = usePaymentSettingsStore.getState();
     const upiId = settings.upiId;
     const payNowUrl = settings.payNowQrUrl;
+    
+    const mUpper = method.toUpperCase();
+    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONEPE") || mUpper.includes("PAYTM");
+    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR");
 
-    if (method.toUpperCase() === "UPI" && upiId) {
+    if (isUPI && upiId) {
       setIsUPIVisible(true);
       return;
     }
 
-    if (method.toUpperCase() === "PAYNOW" && payNowUrl) {
+    if (isPayNow && payNowUrl) {
       setIsPayNowVisible(true);
       return;
     }

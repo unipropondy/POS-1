@@ -20,17 +20,26 @@ router.post("/update", async (req, res) => {
     const { upiId, shopName, qrCodeUrl } = req.body;
     const pool = await poolPromise;
 
+    // Use an UPSERT logic (Update if exists, Insert if not)
     await pool.request()
       .input("UPI", sql.NVarChar, upiId || null)
       .input("Shop", sql.NVarChar, shopName || "My Restaurant")
       .input("QR", sql.NVarChar, qrCodeUrl || null)
       .query(`
-        UPDATE AppSettings
-        SET 
-          UPI_ID = @UPI,
-          ShopName = @Shop,
-          PayNow_QR_Url = ISNULL(@QR, PayNow_QR_Url),
-          UpdatedOn = GETDATE()
+        IF EXISTS (SELECT 1 FROM AppSettings)
+        BEGIN
+          UPDATE AppSettings
+          SET 
+            UPI_ID = @UPI,
+            ShopName = @Shop,
+            PayNow_QR_Url = CASE WHEN @QR IS NOT NULL THEN @QR ELSE PayNow_QR_Url END,
+            UpdatedOn = GETDATE()
+        END
+        ELSE
+        BEGIN
+          INSERT INTO AppSettings (UPI_ID, ShopName, PayNow_QR_Url, UpdatedOn)
+          VALUES (@UPI, @Shop, @QR, GETDATE())
+        END
       `);
 
     res.json({ success: true, message: "Settings updated successfully" });
