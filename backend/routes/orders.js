@@ -218,7 +218,7 @@ router.post("/save-cart", async (req, res) => {
             UPDATE TableMaster 
             SET Status = 1 
             WHERE CAST(TableId AS NVARCHAR(128)) = @tid 
-               OR LTRIM(RTRIM(TableNo)) = @tid
+               OR LTRIM(RTRIM(TableNumber)) = @tid
           `);
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
@@ -231,7 +231,7 @@ router.post("/save-cart", async (req, res) => {
             UPDATE TableMaster 
             SET Status = 0, StartTime = NULL, TotalAmount = 0 
             WHERE CAST(TableId AS NVARCHAR(128)) = @tid 
-               OR LTRIM(RTRIM(TableNo)) = @tid
+               OR LTRIM(RTRIM(TableNumber)) = @tid
           `);
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
@@ -369,8 +369,8 @@ router.get("/cart/:tableId", async (req, res) => {
         FROM [dbo].[CartItems] c
         LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
         WHERE c.CartId = @cartId 
-           OR c.CartId = (SELECT TOP 1 CAST(TableId AS VARCHAR(50)) FROM TableMaster WHERE LTRIM(RTRIM(TableNo)) = @cartId)
-           OR c.CartId = (SELECT TOP 1 LTRIM(RTRIM(TableNo)) FROM TableMaster WHERE CAST(TableId AS VARCHAR(50)) = @cartId)
+           OR c.CartId = (SELECT TOP 1 CAST(TableId AS VARCHAR(50)) FROM TableMaster WHERE LTRIM(RTRIM(TableNumber)) = @cartId)
+           OR c.CartId = (SELECT TOP 1 LTRIM(RTRIM(TableNumber)) FROM TableMaster WHERE CAST(TableId AS VARCHAR(50)) = @cartId)
       `);
 
     console.log(`🔍 [CartFetch] Found ${result.recordset.length} items`);
