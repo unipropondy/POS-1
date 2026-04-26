@@ -146,6 +146,7 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
             <TextInput
               style={styles.input}
               placeholder="Enter Password"
+              placeholderTextColor="#A0AEC0"
               secureTextEntry
               value={password}
               onChangeText={setPassword}
@@ -192,6 +193,7 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
                   value={shopName}
                   onChangeText={setShopName}
                   placeholder="e.g. My Awesome Restaurant"
+                  placeholderTextColor="#A0AEC0"
                 />
               </View>
 
@@ -205,6 +207,7 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
                   value={upiId}
                   onChangeText={setUpiId}
                   placeholder="e.g. shopname@okaxis"
+                  placeholderTextColor="#A0AEC0"
                   autoCapitalize="none"
                 />
                 <Text style={styles.helper}>
