@@ -391,25 +391,27 @@ export default function Category() {
     }, []),
   );
 
-  // --- Real-time Sync (Polling every 3s) ---
+  // --- Real-time Sync (Polling every 15s as backup) ---
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       const OVERTIME_LIMIT = 60 * 60 * 1000; // 1 hour
 
+      // 1. Efficiently check for Overtime
       allTables.forEach((table: TableItem) => {
         if (table.Status === 1 && table.StartTime) {
           const startTime = new Date(table.StartTime).getTime();
           if (now - startTime > OVERTIME_LIMIT) {
-            updateTableStatus(table.id, 4); // Automatically move to Overtime (4)
+            updateTableStatus(table.id, 4); 
           }
         }
       });
 
+      // 2. Fetch as backup (less frequent)
       fetchTables();
-    }, 3000);
+    }, 15000); 
     return () => clearInterval(interval);
-  }, [allTables]);
+  }, [allTables.length]); // Only restart if table count changes, not every status update
 
   const fetchLockedTables = async () => {
     try {
@@ -470,30 +472,6 @@ export default function Category() {
           }))
           .filter((item) => item.id && item.label);
         setAllTables(convertedData);
-
-        // Sync with TableStatusStore
-        convertedData.forEach((t) => {
-          if (t.Status !== 0) {
-            useTableStatusStore
-              .getState()
-              .updateTableStatus(
-                t.id,
-                getSectionFromDiningSection(t.DiningSection),
-                t.label,
-                "SYNC",
-                t.Status === 5
-                  ? "LOCKED"
-                  : t.Status === 1
-                    ? "SENT"
-                    : t.Status === 2
-                      ? "HOLD"
-                      : "BILL_REQUESTED",
-                t.StartTime ? new Date(t.StartTime).getTime() : undefined,
-                t.lockedByName,
-                t.totalAmount,
-              );
-          }
-        });
       } else {
         throw new Error("No tables returned from API");
       }
