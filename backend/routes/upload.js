@@ -4,9 +4,10 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, "../uploads");
+// Ensure uploads directory exists (using project root for Railway/Docker compatibility)
+const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
+  console.log("📁 Creating uploads directory at:", uploadDir);
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
