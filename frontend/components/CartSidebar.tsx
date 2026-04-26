@@ -838,7 +838,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       "HOLD",
                     );
                     holdOrder(targetOrderId, cart, orderContext);
-                    clearCartStandalone();
                     router.replace(
                       `/(tabs)/category?section=${orderContext.section}`,
                     );
