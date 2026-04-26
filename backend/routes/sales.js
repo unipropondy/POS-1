@@ -414,9 +414,9 @@ router.post("/save", async (req, res) => {
         displayOrderId = tableCheck.recordset[0]?.CurrentOrderId;
     }
 
+    const now = new Date();
     if (!displayOrderId) {
         // Fallback: Generate a new one if none exists (e.g., takeaway or direct pay)
-        const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
         
         let seqResult = await transaction.request()

@@ -71,7 +71,6 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="menu" />
-          <Stack.Screen name="modal" options={{ presentation: "modal" }} />
         </Stack>
         <StatusBar style="light" />
       </ToastProvider>
