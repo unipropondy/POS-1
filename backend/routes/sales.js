@@ -652,35 +652,22 @@ router.post("/save", async (req, res) => {
       }
 
       // 4. Cleanup Table & Cart on success
-      if (tableId || tableNo) {
-        const cleanTableId = tableId ? String(tableId).replace(/^\{|\}$/g, "").trim() : null;
-        const cleanTableNo = tableNo ? String(tableNo).trim() : null;
+      if (tableId) {
+        const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
+        console.log(`[SAVE SALE] Cleaning up table: ${cleanTableId}`);
         
-        console.log(`[SAVE SALE] Cleaning up table: ID=${cleanTableId}, No=${cleanTableNo}`);
-        
-        // Clear items using Table Number (this is what CartStore uses as CartId)
-        if (cleanTableNo) {
-          await transaction.request()
-            .input("cartNo", sql.NVarChar(128), cleanTableNo)
-            .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartNo");
-        }
-
-        // Also clear items using GUID just in case
-        if (cleanTableId) {
-          await transaction.request()
-            .input("cartId", sql.NVarChar(128), cleanTableId)
-            .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
-            
-          await transaction.request()
-            .input("tid", sql.UniqueIdentifier, cleanTableId)
-            .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
-        }
+        await transaction.request()
+          .input("cartId", sql.NVarChar(128), cleanTableId)
+          .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+          
+        await transaction.request()
+          .input("tid", sql.UniqueIdentifier, cleanTableId)
+          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
 
         const io = req.app.get("io");
         if (io) {
-          const emitId = cleanTableId || cleanTableNo;
-          io.emit("table_status_updated", { tableId: emitId, status: 0, totalAmount: 0 });
-          io.emit("cart_updated", { tableId: emitId });
+          io.emit("table_status_updated", { tableId: cleanTableId, status: 0, totalAmount: 0 });
+          io.emit("cart_updated", { tableId: cleanTableId });
         }
       }
 

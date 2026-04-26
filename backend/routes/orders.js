@@ -211,28 +211,17 @@ router.post("/save-cart", async (req, res) => {
         }
 
         // Update table status to 1 (Occupied/Dining)
-        // We use a flexible WHERE clause to handle both GUIDs and Table Numbers
         await transaction.request()
-          .input("tid", sql.NVarChar(128), cleanTableId)
-          .query(`
-            UPDATE TableMaster 
-            SET Status = 1 
-            WHERE CAST(TableId AS NVARCHAR(128)) = @tid 
-               OR LTRIM(RTRIM(TableNumber)) = @tid
-          `);
+          .input("tableId", sql.UniqueIdentifier, cleanTableId)
+          .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
         console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
       } else {
         // 3. If items are empty, reset table to Available (0)
         await transaction.request()
-          .input("tid", sql.NVarChar(128), cleanTableId)
-          .query(`
-            UPDATE TableMaster 
-            SET Status = 0, StartTime = NULL, TotalAmount = 0 
-            WHERE CAST(TableId AS NVARCHAR(128)) = @tid 
-               OR LTRIM(RTRIM(TableNumber)) = @tid
-          `);
+          .input("tableId", sql.UniqueIdentifier, cleanTableId)
+          .query("UPDATE TableMaster SET Status = 0, StartTime = NULL WHERE TableId = @tableId");
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
         console.log(`🧹 [CartSave] Cart cleared. Table Status -> 0`);
@@ -368,9 +357,7 @@ router.get("/cart/:tableId", async (req, res) => {
         SELECT c.*, d.Name as name, d.CurrentCost as price
         FROM [dbo].[CartItems] c
         LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
-        WHERE c.CartId = @cartId 
-           OR c.CartId = (SELECT TOP 1 CAST(TableId AS VARCHAR(50)) FROM TableMaster WHERE LTRIM(RTRIM(TableNumber)) = @cartId)
-           OR c.CartId = (SELECT TOP 1 LTRIM(RTRIM(TableNumber)) FROM TableMaster WHERE CAST(TableId AS VARCHAR(50)) = @cartId)
+        WHERE c.CartId = @cartId
       `);
 
     console.log(`🔍 [CartFetch] Found ${result.recordset.length} items`);
