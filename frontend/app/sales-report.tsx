@@ -1267,6 +1267,15 @@ export default function SalesReport() {
                     {formatCurrency(selectedOrder?.SysAmount)}
                   </Text>
                 </View>
+
+                <View style={[styles.statRow, { borderBottomWidth: 0, marginTop: -10, marginBottom: 15 }]}>
+                  <Text style={styles.statName}>Payment Method</Text>
+                  <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary, borderColor: Theme.primary, paddingHorizontal: 12, paddingVertical: 6 }]}>
+                    <Text style={{ color: "#fff", fontFamily: Fonts.black, fontSize: 12 }}>
+                      {selectedOrder?.PayMode || "CASH"}
+                    </Text>
+                  </View>
+                </View>
                 <TouchableOpacity
                   onPress={() => setSelectedOrder(null)}
                   style={styles.doneBtn}
