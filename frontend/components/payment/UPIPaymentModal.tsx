@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -46,20 +47,26 @@ const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
   }, [visible]);
 
   const handleManualSuccess = () => {
-    Alert.alert(
-      'Confirm Payment',
-      'Have you verified the payment in your bank account?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Received',
-          onPress: () => {
-            onSuccess();
-            onClose();
+    console.log("✅ UPI Payment Received clicked");
+    if (Platform.OS === 'web') {
+      onSuccess();
+      onClose();
+    } else {
+      Alert.alert(
+        'Confirm Payment',
+        'Have you verified the payment in your bank account?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes, Received',
+            onPress: () => {
+              onSuccess();
+              onClose();
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   // Generate UPI URL using the same logic provided in the prompt
@@ -140,17 +147,24 @@ const UPIPaymentModal: React.FC<UPIPaymentModalProps> = ({
 
             <TouchableOpacity
               style={styles.failedButton}
+              activeOpacity={0.6}
               onPress={() => {
-                Alert.alert('Cancel Payment', 'Are you sure you want to cancel this UPI transaction?', [
-                  { text: 'No', style: 'cancel' },
-                  {
-                    text: 'Yes, Cancel',
-                    onPress: () => {
-                      if (onFailed) onFailed();
-                      onClose();
+                console.log("❌ UPI Cancel clicked");
+                if (Platform.OS === 'web') {
+                  if (onFailed) onFailed();
+                  onClose();
+                } else {
+                  Alert.alert('Cancel Payment', 'Are you sure you want to cancel this UPI transaction?', [
+                    { text: 'No', style: 'cancel' },
+                    {
+                      text: 'Yes, Cancel',
+                      onPress: () => {
+                        if (onFailed) onFailed();
+                        onClose();
+                      }
                     }
-                  }
-                ]);
+                  ]);
+                }
               }}
             >
               <Text style={styles.failedButtonText}>Cancel Transaction</Text>

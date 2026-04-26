@@ -8,7 +8,8 @@ import {
   Alert,
   Image,
   Dimensions,
-  ScrollView
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from "../../constants/theme";
@@ -35,20 +36,27 @@ const PayNowPaymentModal: React.FC<PayNowPaymentModalProps> = ({
   const { settings } = usePaymentSettingsStore();
 
   const handleManualSuccess = () => {
-    Alert.alert(
-      'Confirm Payment',
-      'Have you verified the PayNow transfer on your terminal?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Received',
-          onPress: () => {
-            onSuccess();
-            onClose();
+    console.log("✅ Payment Received clicked");
+    if (Platform.OS === 'web') {
+      // Direct confirm for Web to avoid Alert issues
+      onSuccess();
+      onClose();
+    } else {
+      Alert.alert(
+        'Confirm Payment',
+        'Have you verified the payment in your bank account?',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Yes, Received',
+            onPress: () => {
+              onSuccess();
+              onClose();
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   return (
@@ -105,17 +113,24 @@ const PayNowPaymentModal: React.FC<PayNowPaymentModalProps> = ({
 
             <TouchableOpacity
               style={styles.failedButton}
+              activeOpacity={0.6}
               onPress={() => {
-                Alert.alert('Cancel Payment', 'Cancel this PayNow transaction?', [
-                  { text: 'No', style: 'cancel' },
-                  {
-                    text: 'Yes',
-                    onPress: () => {
-                      if (onFailed) onFailed();
-                      onClose();
+                console.log("❌ Cancel Transaction clicked");
+                if (Platform.OS === 'web') {
+                   if (onFailed) onFailed();
+                   onClose();
+                } else {
+                  Alert.alert('Cancel Payment', 'Cancel this PayNow transaction?', [
+                    { text: 'No', style: 'cancel' },
+                    {
+                      text: 'Yes',
+                      onPress: () => {
+                        if (onFailed) onFailed();
+                        onClose();
+                      }
                     }
-                  }
-                ]);
+                  ]);
+                }
               }}
             >
               <Text style={styles.failedButtonText}>Cancel Transaction</Text>
