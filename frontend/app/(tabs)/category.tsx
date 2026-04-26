@@ -1,47 +1,52 @@
-import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
-  StatusBar,
-  Platform,
-  Modal,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Skeleton } from "../../components/ui/Skeleton";
+import { API_URL } from "../../constants/Config";
 import { Fonts } from "../../constants/Fonts";
 import { Theme } from "../../constants/theme";
-import { API_URL } from "../../constants/Config";
-import { Skeleton } from "../../components/ui/Skeleton";
 
+import StoreSettingsModal from "../../components/payment/StoreSettingsModal";
 import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
+import { useAuthStore } from "../../stores/authStore";
 import {
+  fetchCartFromDBGlobal,
   getContextId,
   setCartItemsGlobal,
-  fetchCartFromDBGlobal,
   setCurrentContext,
   useCartStore,
 } from "../../stores/cartStore";
-import { getHeldOrders, removeHeldOrder } from "../../stores/heldOrdersStore";
-import { setOrderContext, OrderContext } from "../../stores/orderContextStore";
-import { useTableStatusStore, TableStatusType } from "../../stores/tableStatusStore";
-import { useAuthStore } from "../../stores/authStore";
+import { getHeldOrders } from "../../stores/heldOrdersStore";
+import { OrderContext, setOrderContext } from "../../stores/orderContextStore";
 import { usePaymentSettingsStore } from "../../stores/paymentSettingsStore";
-import StoreSettingsModal from "../../components/payment/StoreSettingsModal";
+import {
+  TableStatusType,
+  useTableStatusStore,
+} from "../../stores/tableStatusStore";
 
 // --- MOBILE SOLID COLORS ---
-const SOLID_LIGHT_GREEN = '#F0FDF4'; 
-const SOLID_LIGHT_RED   = '#FEF2F2';
-const SOLID_LIGHT_BLUE  = '#F0F9FF';
-const SOLID_LIGHT_AMBER = '#FFFBEB';
-const SOLID_LIGHT_VIOLET = '#F5F3FF';
+const SOLID_LIGHT_GREEN = "#F0FDF4";
+const SOLID_LIGHT_RED = "#FEF2F2";
+const SOLID_LIGHT_BLUE = "#F0F9FF";
+const SOLID_LIGHT_AMBER = "#FFFBEB";
+const SOLID_LIGHT_VIOLET = "#F5F3FF";
 
 const formatSectionGlobal = (sec: string) => {
   if (!sec) return "";
@@ -53,136 +58,199 @@ const formatSectionGlobal = (sec: string) => {
 const getStatusUI = (status: number) => {
   const s = Number(status);
   switch (s) {
-    case 1: return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
-    case 2: return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
-    case 3: return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
-    case 4: return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
-    case 5: return { text: "LOCKED", color: "#ef4444", lightBg: "#FEF2F2" };
+    case 1:
+      return { text: "DINING", color: "#22c55e", lightBg: "#F0FDF4" };
+    case 2:
+      return { text: "CHECKOUT", color: "#fd7e14", lightBg: "#FFF7ED" };
+    case 3:
+      return { text: "HOLD", color: "#3b82f6", lightBg: "#F0F9FF" };
+    case 4:
+      return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
+    case 5:
+      return { text: "LOCKED", color: "#ef4444", lightBg: "#FEF2F2" };
     case 0:
-    default: return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" }; // Gray
+    default:
+      return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" }; // Gray
   }
 };
 
 // --- MEMOIZED TABLE COMPONENT ---
-const TableItemComponent = React.memo(({ 
-  item, 
-  itemSize, 
-  activeTab, 
-  tableData, 
-  onPress,
-  numberFont,
-  smallFont,
-  isTabletPortrait
-}: { 
-  item: TableItem; 
-  itemSize: number; 
-  activeTab: string; 
-  tableData: any; 
-  onPress: (item: TableItem, tableData: any, isCheckout?: boolean) => void;
-  numberFont: number;
-  smallFont: number;
-  isTabletPortrait?: boolean;
-}) => {
-  const status = Number(item.Status);
-  const ui = getStatusUI(status);
-  
-  // Use ONLY ui values derived from status
-  const borderColor = status === 0 ? Theme.border : ui.color;
-  const bgColor = (Platform.OS !== 'web' && status !== 0) ? ui.lightBg : Theme.bgCard;
-  const textColor = status === 0 ? Theme.textPrimary : ui.color;
-  
-  let timeText = "";
-  let billAmount = tableData?.billAmount || 0;
+const TableItemComponent = React.memo(
+  ({
+    item,
+    itemSize,
+    activeTab,
+    tableData,
+    onPress,
+    numberFont,
+    smallFont,
+    isTabletPortrait,
+  }: {
+    item: TableItem;
+    itemSize: number;
+    activeTab: string;
+    tableData: any;
+    onPress: (item: TableItem, tableData: any, isCheckout?: boolean) => void;
+    numberFont: number;
+    smallFont: number;
+    isTabletPortrait?: boolean;
+  }) => {
+    const status = Number(item.Status);
+    const ui = getStatusUI(status);
 
-  if (tableData && tableData.startTime && status !== 0 && status !== 5) {
-    const time = new Date(tableData.startTime);
-    timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
-  }
+    // Use ONLY ui values derived from status
+    const borderColor = status === 0 ? Theme.border : ui.color;
+    const bgColor = (Platform.OS !== 'web' && status !== 0) ? ui.lightBg : Theme.bgCard;
+    const textColor = status === 0 ? Theme.textPrimary : ui.color;
+    const labelColor = Theme.textPrimary;
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      style={[
-        styles.tableBox,
-        {
-          width: itemSize,
-          height: itemSize,
-          borderColor,
-          backgroundColor: bgColor,
-          borderWidth: status !== 0 ? 2 : 1.5,
-          elevation: status !== 0 ? 0 : 2, 
-        },
-      ]}
-      onPress={() => onPress(item, tableData)}
-    >
-      <View style={styles.tableContent}>
-        <Text style={[styles.tableNumber, { fontSize: numberFont, color: Theme.textPrimary }]}>
-          {item.label}
-        </Text>
+    let timeText = "";
+    let billAmount = tableData?.billAmount || 0;
 
-        {status !== 0 && (
-          <View style={styles.tableInfo}>
-            <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
-              <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
-                {ui.text}
-              </Text>
-            </View>
+    if (tableData && tableData.startTime && status !== 0 && status !== 5) {
+      const time = new Date(tableData.startTime);
+      timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
+    }
 
-            {(status === 1 || status === 2 || status === 3 || status === 5) && (
-              <View style={styles.tableStats}>
-                {timeText ? (
-                  <Text style={[styles.timeText, { fontSize: smallFont + 1, color: textColor }]}>
-                    <Ionicons name="time-outline" size={smallFont} color={textColor} /> {timeText}
-                  </Text>
-                ) : null}
-                {billAmount > 0 && (
-                  <Text style={[styles.billText, { fontSize: smallFont + 2, color: textColor, fontWeight: "800" }]}>
-                    ${billAmount.toFixed(2)}
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        )}
-        
-        {status === 5 && (
-          <View style={styles.lockedOverlay}>
-            <Ionicons name="lock-closed" size={Math.max(12, itemSize * 0.15)} color={ui.color} />
-            {tableData?.lockedByName ? (
-              <View style={{ 
-                backgroundColor: ui.color, 
-                paddingHorizontal: 6, 
-                paddingVertical: 2, 
-                borderRadius: 4, 
-                marginTop: 2,
-                marginBottom: 4
-              }}>
-                <Text style={{ fontSize: smallFont - 1, color: "#FFF", fontWeight: "bold" }} numberOfLines={1}>
-                  {tableData.lockedByName}
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[
+          styles.tableBox,
+          {
+            width: itemSize,
+            height: itemSize,
+            borderColor,
+            backgroundColor: bgColor,
+            borderWidth: status !== 0 ? 2 : 1.5,
+            elevation: status !== 0 ? 0 : 2,
+          },
+        ]}
+        onPress={() => onPress(item, tableData)}
+      >
+        <View style={styles.tableContent}>
+          <Text
+            style={[
+              styles.tableNumber,
+              { fontSize: numberFont, color: labelColor },
+            ]}
+          >
+            {item.label}
+          </Text>
+
+          {status !== 0 && (
+            <View style={styles.tableInfo}>
+              <View style={[styles.statusChip, { backgroundColor: bgColor, borderColor: ui.color }]}>
+                <Text style={[styles.statusChipText, { color: ui.color, fontSize: smallFont }]}>
+                  {ui.text}
                 </Text>
               </View>
-            ) : null}
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-});
 
-const TableGridSkeleton = ({ itemSize, columns, gap, padding, insets }: any) => {
-  const items = Array.from({ length: columns * 5 }); 
+              {(status === 1 ||
+                status === 2 ||
+                status === 3 ||
+                status === 4 ||
+                status === 5) && (
+                <View style={styles.tableStats}>
+                  {timeText ? (
+                    <Text
+                      style={[
+                        styles.timeText,
+                        { fontSize: smallFont + 1, color: textColor },
+                      ]}
+                    >
+                      <Ionicons
+                        name="time-outline"
+                        size={smallFont}
+                        color={textColor}
+                      />{" "}
+                      {timeText}
+                    </Text>
+                  ) : null}
+                  {billAmount > 0 && (
+                    <Text
+                      style={[
+                        styles.billText,
+                        {
+                          fontSize: smallFont + 2,
+                          color: textColor,
+                          fontWeight: "800",
+                        },
+                      ]}
+                    >
+                      ${billAmount.toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
+          {status === 5 && (
+            <View style={styles.lockedOverlay}>
+              <Ionicons
+                name="lock-closed"
+                size={Math.max(12, itemSize * 0.15)}
+                color={ui.color}
+              />
+              {tableData?.lockedByName ? (
+                <View
+                  style={{
+                    backgroundColor: ui.color,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    marginTop: 2,
+                    marginBottom: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: smallFont - 1,
+                      color: "#FFF",
+                      fontWeight: "bold",
+                    }}
+                    numberOfLines={1}
+                  >
+                    {tableData.lockedByName}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
+
+const TableGridSkeleton = ({
+  itemSize,
+  columns,
+  gap,
+  padding,
+  insets,
+}: any) => {
+  const items = Array.from({ length: columns * 5 });
   return (
-    <View style={{ 
-      paddingHorizontal: padding, 
-      paddingTop: padding,
-      paddingLeft: padding + insets.left,
-      paddingRight: padding + insets.right,
-      flexDirection: 'row', 
-      flexWrap: 'wrap', 
-      gap: gap 
-    }}>
+    <View
+      style={{
+        paddingHorizontal: padding,
+        paddingTop: padding,
+        paddingLeft: padding + insets.left,
+        paddingRight: padding + insets.right,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: gap,
+      }}
+    >
       {items.map((_, i) => (
-        <Skeleton key={i} width={itemSize} height={itemSize} borderRadius={12} />
+        <Skeleton
+          key={i}
+          width={itemSize}
+          height={itemSize}
+          borderRadius={12}
+        />
       ))}
     </View>
   );
@@ -247,40 +315,52 @@ export default function Category() {
   const user = useAuthStore((s: any) => s.user);
   const logout = useAuthStore((s: any) => s.logout);
   const canAccessSalesReport = useAuthStore((s: any) => s.canAccessSalesReport);
-  const canAccessMembers     = useAuthStore((s: any) => s.canAccessMembers);
-  const canAccessTimeEntry   = useAuthStore((s: any) => s.canAccessTimeEntry);
-  const canAccessLockTables  = useAuthStore((s: any) => s.canAccessLockTables);
-  const canAccessKDS         = useAuthStore((s: any) => s.canAccessKDS);
+  const canAccessMembers = useAuthStore((s: any) => s.canAccessMembers);
+  const canAccessTimeEntry = useAuthStore((s: any) => s.canAccessTimeEntry);
+  const canAccessLockTables = useAuthStore((s: any) => s.canAccessLockTables);
+  const canAccessKDS = useAuthStore((s: any) => s.canAccessKDS);
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
     socket.on("table_status_updated", ({ tableId, status, totalAmount }) => {
-      console.log(`🔌 [Socket] Table ${tableId} updated -> Status ${status}, Total ${totalAmount}`);
-      setAllTables(prev => prev.map(t => 
-        t.id === tableId ? { ...t, Status: Number(status), totalAmount: Number(totalAmount || 0) } : t
-      ));
-      
+      console.log(
+        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Total ${totalAmount}`,
+      );
+      setAllTables((prev) =>
+        prev.map((t) =>
+          t.id === tableId
+            ? {
+                ...t,
+                Status: Number(status),
+                totalAmount: Number(totalAmount || 0),
+              }
+            : t,
+        ),
+      );
+
       // Update store for consistency
-      const table = allTables.find(t => t.id === tableId);
+      const table = allTables.find((t) => t.id === tableId);
       if (table) {
-        useTableStatusStore.getState().updateTableStatus(
-          tableId,
-          getSectionFromDiningSection(table.DiningSection),
-          table.label,
-          "SYNC",
-          status === 5
-            ? "LOCKED"
-            : status === 1
-              ? "SENT"
-              : status === 2
-                ? "BILL_REQUESTED"
-                : status === 3
-                  ? "HOLD"
-                  : "EMPTY",
-          undefined,
-          undefined,
-          totalAmount
-        );
+        useTableStatusStore
+          .getState()
+          .updateTableStatus(
+            tableId,
+            getSectionFromDiningSection(table.DiningSection),
+            table.label,
+            "SYNC",
+            status === 5
+              ? "LOCKED"
+              : status === 1
+                ? "SENT"
+                : status === 2
+                  ? "BILL_REQUESTED"
+                  : status === 3
+                    ? "HOLD"
+                    : "EMPTY",
+            undefined,
+            undefined,
+            totalAmount,
+          );
       }
     });
 
@@ -295,7 +375,7 @@ export default function Category() {
       if (!user) {
         router.replace("/");
       }
-    }, [user])
+    }, [user]),
   );
 
   useEffect(() => {
@@ -308,14 +388,14 @@ export default function Category() {
     React.useCallback(() => {
       fetchLockedTables();
       fetchTables();
-    }, [])
+    }, []),
   );
 
   // --- Real-time Sync (Polling every 3s) ---
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      const OVERTIME_LIMIT = 2 * 60 * 60 * 1000; // 2 hours
+      const OVERTIME_LIMIT = 60 * 60 * 1000; // 1 hour
 
       allTables.forEach((table: TableItem) => {
         if (table.Status === 1 && table.StartTime) {
@@ -367,13 +447,15 @@ export default function Category() {
       });
       clearTimeout(timeoutId);
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
       const data = await response.json();
       let tablesArray: any[] = [];
       if (Array.isArray(data)) tablesArray = data;
       else if (data?.data && Array.isArray(data.data)) tablesArray = data.data;
-      else if (data?.recordset && Array.isArray(data.recordset)) tablesArray = data.recordset;
+      else if (data?.recordset && Array.isArray(data.recordset))
+        tablesArray = data.recordset;
 
       if (tablesArray.length > 0) {
         const convertedData: TableItem[] = tablesArray
@@ -390,18 +472,26 @@ export default function Category() {
         setAllTables(convertedData);
 
         // Sync with TableStatusStore
-        convertedData.forEach(t => {
+        convertedData.forEach((t) => {
           if (t.Status !== 0) {
-            useTableStatusStore.getState().updateTableStatus(
-              t.id,
-              getSectionFromDiningSection(t.DiningSection),
-              t.label,
-              "SYNC",
-              t.Status === 5 ? 'LOCKED' : (t.Status === 1 ? 'SENT' : (t.Status === 2 ? 'HOLD' : 'BILL_REQUESTED')),
-              t.StartTime ? new Date(t.StartTime).getTime() : undefined,
-              t.lockedByName,
-              t.totalAmount
-            );
+            useTableStatusStore
+              .getState()
+              .updateTableStatus(
+                t.id,
+                getSectionFromDiningSection(t.DiningSection),
+                t.label,
+                "SYNC",
+                t.Status === 5
+                  ? "LOCKED"
+                  : t.Status === 1
+                    ? "SENT"
+                    : t.Status === 2
+                      ? "HOLD"
+                      : "BILL_REQUESTED",
+                t.StartTime ? new Date(t.StartTime).getTime() : undefined,
+                t.lockedByName,
+                t.totalAmount,
+              );
           }
         });
       } else {
@@ -411,7 +501,7 @@ export default function Category() {
       Alert.alert(
         "Connection Error",
         `Failed to connect to server at ${API_URL}\n\nPlease ensure the backend server is running.`,
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       setAllTables([]);
     } finally {
@@ -420,31 +510,38 @@ export default function Category() {
   };
 
   const confirmUnlock = (tableId: string, tableLabel: string) => {
-    Alert.alert("Unlock Table", `Are you sure you want to unlock Table ${tableLabel}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Unlock Now",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const res = await fetch(`${API_URL}/api/tables/unlock-persistent`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tableId }),
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-              fetchLockedTables();
-              Alert.alert("Success", `Table ${tableLabel} unlocked.`);
-            } else {
-              Alert.alert("Error", data.error || "Failed to unlock");
+    Alert.alert(
+      "Unlock Table",
+      `Are you sure you want to unlock Table ${tableLabel}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unlock Now",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await fetch(
+                `${API_URL}/api/tables/unlock-persistent`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ tableId }),
+                },
+              );
+              const data = await res.json();
+              if (res.ok && data.success) {
+                fetchLockedTables();
+                Alert.alert("Success", `Table ${tableLabel} unlocked.`);
+              } else {
+                Alert.alert("Error", data.error || "Failed to unlock");
+              }
+            } catch (err) {
+              Alert.alert("Error", "Network error while unlocking");
             }
-          } catch (err) {
-            Alert.alert("Error", "Network error while unlocking");
-          }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   useEffect(() => {
@@ -455,9 +552,10 @@ export default function Category() {
 
   const insets = useSafeAreaInsets();
   const GAP = !isTablet && isLandscape ? 8 : 10;
-  const PADDING = isTablet ? 24 : (isLandscape ? 12 : 16);
+  const PADDING = isTablet ? 24 : isLandscape ? 12 : 16;
   // Subtract safe area insets to account for notches in landscape
-  const availableGridWidth = width - PADDING * 2 - insets.left - insets.right - 2;
+  const availableGridWidth =
+    width - PADDING * 2 - insets.left - insets.right - 2;
 
   let columns = 3;
   if (isTablet) {
@@ -476,7 +574,9 @@ export default function Category() {
   }
 
   // Use Math.floor to be safe against sub-pixel overflow
-  const itemSize = Math.floor((availableGridWidth - GAP * (columns - 1)) / columns);
+  const itemSize = Math.floor(
+    (availableGridWidth - GAP * (columns - 1)) / columns,
+  );
 
   useEffect(() => {
     const index = SECTIONS.indexOf(activeTab);
@@ -485,7 +585,10 @@ export default function Category() {
     }
   }, [activeTab]);
 
-  const numberFont = Math.max(12, Math.min(isTablet ? 24 : 20, itemSize * 0.32));
+  const numberFont = Math.max(
+    12,
+    Math.min(isTablet ? 24 : 20, itemSize * 0.32),
+  );
   const smallFont = Math.max(8, Math.min(isTablet ? 14 : 11, itemSize * 0.18));
 
   const currentTables = allTables.filter((table: TableItem) => {
@@ -496,26 +599,37 @@ export default function Category() {
     return false;
   });
 
-  const occupiedCount = currentTables.filter((t: TableItem) => t.Status !== 0).length;
+  const occupiedCount = currentTables.filter(
+    (t: TableItem) => t.Status !== 0,
+  ).length;
 
-  // â”€â”€â”€â”€ STATUS HANDLERS (OPTIMISTIC) â”€â”€â”€â”€
-  const updateTableStatus = async (tableId: string, status: number, lockedByName?: string, totalAmount?: number) => {
+  // ———— STATUS HANDLERS (OPTIMISTIC) ————
+  const updateTableStatus = async (
+    tableId: string,
+    status: number,
+    lockedByName?: string,
+    totalAmount?: number,
+  ) => {
     // 1. Optimistic UI update
     const previousTables = [...allTables];
-    setAllTables((prev: TableItem[]) => prev.map((t: TableItem) => t.id === tableId ? { ...t, Status: status } : t));
+    setAllTables((prev: TableItem[]) =>
+      prev.map((t: TableItem) =>
+        t.id === tableId ? { ...t, Status: status } : t,
+      ),
+    );
 
     // Update global store
     const table = allTables.find((t: TableItem) => t.id === tableId);
     if (table) {
       const statusStrMap: Record<number, TableStatusType> = {
-        0: 'EMPTY',
-        1: 'SENT',
-        2: 'BILL_REQUESTED',
-        3: 'HOLD',
-        4: 'SENT',   // Overtime is technically still an active order (SENT)
-        5: 'LOCKED' 
+        0: "EMPTY",
+        1: "SENT",
+        2: "BILL_REQUESTED",
+        3: "HOLD",
+        4: "SENT", // Overtime is technically still an active order (SENT)
+        5: "LOCKED",
       };
-      
+
       useTableStatusStore.getState().updateTableStatus(
         tableId,
         getSectionFromDiningSection(table.DiningSection),
@@ -524,7 +638,7 @@ export default function Category() {
         statusStrMap[status],
         undefined,
         lockedByName,
-        totalAmount
+        totalAmount,
       );
     }
 
@@ -535,13 +649,16 @@ export default function Category() {
         body: JSON.stringify({ tableId, status, lockedByName }),
       });
       if (!res.ok) throw new Error("Failed to update status");
-      
+
       // Successfully updated backend
-      fetchTables(); // ðŸ”¥ refresh after update
+      fetchTables(); // 🔥 refresh after update
       if (status === 4) fetchLockedTables();
     } catch (err) {
       console.error("Status update failed:", err);
-      Alert.alert("Sync Error", "Could not sync status with server. Reverting UI.");
+      Alert.alert(
+        "Sync Error",
+        "Could not sync status with server. Reverting UI.",
+      );
       setAllTables(previousTables);
     }
   };
@@ -553,132 +670,163 @@ export default function Category() {
     return "TAKEAWAY";
   };
 
-  const handleDining   = (id: string) => updateTableStatus(id, 1); // Dining
+  const handleDining = (id: string) => updateTableStatus(id, 1); // Dining
   const handleCheckout = async (id: string) => {
     await updateTableStatus(id, 2);
-    
+
     // Set context and navigate to summary
-    const table = allTables.find(t => t.id === id);
+    const table = allTables.find((t) => t.id === id);
     if (table) {
       const section = getSectionFromDiningSection(table.DiningSection);
-      setOrderContext({ 
-        orderType: "DINE_IN", 
-        section: section, 
-        tableNo: table.label, 
-        tableId: id 
+      setOrderContext({
+        orderType: "DINE_IN",
+        section: section,
+        tableNo: table.label,
+        tableId: id,
       });
       router.push("/summary");
     }
   };
 
-  const handleHold     = (id: string) => updateTableStatus(id, 3); // Hold
-  const handleReserved = (id: string, name: string) => updateTableStatus(id, 4, name); // Reserved
+  const handleHold = (id: string) => updateTableStatus(id, 3); // Hold
+  const handleReserved = (id: string, name: string) =>
+    updateTableStatus(id, 4, name); // Reserved
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 
-  const handleTablePress = React.useCallback(async (item: TableItem, tableData: any, isCheckoutAction?: boolean) => {
-    const status = Number(item.Status);
+  const handleTablePress = React.useCallback(
+    async (item: TableItem, tableData: any, isCheckoutAction?: boolean) => {
+      const status = Number(item.Status);
 
-    if (isCheckoutAction) {
-      handleCheckout(item.id);
-      return;
-    }
+      if (isCheckoutAction) {
+        handleCheckout(item.id);
+        return;
+      }
 
-    if (status === 2 || status === 3 || status === 4) {
-      // For occupied tables, set context and go to summary/menu
-      const section = getSectionFromDiningSection(item.DiningSection);
-      const existingContext: OrderContext = { 
-        orderType: "DINE_IN", 
-        section: section, 
-        tableNo: item.label, 
-        tableId: item.id 
-      };
-      setOrderContext(existingContext);
-      const contextId = getContextId(existingContext);
+      if (status === 2 || status === 3 || status === 4) {
+        // For occupied tables, set context and go to summary/menu
+        const section = getSectionFromDiningSection(item.DiningSection);
+        const existingContext: OrderContext = {
+          orderType: "DINE_IN",
+          section: section,
+          tableNo: item.label,
+          tableId: item.id,
+        };
+        setOrderContext(existingContext);
+        const contextId = getContextId(existingContext);
+        if (contextId) {
+          setCurrentContext(contextId);
+        }
+        try {
+          await fetchCartFromDBGlobal(item.id);
+        } catch (err) {
+          console.error(
+            "❌ [Category] Failed to fetch occupied table cart:",
+            err,
+          );
+        }
+        router.push("/menu/thai_kitchen");
+        return;
+      }
+
+      if (status === 5) {
+        Alert.alert(
+          "Table Locked",
+          `Table ${item.label} is reserved. What would you like to do?`,
+          [
+            {
+              text: "Unlock Table",
+              style: "destructive",
+              onPress: () => handleComplete(item.id),
+            },
+            {
+              text: "Go to Lock Tables",
+              onPress: () => router.push("/locked-tables"),
+            },
+            { text: "Cancel", style: "cancel" },
+          ],
+        );
+        return;
+      }
+
+      let newContext: any;
+      if (activeTab !== "TAKEAWAY") {
+        newContext = {
+          orderType: "DINE_IN" as const,
+          section: activeTab,
+          tableNo: item.label,
+          tableId: item.id,
+        };
+      } else {
+        newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
+      }
+
+      setOrderContext(newContext);
+      const contextId = getContextId(newContext);
       if (contextId) {
         setCurrentContext(contextId);
       }
-      try {
-        await fetchCartFromDBGlobal(item.id);
-      } catch (err) {
-        console.error("❌ [Category] Failed to fetch occupied table cart:", err);
+
+      if (newContext.tableId) {
+        try {
+          await fetchCartFromDBGlobal(newContext.tableId);
+        } catch (err) {
+          console.error("❌ [Category] Failed to fetch shared cart:", err);
+        }
+      } else if (tableData && tableData.status === "HOLD") {
+        const helds = getHeldOrders();
+        const held = helds.find((h: any) => h.orderId === tableData.orderId);
+        if (held && contextId) {
+          setCartItemsGlobal(contextId, held.cart);
+        }
       }
+
       router.push("/menu/thai_kitchen");
-      return;
-    }
+    },
+    [activeTab, router],
+  );
 
-    if (status === 5) {
-      Alert.alert(
-        "Table Locked",
-        `Table ${item.label} is reserved. What would you like to do?`,
-        [
-          { text: "Unlock Table", style: "destructive", onPress: () => handleComplete(item.id) },
-          { text: "Go to Lock Tables", onPress: () => router.push("/locked-tables") },
-          { text: "Cancel", style: "cancel" },
-        ]
+  const renderItem = React.useCallback(
+    ({ item }: { item: TableItem }) => {
+      const rawTableData = tables.find(
+        (t: any) => t.section === activeTab && t.tableNo === item.label,
       );
-      return;
-    }
 
-    let newContext: any;
-    if (activeTab !== "TAKEAWAY") {
-      newContext = { orderType: "DINE_IN" as const, section: activeTab, tableNo: item.label, tableId: item.id };
-    } else {
-      newContext = { orderType: "TAKEAWAY" as const, takeawayNo: item.label };
-    }
+      // Prepare optimized data for memoized component
+      let tableData = null;
+      if (rawTableData) {
+        // Use totalAmount from database as the source of truth
+        const billAmount = rawTableData.totalAmount || 0;
 
-    setOrderContext(newContext);
-    const contextId = getContextId(newContext);
-    if (contextId) {
-      setCurrentContext(contextId);
-    }
-
-    if (newContext.tableId) {
-      try {
-        await fetchCartFromDBGlobal(newContext.tableId);
-      } catch (err) {
-        console.error("❌ [Category] Failed to fetch shared cart:", err);
+        tableData = {
+          ...rawTableData,
+          billAmount,
+        };
       }
-    } else if (tableData && tableData.status === "HOLD") {
-      const helds = getHeldOrders();
-      const held = helds.find((h: any) => h.orderId === tableData.orderId);
-      if (held && contextId) {
-        setCartItemsGlobal(contextId, held.cart);
-      }
-    }
 
-    router.push("/menu/thai_kitchen");
-  }, [activeTab, router]);
-
-  const renderItem = React.useCallback(({ item }: { item: TableItem }) => {
-    const rawTableData = tables.find(
-      (t: any) => t.section === activeTab && t.tableNo === item.label
-    );
-
-    // Prepare optimized data for memoized component
-    let tableData = null;
-    if (rawTableData) {
-      // Use totalAmount from database as the source of truth
-      const billAmount = rawTableData.totalAmount || 0;
-
-      tableData = {
-        ...rawTableData,
-        billAmount
-      };
-    }
-
-    return (
-      <TableItemComponent
-        item={item}
-        itemSize={itemSize}
-        activeTab={activeTab}
-        tableData={tableData}
-        onPress={handleTablePress}
-        numberFont={numberFont}
-        smallFont={smallFont}
-        isTabletPortrait={isTablet && !isLandscape}
-      />
-    );
-  }, [activeTab, tables, activeOrders, carts, itemSize, numberFont, smallFont, handleTablePress]);
+      return (
+        <TableItemComponent
+          item={item}
+          itemSize={itemSize}
+          activeTab={activeTab}
+          tableData={tableData}
+          onPress={handleTablePress}
+          numberFont={numberFont}
+          smallFont={smallFont}
+          isTabletPortrait={isTablet && !isLandscape}
+        />
+      );
+    },
+    [
+      activeTab,
+      tables,
+      activeOrders,
+      carts,
+      itemSize,
+      numberFont,
+      smallFont,
+      handleTablePress,
+    ],
+  );
 
   if (loading) {
     return (
@@ -686,16 +834,26 @@ export default function Category() {
         <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
         {/* Placeholder Nav Bar */}
         <View style={styles.topNavContainer}>
-          <Skeleton width={120} height={32} borderRadius={16} style={{ marginLeft: 20 }} />
+          <Skeleton
+            width={120}
+            height={32}
+            borderRadius={16}
+            style={{ marginLeft: 20 }}
+          />
           <View style={{ flex: 1 }} />
-          <Skeleton width={40} height={40} borderRadius={20} style={{ marginRight: 20 }} />
+          <Skeleton
+            width={40}
+            height={40}
+            borderRadius={20}
+            style={{ marginRight: 20 }}
+          />
         </View>
-        <TableGridSkeleton 
-          itemSize={itemSize} 
-          columns={columns} 
-          gap={GAP} 
-          padding={PADDING} 
-          insets={insets} 
+        <TableGridSkeleton
+          itemSize={itemSize}
+          columns={columns}
+          gap={GAP}
+          padding={PADDING}
+          insets={insets}
         />
       </SafeAreaView>
     );
@@ -705,14 +863,16 @@ export default function Category() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
 
-      {/* â•â•â•â•â•â•â•â•â•â•â• TOP NAV BAR â•â•â•â•â•â•â•â•â•â•â• */}
-      <View style={[
-        styles.topNavContainer, 
-        { paddingHorizontal: isTablet ? 20 : 12 },
-        !isTablet && isLandscape && { height: 42, paddingVertical: 2, gap: 8 }
-      ]}>
-
-        {/* CENTER â€” Section Tabs */}
+      {/* 〰〰〰〰〰〰〰〰〰〰〰 TOP NAV BAR 〰〰〰〰〰〰〰〰〰〰〰 */}
+      <View
+        style={[
+          styles.topNavContainer,
+          { paddingHorizontal: isTablet ? 20 : 12 },
+          !isTablet &&
+            isLandscape && { height: 42, paddingVertical: 2, gap: 8 },
+        ]}
+      >
+        {/* CENTER — Section Tabs */}
         <ScrollView
           ref={sectionScrollRef}
           horizontal
@@ -724,13 +884,16 @@ export default function Category() {
             {SECTIONS.map((section) => {
               const isActive = activeTab === section;
               const sectionTables = allTables.filter((t: TableItem) => {
-                if (section === "TAKEAWAY") return t.DiningSection === 3 || t.DiningSection === 4;
+                if (section === "TAKEAWAY")
+                  return t.DiningSection === 3 || t.DiningSection === 4;
                 if (section === "SECTION_1") return t.DiningSection === 1;
                 if (section === "SECTION_2") return t.DiningSection === 2;
                 if (section === "SECTION_3") return t.DiningSection === 3;
                 return false;
               });
-              const occupied = sectionTables.filter((t: TableItem) => t.Status !== 0).length;
+              const occupied = sectionTables.filter(
+                (t: TableItem) => t.Status !== 0,
+              ).length;
 
               return (
                 <TouchableOpacity
@@ -738,9 +901,13 @@ export default function Category() {
                   onPress={() => setActiveTab(section)}
                   activeOpacity={0.75}
                   style={[
-                    styles.tabBtn, 
+                    styles.tabBtn,
                     isActive && styles.activeTabBtn,
-                    !isTablet && isLandscape && { paddingVertical: 6, paddingHorizontal: 12 }
+                    !isTablet &&
+                      isLandscape && {
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                      },
                   ]}
                 >
                   <Ionicons
@@ -749,15 +916,33 @@ export default function Category() {
                     color={isActive ? "#fff" : Theme.textSecondary}
                     style={{ marginRight: 5 }}
                   />
-                  <Text style={[styles.tabText, isActive && styles.activeTabText, { fontSize: isTablet ? 16 : 13 }]}>
-                    {!isTablet && !isLandscape 
-                      ? formatSectionGlobal(SECTION_LABELS[section]).replace("Section ", "Sec-")
-                      : formatSectionGlobal(SECTION_LABELS[section])
-                    }
+                  <Text
+                    style={[
+                      styles.tabText,
+                      isActive && styles.activeTabText,
+                      { fontSize: isTablet ? 16 : 13 },
+                    ]}
+                  >
+                    {!isTablet && !isLandscape
+                      ? formatSectionGlobal(SECTION_LABELS[section]).replace(
+                          "Section ",
+                          "Sec-",
+                        )
+                      : formatSectionGlobal(SECTION_LABELS[section])}
                   </Text>
                   {occupied > 0 && (
-                    <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
-                      <Text style={[styles.tabBadgeText, isActive && styles.activeTabBadgeText]}>
+                    <View
+                      style={[
+                        styles.tabBadge,
+                        isActive && styles.activeTabBadge,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tabBadgeText,
+                          isActive && styles.activeTabBadgeText,
+                        ]}
+                      >
                         {occupied}
                       </Text>
                     </View>
@@ -768,9 +953,9 @@ export default function Category() {
           </View>
         </ScrollView>
 
-        {/* RIGHT â€” Action Buttons */}
+        {/* RIGHT — Action Buttons */}
         <View style={[styles.navRightGroup, { gap: isTablet ? 8 : 6 }]}>
-          {/* Lock Tables â€” gated by MSTTBL */}
+          {/* Lock Tables — gated by MSTTBL */}
           {canAccessLockTables() && (
             <TouchableOpacity
               style={styles.headerActionBtn}
@@ -783,14 +968,16 @@ export default function Category() {
                 color={Theme.warning}
               />
               {isTablet && isLandscape && (
-                <Text style={[styles.headerActionText, { color: Theme.warning }]}>
+                <Text
+                  style={[styles.headerActionText, { color: Theme.warning }]}
+                >
                   Lock Tables
                 </Text>
               )}
             </TouchableOpacity>
           )}
 
-          {/* KDS â€” gated by OPRSTK */}
+          {/* KDS — gated by OPRSTK */}
           {canAccessKDS() && (
             <TouchableOpacity
               style={styles.headerActionBtn}
@@ -806,20 +993,29 @@ export default function Category() {
             </TouchableOpacity>
           )}
 
-
           {/* NEW CONSOLIDATED MENU BUTTON */}
           <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: Theme.primaryLight, borderColor: Theme.primaryBorder }]}
+            style={[
+              styles.headerActionBtn,
+              {
+                backgroundColor: Theme.primaryLight,
+                borderColor: Theme.primaryBorder,
+              },
+            ]}
             onPress={() => setIsMenuVisible(true)}
             activeOpacity={0.75}
           >
             <Ionicons name="menu-outline" size={24} color={Theme.primary} />
-            {isTablet && <Text style={[styles.headerActionText, { color: Theme.primary }]}>Menu</Text>}
+            {isTablet && (
+              <Text style={[styles.headerActionText, { color: Theme.primary }]}>
+                Menu
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â• MORE MENU MODAL â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* 〰〰〰〰〰〰〰〰〰〰〰 MORE MENU MODAL 〰〰〰〰〰〰〰〰〰〰〰 */}
       <Modal
         visible={isMenuVisible}
         transparent
@@ -831,11 +1027,13 @@ export default function Category() {
           activeOpacity={1}
           onPress={() => setIsMenuVisible(false)}
         >
-          <View style={[
-            styles.menuContent, 
-            isTablet && { width: 300, right: 20 },
-            { maxHeight: height * 0.8 }
-          ]}>
+          <View
+            style={[
+              styles.menuContent,
+              isTablet && { width: 300, right: 20 },
+              { maxHeight: height * 0.8 },
+            ]}
+          >
             {/* User Info Header */}
             {user && (
               <View style={styles.menuUserSection}>
@@ -854,36 +1052,72 @@ export default function Category() {
             {/* Menu Options */}
             <ScrollView showsVerticalScrollIndicator={false}>
               {canAccessTimeEntry() && (
-                 <TouchableOpacity
-                   style={styles.menuItem}
-                   onPress={() => { setIsMenuVisible(false); router.push("/TimeEntry"); }}
-                 >
-                   <View style={[styles.menuIconContainer, { backgroundColor: Theme.primary + '10' }]}>
-                     <Ionicons name="time-outline" size={18} color={Theme.primary} />
-                   </View>
-                   <Text style={styles.menuItemText}>Time Entry</Text>
-                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setIsMenuVisible(false);
+                    router.push("/TimeEntry");
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.menuIconContainer,
+                      { backgroundColor: Theme.primary + "10" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={18}
+                      color={Theme.primary}
+                    />
+                  </View>
+                  <Text style={styles.menuItemText}>Time Entry</Text>
+                </TouchableOpacity>
               )}
 
               {canAccessMembers() && (
-                 <TouchableOpacity
-                   style={styles.menuItem}
-                   onPress={() => { setIsMenuVisible(false); router.push("/members"); }}
-                 >
-                   <View style={[styles.menuIconContainer, { backgroundColor: Theme.info + '10' }]}>
-                     <Ionicons name="people-outline" size={18} color={Theme.info} />
-                   </View>
-                   <Text style={styles.menuItemText}>Members</Text>
-                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setIsMenuVisible(false);
+                    router.push("/members");
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.menuIconContainer,
+                      { backgroundColor: Theme.info + "10" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="people-outline"
+                      size={18}
+                      color={Theme.info}
+                    />
+                  </View>
+                  <Text style={styles.menuItemText}>Members</Text>
+                </TouchableOpacity>
               )}
 
               {canAccessSalesReport() && (
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => { setIsMenuVisible(false); router.push("/sales-report"); }}
+                  onPress={() => {
+                    setIsMenuVisible(false);
+                    router.push("/sales-report");
+                  }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: Theme.primary + '10' }]}>
-                    <Ionicons name="bar-chart-outline" size={18} color={Theme.primary} />
+                  <View
+                    style={[
+                      styles.menuIconContainer,
+                      { backgroundColor: Theme.primary + "10" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="bar-chart-outline"
+                      size={18}
+                      color={Theme.primary}
+                    />
                   </View>
                   <Text style={styles.menuItemText}>Sales Report</Text>
                 </TouchableOpacity>
@@ -891,20 +1125,44 @@ export default function Category() {
 
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => { setIsMenuVisible(false); setIsSettingsVisible(true); }}
+                onPress={() => {
+                  setIsMenuVisible(false);
+                  setIsSettingsVisible(true);
+                }}
               >
-                <View style={[styles.menuIconContainer, { backgroundColor: Theme.textSecondary + '10' }]}>
-                  <Ionicons name="settings-outline" size={18} color={Theme.textSecondary} />
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: Theme.textSecondary + "10" },
+                  ]}
+                >
+                  <Ionicons
+                    name="settings-outline"
+                    size={18}
+                    color={Theme.textSecondary}
+                  />
                 </View>
                 <Text style={styles.menuItemText}>Store Settings</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => { setIsMenuVisible(false); router.push("/kitchen-status"); }}
+                onPress={() => {
+                  setIsMenuVisible(false);
+                  router.push("/kitchen-status");
+                }}
               >
-                <View style={[styles.menuIconContainer, { backgroundColor: Theme.success + '10' }]}>
-                  <Ionicons name="restaurant-outline" size={18} color={Theme.success} />
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: Theme.success + "10" },
+                  ]}
+                >
+                  <Ionicons
+                    name="restaurant-outline"
+                    size={18}
+                    color={Theme.success}
+                  />
                 </View>
                 <Text style={styles.menuItemText}>Kitchen Status</Text>
               </TouchableOpacity>
@@ -914,7 +1172,14 @@ export default function Category() {
                 <>
                   <View style={styles.menuDivider} />
                   <View style={{ padding: 12 }}>
-                    <Text style={[styles.menuUserRole, { marginBottom: 10, color: Theme.textPrimary }]}>Table Legend</Text>
+                    <Text
+                      style={[
+                        styles.menuUserRole,
+                        { marginBottom: 10, color: Theme.textPrimary },
+                      ]}
+                    >
+                      Table Legend
+                    </Text>
                     <View style={{ gap: 8 }}>
                       {[
                         { color: "#22c55e", label: "Dining" },
@@ -924,8 +1189,19 @@ export default function Category() {
                         { color: "#8b5cf6", label: "Overtime" },
                       ].map((item) => (
                         <View key={item.label} style={styles.legendItem}>
-                          <View style={[styles.legendDot, { backgroundColor: item.color, width: 10, height: 10 }]} />
-                          <Text style={[styles.legendText, { fontSize: 12 }]}>{item.label}</Text>
+                          <View
+                            style={[
+                              styles.legendDot,
+                              {
+                                backgroundColor: item.color,
+                                width: 10,
+                                height: 10,
+                              },
+                            ]}
+                          />
+                          <Text style={[styles.legendText, { fontSize: 12 }]}>
+                            {item.label}
+                          </Text>
                         </View>
                       ))}
                     </View>
@@ -943,34 +1219,72 @@ export default function Category() {
                   router.replace("/");
                 }}
               >
-                <View style={[styles.menuIconContainer, { backgroundColor: Theme.danger + '10' }]}>
-                  <Ionicons name="log-out-outline" size={18} color={Theme.danger} />
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: Theme.danger + "10" },
+                  ]}
+                >
+                  <Ionicons
+                    name="log-out-outline"
+                    size={18}
+                    color={Theme.danger}
+                  />
                 </View>
-                <Text style={[styles.menuItemText, { color: Theme.danger }]}>Logout</Text>
+                <Text style={[styles.menuItemText, { color: Theme.danger }]}>
+                  Logout
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* â”€â”€ Section Header Row (Hidden on Mobile Landscape) â”€â”€ */}
+      {/* 〰〰 Section Header Row (Hidden on Mobile Landscape) 〰〰 */}
       {(!isLandscape || isTablet) && (
-        <View style={[
-          styles.sectionHeader,
-          !isTablet && isLandscape && { paddingVertical: 4, paddingHorizontal: 14 }
-        ]}>
+        <View
+          style={[
+            styles.sectionHeader,
+            !isTablet &&
+              isLandscape && { paddingVertical: 4, paddingHorizontal: 14 },
+          ]}
+        >
           <View style={styles.sectionHeaderLeft}>
-            <View style={[styles.sectionAccentBar, !isTablet && isLandscape && { height: 14 }]} />
-            <Text style={[styles.sectionHeaderTitle, !isTablet && isLandscape && { fontSize: 13 }]}>
+            <View
+              style={[
+                styles.sectionAccentBar,
+                !isTablet && isLandscape && { height: 14 },
+              ]}
+            />
+            <Text
+              style={[
+                styles.sectionHeaderTitle,
+                !isTablet && isLandscape && { fontSize: 13 },
+              ]}
+            >
               {SECTION_LABELS[activeTab]}
             </Text>
-            <View style={[styles.sectionCountBadge, !isTablet && isLandscape && { paddingVertical: 1 }]}>
-              <Text style={styles.sectionCountText}>{currentTables.length} tables</Text>
+            <View
+              style={[
+                styles.sectionCountBadge,
+                !isTablet && isLandscape && { paddingVertical: 1 },
+              ]}
+            >
+              <Text style={styles.sectionCountText}>
+                {currentTables.length} tables
+              </Text>
             </View>
             {occupiedCount > 0 && (
-              <View style={[styles.occupiedBadge, !isTablet && isLandscape && { paddingVertical: 1 }]}>
+              <View
+                style={[
+                  styles.occupiedBadge,
+                  !isTablet && isLandscape && { paddingVertical: 1 },
+                ]}
+              >
                 <View style={styles.occupiedDot} />
-                <Text style={styles.occupiedText}>{occupiedCount} occupied</Text>
+                <Text style={styles.occupiedText}>
+                  {occupiedCount} occupied
+                </Text>
               </View>
             )}
           </View>
@@ -978,18 +1292,20 @@ export default function Category() {
           {/* Legend - Only show on tablets directly on screen */}
           {isTablet && (
             <View style={styles.legend}>
-            {[
-              { color: "#22c55e", label: "Dining" },
-              { color: "#3b82f6", label: "Hold" },
-              { color: "#f59e0b", label: "Checkout" },
-              { color: "#ef4444", label: "Reserved" },
-              { color: "#8b5cf6", label: "Overtime" },
-            ].map((item) => (
-              <View key={item.label} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                <Text style={styles.legendText}>{item.label}</Text>
-              </View>
-            ))}
+              {[
+                { color: "#22c55e", label: "Dining" },
+                { color: "#3b82f6", label: "Hold" },
+                { color: "#f59e0b", label: "Checkout" },
+                { color: "#ef4444", label: "Reserved" },
+                { color: "#8b5cf6", label: "Overtime" },
+              ].map((item) => (
+                <View key={item.label} style={styles.legendItem}>
+                  <View
+                    style={[styles.legendDot, { backgroundColor: item.color }]}
+                  />
+                  <Text style={styles.legendText}>{item.label}</Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -1015,15 +1331,19 @@ export default function Category() {
             <Ionicons name="grid-outline" size={48} color={Theme.border} />
             <Text style={styles.emptyText}>No tables found</Text>
             <TouchableOpacity onPress={fetchTables} style={styles.retryBtn}>
-              <Ionicons name="refresh-outline" size={16} color={Theme.primary} />
+              <Ionicons
+                name="refresh-outline"
+                size={16}
+                color={Theme.primary}
+              />
               <Text style={styles.retryText}>Refresh</Text>
             </TouchableOpacity>
           </View>
         }
       />
-      <StoreSettingsModal 
-        visible={isSettingsVisible} 
-        onClose={() => setIsSettingsVisible(false)} 
+      <StoreSettingsModal
+        visible={isSettingsVisible}
+        onClose={() => setIsSettingsVisible(false)}
       />
     </SafeAreaView>
   );
@@ -1094,7 +1414,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   activeTabBadge: { backgroundColor: "rgba(255,255,255,0.3)" },
-  tabBadgeText: { color: Theme.textSecondary, fontFamily: Fonts.bold, fontSize: 10 },
+  tabBadgeText: {
+    color: Theme.textSecondary,
+    fontFamily: Fonts.bold,
+    fontSize: 10,
+  },
   activeTabBadgeText: { color: "#fff" },
 
   /* Right Action Buttons */
@@ -1160,7 +1484,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Theme.border,
   },
-  sectionCountText: { color: Theme.textSecondary, fontFamily: Fonts.medium, fontSize: 11 },
+  sectionCountText: {
+    color: Theme.textSecondary,
+    fontFamily: Fonts.medium,
+    fontSize: 11,
+  },
   occupiedBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1172,14 +1500,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Theme.successBorder,
   },
-  occupiedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Theme.success },
+  occupiedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.success,
+  },
   occupiedText: { color: "#15803D", fontFamily: Fonts.semiBold, fontSize: 11 },
 
   /* Legend */
   legend: { flexDirection: "row", alignItems: "center", gap: 10 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { color: Theme.textMuted, fontSize: 10, fontFamily: Fonts.medium },
+  legendText: {
+    color: Theme.textMuted,
+    fontSize: 10,
+    fontFamily: Fonts.medium,
+  },
 
   /* â”€â”€ Table Card â”€â”€ */
   tableBox: {
@@ -1215,9 +1552,9 @@ const styles = StyleSheet.create({
   orderText: { color: Theme.textMuted, fontFamily: Fonts.regular },
   billText: { fontFamily: Fonts.black },
   lockedOverlay: { alignItems: "center", gap: 3, marginTop: 4 },
-  lockedNameText: { 
-    color: "#B91C1C", 
-    fontFamily: Fonts.bold, 
+  lockedNameText: {
+    color: "#B91C1C",
+    fontFamily: Fonts.bold,
     marginTop: 1,
     textAlign: "center",
   },
@@ -1287,22 +1624,22 @@ const styles = StyleSheet.create({
   /* â”€â”€ More Menu Modal â”€â”€ */
   menuOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
     paddingTop: 60,
     paddingRight: 20,
   },
   menuContent: {
     width: 260,
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
     borderRadius: 20,
     padding: 10,
     ...Theme.shadowLg,
   },
   menuUserSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     padding: 12,
   },
@@ -1310,9 +1647,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Theme.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: Theme.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuUserName: {
     fontSize: 15,
@@ -1323,7 +1660,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: Fonts.medium,
     color: Theme.textMuted,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   menuDivider: {
     height: 1,
@@ -1331,8 +1668,8 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 12,
@@ -1342,8 +1679,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuItemText: {
     fontSize: 14,
@@ -1354,20 +1691,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   inlineCheckoutBtn: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 8,
     right: 8,
-    backgroundColor: '#fd7e14',
+    backgroundColor: "#fd7e14",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     ...Theme.shadowSm,
   },
   inlineCheckoutText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 10,
     fontFamily: Fonts.black,
   },
