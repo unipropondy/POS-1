@@ -322,9 +322,9 @@ export default function Category() {
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    socket.on("table_status_updated", ({ tableId, status, totalAmount }) => {
+    socket.on("table_status_updated", ({ tableId, status, totalAmount, startTime }) => {
       console.log(
-        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Total ${totalAmount}`,
+        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Total ${totalAmount}, Time ${startTime}`,
       );
       setAllTables((prev) =>
         prev.map((t) =>
@@ -333,6 +333,7 @@ export default function Category() {
                 ...t,
                 Status: Number(status),
                 totalAmount: Number(totalAmount || 0),
+                StartTime: startTime,
               }
             : t,
         ),
@@ -357,7 +358,7 @@ export default function Category() {
                   : status === 3
                     ? "HOLD"
                     : "EMPTY",
-            undefined,
+            startTime ? new Date(startTime).getTime() : undefined,
             undefined,
             totalAmount,
           );
@@ -471,7 +472,26 @@ export default function Category() {
             totalAmount: Number(item.totalAmount) || 0,
           }))
           .filter((item) => item.id && item.label);
+        
         setAllTables(convertedData);
+
+        // Sync to global store for components to use
+        const store = useTableStatusStore.getState();
+        convertedData.forEach(t => {
+          store.updateTableStatus(
+            t.id,
+            getSectionFromDiningSection(t.DiningSection),
+            t.label,
+            "FETCH",
+            t.Status === 5 ? "LOCKED" : 
+            t.Status === 1 ? "SENT" : 
+            t.Status === 2 ? "BILL_REQUESTED" : 
+            t.Status === 3 ? "HOLD" : "EMPTY",
+            t.StartTime ? new Date(t.StartTime).getTime() : undefined,
+            t.lockedByName,
+            t.totalAmount
+          );
+        });
       } else {
         throw new Error("No tables returned from API");
       }

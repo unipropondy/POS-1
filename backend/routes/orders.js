@@ -58,17 +58,20 @@ async function syncTableStatus(req, tableId) {
         UPDATE TableMaster
         SET 
           Status = CASE 
-            -- If items exist, ensure it's not Available (0). If it was 0, move to Dining (1).
             WHEN EXISTS (SELECT 1 FROM CartItems WHERE CartId = @tableId) 
               THEN (CASE WHEN Status = 0 THEN 1 ELSE Status END)
-            -- If no items exist, reset to Available (0) if it was in an active/pending state.
             ELSE (CASE WHEN Status IN (1, 2, 3, 4) THEN 0 ELSE Status END)
+          END,
+          StartTime = CASE 
+            WHEN EXISTS (SELECT 1 FROM CartItems WHERE CartId = @tableId) AND StartTime IS NULL THEN GETDATE()
+            WHEN NOT EXISTS (SELECT 1 FROM CartItems WHERE CartId = @tableId) THEN NULL
+            ELSE StartTime
           END,
           TotalAmount = @total,
           ModifiedOn = GETDATE()
         WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
 
-        SELECT Status, TotalAmount FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
+        SELECT Status, TotalAmount, StartTime FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
       `);
 
     const updated = result.recordset[0];
@@ -78,7 +81,8 @@ async function syncTableStatus(req, tableId) {
         io.emit("table_status_updated", { 
           tableId: cleanId, 
           status: updated.Status,
-          totalAmount: updated.TotalAmount 
+          totalAmount: updated.TotalAmount,
+          startTime: updated.StartTime
         });
         io.emit("cart_updated", { tableId: cleanId });
       }
@@ -166,9 +170,8 @@ router.post("/complete", async (req, res) => {
       .input("tid", sql.UniqueIdentifier, cleanId)
       .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
 
-    const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanId, status: 0, totalAmount: 0 });
+      io.emit("table_status_updated", { tableId: cleanId, status: 0, totalAmount: 0, startTime: null });
       io.emit("cart_updated", { tableId: cleanId });
     }
     res.json({ success: true, status: 0 });
@@ -235,7 +238,6 @@ router.post("/save-cart", async (req, res) => {
           .input("tableId", sql.UniqueIdentifier, cleanTableId)
           .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
         
-        if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
         console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
       } else {
         // 3. If items are empty, reset table to Available (0)
