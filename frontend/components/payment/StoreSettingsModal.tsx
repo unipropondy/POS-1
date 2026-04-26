@@ -117,7 +117,6 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
         body: formData,
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
         },
       });
 
@@ -229,7 +228,15 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
               <Text style={styles.helper}>Used to generate dynamic QR codes with exact amounts.</Text>
             </View>
 
-            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>PayNow Configuration</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 15 }}>
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>PayNow Configuration</Text>
+              {qrCodeUrl ? (
+                <View style={styles.successBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#059669" />
+                  <Text style={styles.successBadgeText}>QR Uploaded</Text>
+                </View>
+              ) : null}
+            </View>
             <View style={styles.field}>
               <Text style={styles.label}>Static QR Image (PayNow)</Text>
               {qrCodeUrl ? (
@@ -281,6 +288,8 @@ const styles = StyleSheet.create({
   unlockBtn: { backgroundColor: Theme.primary },
   btnText: { fontWeight: "700", color: "#64748B" },
   unlockText: { fontWeight: "700", color: "#fff" },
+  successBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: '#10B981', gap: 4 },
+  successBadgeText: { fontSize: 12, fontWeight: '700', color: '#059669' },
   saveBtn: { backgroundColor: Theme.primary, padding: 18, borderRadius: 14, alignItems: "center", marginTop: 20 },
   saveText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   uploadBtn: { height: 180, borderStyle: "dashed", borderWidth: 2, borderColor: Theme.primary, borderRadius: 16, justifyContent: "center", alignItems: "center", backgroundColor: "#F0F9FF" },
