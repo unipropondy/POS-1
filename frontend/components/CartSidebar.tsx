@@ -601,7 +601,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       activeOrder?.orderId || getNextOrderId();
                     if (orderContext.tableId) {
                       try {
-                        // 1. Save Cart first
                         await fetch(`${API_URL}/api/orders/save-cart`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -612,7 +611,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                           }),
                         });
 
-                        // 2. Then set status to Hold
                         await fetch(`${API_URL}/api/orders/hold`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -684,7 +682,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         </View>
       )}
 
-      {/* CANCEL PASSWORD MODAL - Stay for admin safety */}
+      {/* CANCEL PASSWORD MODAL */}
       {showCancelModal && (
         <Modal transparent visible={showCancelModal} animationType="fade">
           <View style={styles.modalOverlay}>
@@ -709,15 +707,29 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   style={styles.modalBtnConfirm}
                   onPress={() => {
                     if (cancelPassword === "786") {
-                      if (itemToVoid && activeOrder) {
-                        voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+                      if (itemToVoid && orderContext.tableId) {
+                        // 1. Remove from Backend Database
+                        fetch(`${API_URL}/api/orders/remove-item`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ 
+                            tableId: orderContext.tableId, 
+                            itemId: itemToVoid.lineItemId 
+                          }),
+                        }).catch(err => console.error("Void sync error:", err));
+
+                        // 2. Update local store
+                        if (activeOrder) {
+                          voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+                        }
+                        
                         setItemToVoid(null);
                         setCancelPassword("");
                         setShowCancelModal(false);
                         showToast({
                           type: "success",
                           message: "Item Voided",
-                          subtitle: "Sent items updated",
+                          subtitle: "Database & Kitchen updated",
                         });
                       } else {
                         clearCartStandalone();
