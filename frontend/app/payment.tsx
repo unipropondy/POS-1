@@ -16,7 +16,9 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
+  Image,
 } from "react-native";
+import QRCode from 'react-native-qrcode-svg';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
@@ -138,6 +140,7 @@ export default function PaymentScreen() {
   const [isUPIVisible, setIsUPIVisible] = useState(false);
   const [isPayNowVisible, setIsPayNowVisible] = useState(false);
   const { enabled: gstEnabled, percentage: gstPercentage, registrationNumber: gstRegNo, taxMode, loadSettings: loadGst } = useGstStore();
+  const { settings } = usePaymentSettingsStore();
 
   useEffect(() => {
     const init = async () => {
@@ -373,31 +376,7 @@ export default function PaymentScreen() {
       return;
     }
 
-    // --- QR PAYMENT CHECK ---
-    const { settings } = usePaymentSettingsStore.getState();
-    const upiId = settings.upiId;
-    const payNowUrl = settings.payNowQrUrl;
-    
-    const mUpper = method.toUpperCase().trim();
-    // Broad match for UPI/QR variants
-    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONE") || mUpper.includes("PAYTM");
-    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR") || mUpper.includes("PAY-NOW");
-
-    // Only show QR modal if the ID/URL actually exists
-    if (isUPI && upiId && upiId.trim().length > 0) {
-      console.log("🔗 Showing UPI QR Modal");
-      setIsUPIVisible(true);
-      return;
-    }
-
-    if (isPayNow && payNowUrl && payNowUrl.trim().length > 0) {
-      console.log("🔗 Showing PayNow QR Modal");
-      setIsPayNowVisible(true);
-      return;
-    }
-
-    // Otherwise, proceed with manual settlement (No QR configured)
-    console.log("💳 Proceeding with Manual Settlement (No QR)");
+    // --- QR PAYMENT CHECK (SKIP MODALS, NOW INLINE) ---
     executeFinalPayment();
   };
 
@@ -742,6 +721,10 @@ export default function PaymentScreen() {
                       );
                     }
 
+                    const mUpper = method.toUpperCase().trim();
+                    const isUPI = mUpper.includes("UPI") || mUpper.includes("GPAY") || mUpper.includes("PHONE") || mUpper.includes("PAYTM");
+                    const isPayNow = mUpper.includes("PAYNOW") || mUpper.includes("QR") || mUpper.includes("PAY-NOW");
+
                     const detailRows = [
                       { label: "Payment Mode",   value: sel.payMode        || "—" },
                       { label: "Description",    value: sel.description    || "—" },
@@ -762,36 +745,71 @@ export default function PaymentScreen() {
                           </View>
                         </View>
 
-                        {/* Column header row */}
-                        <View style={styles.detailTableHeader}>
-                          <Text style={[styles.detailCol, styles.detailColHeader]}>FIELD</Text>
-                          <Text style={[styles.detailColValue, styles.detailColHeader]}>VALUE</Text>
-                        </View>
+                        <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
+                          {isUPI && settings.upiId ? (
+                            <View style={styles.qrContainerInline}>
+                              <View style={styles.qrBoxInline}>
+                                <QRCode
+                                  value={`upi://pay?pa=${settings.upiId.trim()}&pn=${encodeURIComponent(settings.shopName.replace(/[&?=]/g, '').trim())}&am=${total.toFixed(2)}&cu=INR`}
+                                  size={180}
+                                  color="#000"
+                                  backgroundColor="#fff"
+                                />
+                              </View>
+                              <Text style={styles.qrSubtextInline}>Scan with any UPI App</Text>
+                              <Text style={styles.qrAmountInline}>Amount: ${total.toFixed(2)}</Text>
+                            </View>
+                          ) : isPayNow && settings.payNowQrUrl ? (
+                            <View style={styles.qrContainerInline}>
+                              <View style={styles.qrBoxInline}>
+                                <Image 
+                                  source={{ 
+                                    uri: settings.payNowQrUrl?.startsWith('data:') 
+                                      ? settings.payNowQrUrl 
+                                      : `${API_URL}${settings.payNowQrUrl || ''}` 
+                                  }} 
+                                  style={styles.qrImageInline}
+                                  resizeMode="contain"
+                                />
+                              </View>
+                              <Text style={styles.qrSubtextInline}>Scan PayNow QR to pay</Text>
+                              <Text style={styles.qrAmountInline}>Amount: ${total.toFixed(2)}</Text>
+                            </View>
+                          ) : (
+                            <View>
+                              {/* Column header row */}
+                              <View style={styles.detailTableHeader}>
+                                <Text style={[styles.detailCol, styles.detailColHeader]}>FIELD</Text>
+                                <Text style={[styles.detailColValue, styles.detailColHeader]}>VALUE</Text>
+                              </View>
 
-                        {/* Data rows */}
-                        {detailRows.map((row, i) => (
-                          <View
-                            key={row.label}
-                            style={[
-                              styles.detailTableRow,
-                              i % 2 === 0 && styles.detailTableRowAlt,
-                              row.highlight && styles.detailTableRowHighlight,
-                            ]}
-                          >
-                            <Text style={[styles.detailCol, row.highlight && styles.detailHighlightLabel]}>
-                              {row.label}
-                            </Text>
-                            <Text style={[styles.detailColValue, row.highlight && styles.detailHighlightValue]}>
-                              {row.value}
-                            </Text>
-                          </View>
-                        ))}
+                              {/* Data rows */}
+                              {detailRows.map((row, i) => (
+                                <View
+                                  key={row.label}
+                                  style={[
+                                    styles.detailTableRow,
+                                    i % 2 === 0 && styles.detailTableRowAlt,
+                                    row.highlight && styles.detailTableRowHighlight,
+                                  ]}
+                                >
+                                  <Text style={[styles.detailCol, row.highlight && styles.detailHighlightLabel]}>
+                                    {row.label}
+                                  </Text>
+                                  <Text style={[styles.detailColValue, row.highlight && styles.detailHighlightValue]}>
+                                    {row.value}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </ScrollView>
 
                         {/* Confirm note */}
                         <View style={styles.methodConfirmNote}>
                           <Ionicons name="information-circle-outline" size={14} color={Theme.textMuted} />
                           <Text style={styles.methodConfirmNoteText}>
-                            Press "Complete Settlement" to confirm payment via {sel.description}
+                            Verify payment, then click "Complete Settlement" below
                           </Text>
                         </View>
                       </View>
@@ -1310,5 +1328,34 @@ const styles = StyleSheet.create({
     color: Theme.primary,
     fontFamily: Fonts.black,
     fontSize: 24,
+  },
+  qrContainerInline: {
+    alignItems: "center",
+    padding: 15,
+    backgroundColor: "#fff",
+  },
+  qrBoxInline: {
+    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    ...Theme.shadowSm,
+  },
+  qrImageInline: {
+    width: 180,
+    height: 180,
+  },
+  qrSubtextInline: {
+    marginTop: 10,
+    fontSize: 12,
+    color: Theme.textSecondary,
+    fontFamily: Fonts.medium,
+  },
+  qrAmountInline: {
+    marginTop: 4,
+    fontSize: 16,
+    color: Theme.primary,
+    fontFamily: Fonts.black,
   },
 });
