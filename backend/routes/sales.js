@@ -404,38 +404,49 @@ router.post("/save", async (req, res) => {
         let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
         console.log(`[SAVE SALE] BusinessUnitId resolved to: ${businessUnitId}`);
 
-    // 2. Atomic Order ID Generation
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    
-    // Attempt to increment the counter for today. If it doesn't exist, we'll handle the insert.
-    let seqResult = await transaction.request()
-        .input("RestId", sql.UniqueIdentifier, businessUnitId)
-        .input("Today", sql.Date, todayStr)
-        .query(`
-          UPDATE OrderSequences 
-          SET LastNumber = LastNumber + 1 
-          OUTPUT INSERTED.LastNumber
-          WHERE RestaurantId = @RestId AND SequenceDate = @Today
-        `);
+    // 2. Order ID Retrieval (Option B)
+    // First, check if the table already has an assigned Order ID
+    let displayOrderId = null;
+    if (tableId) {
+        const tableCheck = await transaction.request()
+            .input("tid", sql.UniqueIdentifier, String(tableId).replace(/^\{|\}$/g, "").trim())
+            .query("SELECT CurrentOrderId FROM TableMaster WHERE TableId = @tid");
+        displayOrderId = tableCheck.recordset[0]?.CurrentOrderId;
+    }
 
-    let dailySequence;
-    if (seqResult.recordset.length > 0) {
-        dailySequence = seqResult.recordset[0].LastNumber;
-    } else {
-        // First order of the day for this restaurant
-        await transaction.request()
+    if (!displayOrderId) {
+        // Fallback: Generate a new one if none exists (e.g., takeaway or direct pay)
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        let seqResult = await transaction.request()
             .input("RestId", sql.UniqueIdentifier, businessUnitId)
             .input("Today", sql.Date, todayStr)
             .query(`
-              INSERT INTO OrderSequences (RestaurantId, SequenceDate, LastNumber)
-              VALUES (@RestId, @Today, 1)
+              UPDATE OrderSequences 
+              SET LastNumber = LastNumber + 1 
+              OUTPUT INSERTED.LastNumber
+              WHERE RestaurantId = @RestId AND SequenceDate = @Today
             `);
-        dailySequence = 1;
-    }
 
-    const displayOrderId = `${todayStr.replace(/-/g, '')}-${String(dailySequence).padStart(4, '0')}`;
-    console.log(`[SAVE SALE] Assigned Sequence #${dailySequence} (${displayOrderId}) for Restaurant ${businessUnitId}`);
+        let dailySequence;
+        if (seqResult.recordset.length > 0) {
+            dailySequence = seqResult.recordset[0].LastNumber;
+        } else {
+            await transaction.request()
+                .input("RestId", sql.UniqueIdentifier, businessUnitId)
+                .input("Today", sql.Date, todayStr)
+                .query(`
+                  INSERT INTO OrderSequences (RestaurantId, SequenceDate, LastNumber)
+                  VALUES (@RestId, @Today, 1)
+                `);
+            dailySequence = 1;
+        }
+        displayOrderId = `${todayStr.replace(/-/g, '')}-${String(dailySequence).padStart(4, '0')}`;
+        console.log(`[SAVE SALE] Generated NEW ID for direct pay: ${displayOrderId}`);
+    } else {
+        console.log(`[SAVE SALE] Using EXISTING assigned ID: ${displayOrderId}`);
+    }
 
     const headerResult = await transaction.request()
       .input("SettlementID", sql.UniqueIdentifier, settlementId)
@@ -555,7 +566,7 @@ router.post("/save", async (req, res) => {
           
         await transaction.request()
           .input("tid", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
+          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE TableId = @tid");
 
         const io = req.app.get("io");
         if (io) {

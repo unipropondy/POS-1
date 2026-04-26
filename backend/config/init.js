@@ -94,6 +94,12 @@ async function initDB(pool) {
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'TableNumber')
             ALTER TABLE [dbo].[TableMaster] ADD TableNumber NVARCHAR(50);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'StartTime')
+            ALTER TABLE [dbo].[TableMaster] ADD StartTime DATETIME NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'CurrentOrderId')
+            ALTER TABLE [dbo].[TableMaster] ADD CurrentOrderId NVARCHAR(50);
         `);
 
     // 5. Schema updates for SettlementHeader

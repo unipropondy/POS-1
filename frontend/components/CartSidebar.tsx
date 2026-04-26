@@ -77,6 +77,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   );
   const addToCartGlobal = useCartStore((state) => state.addToCartGlobal);
   const updateCartItemQty = useCartStore((state) => state.updateCartItemQty);
+  const tableOrderIds = useCartStore((state) => state.tableOrderIds);
 
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
@@ -729,6 +730,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               ? `TAKEAWAY #${orderContext.takeawayNo}`
               : `${formatSectionGlobal(orderContext.section || "")} - T${orderContext.tableNo}`}
           </Text>
+          {orderContext.tableId && tableOrderIds[orderContext.tableId] && (
+            <Text style={styles.orderIdLabel}>
+              Order ID: {tableOrderIds[orderContext.tableId]}
+            </Text>
+          )}
         </View>
 
         {cart.length > 0 && (
@@ -1330,5 +1336,12 @@ const styles = StyleSheet.create({
     color: "#15803D",
     fontSize: 9,
     fontFamily: Fonts.black,
+  },
+  orderIdLabel: {
+    fontSize: 10,
+    color: Theme.textSecondary,
+    fontFamily: Fonts.bold,
+    marginTop: 2,
+    opacity: 0.8,
   },
 });

@@ -2,6 +2,80 @@ const express = require("express");
 const router = express.Router();
 const sql = require("mssql");
 const { poolPromise } = require("../config/db");
+const DEFAULT_GUID = "00000000-0000-0000-0000-000000000000";
+
+/**
+ * Get or Generate Order ID for a table
+ * Returns existing ID if table is active, otherwise generates a new one.
+ */
+async function getOrGenerateOrderId(req, tableId) {
+  const pool = await poolPromise;
+  const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+
+  // 1. Check if table already has an ID
+  const tableCheck = await pool.request()
+    .input("tid", sql.UniqueIdentifier, cleanId)
+    .query("SELECT CurrentOrderId FROM TableMaster WHERE TableId = @tid");
+
+  if (tableCheck.recordset[0]?.CurrentOrderId) {
+    return tableCheck.recordset[0].CurrentOrderId;
+  }
+
+  // 2. Resolve BusinessUnitId (same logic as sales.js)
+  const bizRow = await pool.request().query(`
+    SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+    UNION ALL
+    SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+  `);
+  let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
+
+  // 3. Atomic Sequence Generation
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  
+  let dailySequence;
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    let seqResult = await transaction.request()
+      .input("RestId", sql.UniqueIdentifier, businessUnitId)
+      .input("Today", sql.Date, todayStr)
+      .query(`
+        UPDATE OrderSequences 
+        SET LastNumber = LastNumber + 1 
+        OUTPUT INSERTED.LastNumber
+        WHERE RestaurantId = @RestId AND SequenceDate = @Today
+      `);
+
+    if (seqResult.recordset.length > 0) {
+      dailySequence = seqResult.recordset[0].LastNumber;
+    } else {
+      await transaction.request()
+        .input("RestId", sql.UniqueIdentifier, businessUnitId)
+        .input("Today", sql.Date, todayStr)
+        .query(`
+          INSERT INTO OrderSequences (RestaurantId, SequenceDate, LastNumber)
+          VALUES (@RestId, @Today, 1)
+        `);
+      dailySequence = 1;
+    }
+    await transaction.commit();
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+
+  const displayOrderId = `${todayStr.replace(/-/g, '')}-${String(dailySequence).padStart(4, '0')}`;
+  
+  // 4. Attach to Table
+  await pool.request()
+    .input("tid", sql.UniqueIdentifier, cleanId)
+    .input("oid", sql.NVarChar(50), displayOrderId)
+    .query("UPDATE TableMaster SET CurrentOrderId = @oid WHERE TableId = @tid");
+
+  console.log(`✨ [OrderID] Generated ${displayOrderId} for Table ${cleanId}`);
+  return displayOrderId;
+}
 
 /**
  * Update Table Status Helper
@@ -24,6 +98,10 @@ async function updateTableStatus(req, tableId, status) {
             WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE()
             WHEN @status = 0 THEN NULL
             ELSE StartTime
+          END,
+          CurrentOrderId = CASE 
+            WHEN @status = 0 THEN NULL
+            ELSE CurrentOrderId
           END,
           ModifiedOn = GETDATE()
       WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
@@ -71,7 +149,7 @@ async function syncTableStatus(req, tableId) {
           ModifiedOn = GETDATE()
         WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
 
-        SELECT Status, TotalAmount, StartTime FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
+        SELECT Status, TotalAmount, StartTime, CurrentOrderId FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
       `);
 
     const updated = result.recordset[0];
@@ -82,7 +160,8 @@ async function syncTableStatus(req, tableId) {
           tableId: cleanId, 
           status: updated.Status,
           totalAmount: updated.TotalAmount,
-          startTime: updated.StartTime
+          startTime: updated.StartTime,
+          currentOrderId: updated.CurrentOrderId
         });
         io.emit("cart_updated", { tableId: cleanId });
       }
@@ -102,9 +181,20 @@ router.post("/send", async (req, res) => {
 
     const pool = await poolPromise;
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+
+    // Generate Order ID if needed
+    const currentOrderId = await getOrGenerateOrderId(req, cleanId);
+
     await pool.request()
       .input("tableId", sql.VarChar(50), cleanId)
-      .query("UPDATE TableMaster SET Status = 1 WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+      .input("orderId", sql.NVarChar(50), currentOrderId)
+      .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+    
+    // Also update all NEW cart items with this Order ID
+    await pool.request()
+      .input("cartId", sql.NVarChar(128), cleanId)
+      .input("orderId", sql.NVarChar(50), currentOrderId)
+      .query("UPDATE CartItems SET OrderNo = @orderId WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING')");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
@@ -382,8 +472,6 @@ router.get("/cart/:tableId", async (req, res) => {
         WHERE c.CartId = @cartId
       `);
 
-    console.log(`🔍 [CartFetch] Found ${result.recordset.length} items`);
-    
     // Parse JSON and flags for frontend
     const items = result.recordset.map(item => ({
       ...item,
@@ -403,7 +491,14 @@ router.get("/cart/:tableId", async (req, res) => {
       sugar: item.Sugar
     }));
 
-    res.json(items);
+    const tableInfo = await pool.request()
+      .input("tid", sql.UniqueIdentifier, cleanId)
+      .query("SELECT CurrentOrderId FROM TableMaster WHERE TableId = @tid");
+
+    res.json({ 
+      items, 
+      currentOrderId: tableInfo.recordset[0]?.CurrentOrderId || null 
+    });
   } catch (err) {
     console.error("❌ [CartFetch] ERROR:", err.message);
     res.status(500).json({ error: err.message });

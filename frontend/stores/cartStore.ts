@@ -46,6 +46,7 @@ export type DiscountInfo = {
 type CartState = {
   carts: Record<string, CartItem[]>;
   discounts: Record<string, DiscountInfo>;
+  tableOrderIds: Record<string, string | null>;
 
   currentContextId: string | null;
 
@@ -92,6 +93,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       carts: {},
       discounts: {},
+      tableOrderIds: {},
 
       currentContextId: null,
 
@@ -212,7 +214,7 @@ export const useCartStore = create<CartState>()(
       },
 
       clearAllCarts: () =>
-        set({ carts: {}, discounts: {}, currentContextId: null }),
+        set({ carts: {}, discounts: {}, tableOrderIds: {}, currentContextId: null }),
 
       /* ================= SET ================= */
 
@@ -389,7 +391,8 @@ export const useCartStore = create<CartState>()(
 
         try {
           const latestResponse = await fetch(`${API_URL}/api/orders/cart/${tableId}`);
-          const latestItems = await latestResponse.json();
+          const data = await latestResponse.json();
+          const latestItems = data.items || data; // Handle both old and new response structure
           const mergedItems = new Map<string, any>();
 
           if (Array.isArray(latestItems)) {
@@ -429,19 +432,20 @@ export const useCartStore = create<CartState>()(
           console.error("❌ [CartStore] Sync failed:", err);
         }
       },
-
       fetchCartFromDB: async (tableId) => {
         try {
           const response = await fetch(`${API_URL}/api/orders/cart/${tableId}`);
-          const dbItems = await response.json();
+          const data = await response.json();
           
-          if (Array.isArray(dbItems)) {
-            const contextId = get().currentContextId;
-            if (contextId) {
-              set((state) => ({
-                carts: { ...state.carts, [contextId]: dbItems }
-              }));
-            }
+          const items = Array.isArray(data) ? data : (data.items || []);
+          const orderId = data.currentOrderId || null;
+
+          const contextId = get().currentContextId;
+          if (contextId) {
+            set((state) => ({
+              carts: { ...state.carts, [contextId]: items },
+              tableOrderIds: { ...state.tableOrderIds, [tableId]: orderId }
+            }));
           }
         } catch (err) {
           console.error("❌ [CartStore] Fetch failed:", err);
