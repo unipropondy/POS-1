@@ -74,6 +74,8 @@ const PAYMODE_ICON_MAP: Record<string, string> = {
   LEDGER:     "book",
   VOUCHER:    "ticket-alt",
   DEAL:       "ticket-alt",
+  UPI:        "mobile-alt",
+  GPAY:       "google-pay",
 };
 
 function getPaymodeIcon(payMode: string): string {
