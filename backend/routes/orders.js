@@ -211,17 +211,28 @@ router.post("/save-cart", async (req, res) => {
         }
 
         // Update table status to 1 (Occupied/Dining)
+        // We use a flexible WHERE clause to handle both GUIDs and Table Numbers
         await transaction.request()
-          .input("tableId", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
+          .input("tid", sql.NVarChar(128), cleanTableId)
+          .query(`
+            UPDATE TableMaster 
+            SET Status = 1 
+            WHERE CAST(TableId AS NVARCHAR(128)) = @tid 
+               OR LTRIM(RTRIM(TableNo)) = @tid
+          `);
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 1 });
         console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
       } else {
         // 3. If items are empty, reset table to Available (0)
         await transaction.request()
-          .input("tableId", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE TableMaster SET Status = 0, StartTime = NULL WHERE TableId = @tableId");
+          .input("tid", sql.NVarChar(128), cleanTableId)
+          .query(`
+            UPDATE TableMaster 
+            SET Status = 0, StartTime = NULL, TotalAmount = 0 
+            WHERE CAST(TableId AS NVARCHAR(128)) = @tid 
+               OR LTRIM(RTRIM(TableNo)) = @tid
+          `);
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
         console.log(`🧹 [CartSave] Cart cleared. Table Status -> 0`);
