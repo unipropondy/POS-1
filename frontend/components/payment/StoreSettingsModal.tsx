@@ -19,6 +19,7 @@ import { Theme } from "../../constants/theme";
 import { Fonts } from "../../constants/Fonts";
 import { API_URL } from "../../constants/Config";
 import { usePaymentSettingsStore } from "../../stores/paymentSettingsStore";
+import { useAuthStore } from "../../stores/authStore";
 
 interface StoreSettingsModalProps {
   visible: boolean;
@@ -30,6 +31,7 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
   onClose,
 }) => {
   const { settings, fetchSettings, updateSettings } = usePaymentSettingsStore();
+  const { user } = useAuthStore();
   
   const [upiId, setUpiId] = useState(settings.upiId || "");
   const [shopName, setShopName] = useState(settings.shopName || "");
@@ -50,12 +52,30 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
     }
   }, [visible, settings]);
 
-  const handleUnlock = () => {
-    // Basic admin password check
-    if (password === "1234") {
-      setIsUnlocked(true);
-    } else {
-      Alert.alert("Access Denied", "Incorrect Admin Password");
+  const handleUnlock = async () => {
+    if (!user?.userName) return;
+
+    setSaving(true); // Reuse saving state for loader
+    try {
+      const response = await fetch(`${API_URL}/api/auth/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userName: user.userName,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setIsUnlocked(true);
+      } else {
+        Alert.alert("Access Denied", "Incorrect Password");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Could not verify password. Check connection.");
+    } finally {
+      setSaving(false);
     }
   };
 
