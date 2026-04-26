@@ -146,11 +146,7 @@ const TableItemComponent = React.memo(
                 </Text>
               </View>
 
-              {(status === 1 ||
-                status === 2 ||
-                status === 3 ||
-                status === 4 ||
-                status === 5) && (
+              {status !== 0 && status !== 5 && (
                 <View style={styles.tableStats}>
                   {timeText ? (
                     <Text
