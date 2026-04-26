@@ -102,15 +102,23 @@ const StoreSettingsModal: React.FC<StoreSettingsModalProps> = ({
     setUploading(true);
     try {
       const formData = new FormData();
-      const filename = uri.split('/').pop();
-      const match = /\.(\w+)$/.exec(filename || '');
-      const type = match ? `image/${match[1]}` : `image`;
-
-      formData.append('image', {
-        uri,
-        name: filename || 'qr_code.jpg',
-        type,
-      } as any);
+      const filename = uri.split('/').pop() || 'qr_code.jpg';
+      
+      // 🌐 WEB COMPATIBILITY: Fetch the blob from the URI first
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('image', blob, filename);
+      } else {
+        // 📱 NATIVE: Append as an object
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+        formData.append('image', {
+          uri,
+          name: filename,
+          type,
+        } as any);
+      }
 
       const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
