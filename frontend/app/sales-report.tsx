@@ -1220,16 +1220,30 @@ export default function SalesReport() {
               <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.modalTitle}>
-                      Order #{formatOrderId(selectedOrder)}
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Text style={styles.modalTitle}>
+                        Order #{formatOrderId(selectedOrder)}
+                      </Text>
+                      <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary + '15', borderColor: Theme.primary + '30', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }]}>
+                        <Text style={{ color: Theme.primary, fontFamily: Fonts.black, fontSize: 10 }}>
+                          {selectedOrder?.PayMode || 'CASH'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 12 }}>
                       <Text style={styles.modalSub}>
                         {new Date(selectedOrder?.SettlementDate).toLocaleString()}
                       </Text>
-                      <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary + '15', borderColor: Theme.primary + '30', paddingHorizontal: 6 }]}>
-                        <Text style={{ color: Theme.primary, fontFamily: Fonts.black, fontSize: 9 }}>
-                          {selectedOrder?.PayMode || 'CASH'}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons 
+                          name={selectedOrder?.OrderType === "TAKEAWAY" ? "bag-handle" : "restaurant"} 
+                          size={12} 
+                          color={Theme.textMuted} 
+                        />
+                        <Text style={[styles.modalSub, { color: Theme.textPrimary, fontFamily: Fonts.bold }]}>
+                          {selectedOrder?.OrderType === "TAKEAWAY" 
+                            ? "Takeaway" 
+                            : `Table ${selectedOrder?.TableNo || "N/A"}${selectedOrder?.Section ? ` • ${selectedOrder.Section}` : ""}`}
                         </Text>
                       </View>
                     </View>
@@ -1268,14 +1282,6 @@ export default function SalesReport() {
                   </Text>
                 </View>
 
-                <View style={[styles.statRow, { borderBottomWidth: 0, marginTop: -10, marginBottom: 15 }]}>
-                  <Text style={styles.statName}>Payment Method</Text>
-                  <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary, borderColor: Theme.primary, paddingHorizontal: 12, paddingVertical: 6 }]}>
-                    <Text style={{ color: "#fff", fontFamily: Fonts.black, fontSize: 12 }}>
-                      {selectedOrder?.PayMode || "CASH"}
-                    </Text>
-                  </View>
-                </View>
                 <TouchableOpacity
                   onPress={() => setSelectedOrder(null)}
                   style={styles.doneBtn}
