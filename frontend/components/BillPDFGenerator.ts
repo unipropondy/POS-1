@@ -116,18 +116,24 @@ static async loadSettings(userId?: string | number): Promise<CompanySettings> {
                 rawGST: settings.GSTPercentage
             });
             
+            const formatUrl = (url: string) => {
+                if (!url) return '';
+                if (url.startsWith('http')) return url;
+                return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+            };
+            
             return {
                 name: settings.CompanyName || '',
                 address: settings.Address || '',
                 gstNo: settings.GSTNo || '',
-                gstPercentage: gstPercentage,  // ✅ Now 0 will stay 0
+                gstPercentage: gstPercentage,
                 phone: settings.Phone || '',
                 email: settings.Email || '',
                 cashierName: settings.CashierName || '',
                 currency: settings.Currency || 'SGD',
                 currencySymbol: settings.CurrencySymbol || '$',
-                companyLogo: settings.CompanyLogoUrl || '',
-                halalLogo: settings.HalalLogoUrl || '',
+                companyLogo: formatUrl(settings.CompanyLogoUrl),
+                halalLogo: formatUrl(settings.HalalLogoUrl),
                 showCompanyLogo: showCompanyLogo,
                 showHalalLogo: showHalalLogo,
             };
@@ -533,7 +539,7 @@ private static escapeHtml(str: string): string {
           <!-- Logo Header -->
           <div class="logo-header">
             ${showCompanyLogo && companyLogoUrl ? 
-              `<img src="${companyLogoUrl}" class="company-logo" />` : 
+              `<img src="${companyLogoUrl}" class="company-logo" crossOrigin="anonymous" />` : 
               '<div style="width:40px"></div>'
             }
             <div class="shop-info">
@@ -543,7 +549,7 @@ private static escapeHtml(str: string): string {
               <div class="contact">${company.phone ? `📞 ${company.phone}` : ''} ${company.email ? `📧 ${company.email}` : ''}</div>
             </div>
             ${showHalalLogo && halalLogoUrl ? 
-              `<img src="${halalLogoUrl}" class="halal-logo" />` : 
+              `<img src="${halalLogoUrl}" class="halal-logo" crossOrigin="anonymous" />` : 
               '<div style="width:35px"></div>'
             }
           </div>
