@@ -67,7 +67,7 @@ router.get("/all", async (req, res) => {
     let query = `
       SELECT TableId AS id, CAST(TableNumber AS VARCHAR(50)) AS label,
       CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName,
-      Status, StartTime, ISNULL(TotalAmount, 0) as totalAmount, CurrentOrderId as currentOrderId,
+      Status, CONVERT(VARCHAR, StartTime, 126) as StartTime, ISNULL(TotalAmount, 0) as totalAmount, CurrentOrderId as currentOrderId,
       CASE 
         WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
         ELSE 0 
@@ -128,7 +128,7 @@ router.post("/lock-persistent", async (req, res) => {
     // 🔥 Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: 5, totalAmount: 0 });
+      io.emit("table_status_updated", { tableId: cleanTableId, status: 5, totalAmount: 0, startTime: null });
     }
 
     res.json({ success: true });
@@ -187,7 +187,9 @@ router.put("/status", async (req, res) => {
       UPDATE TableMaster 
       SET Status = @status,
           StartTime = CASE 
-            WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
+            -- Status 1 (Dining), 2 (Checkout), 3 (Hold) starts/maintains the timer
+            WHEN (@status = 1 OR @status = 2 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
+            -- Status 0 (Available) or 5 (Locked) resets the timer
             WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
           END,
@@ -206,20 +208,23 @@ router.put("/status", async (req, res) => {
         .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
     }
 
-    // ✅ Get current total to include in socket
+    // ✅ Get current total and startTime to include in socket
     const tableRes = await pool.request()
       .input("tableId", sql.VarChar(50), cleanTableId)
-      .query("SELECT TotalAmount FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
+      .query("SELECT TotalAmount, StartTime FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
     
-    const currentTotal = tableRes.recordset[0]?.TotalAmount || 0;
+    const row = tableRes.recordset[0];
+    const currentTotal = row?.TotalAmount || 0;
+    const currentStartTime = row?.StartTime || null;
 
-    // 🔥 Emit socket event with TotalAmount
+    // 🔥 Emit socket event with TotalAmount and StartTime
     const io = req.app.get("io");
     if (io) {
       io.emit("table_status_updated", { 
         tableId: cleanTableId, 
         status: Number(status),
-        totalAmount: currentTotal
+        totalAmount: currentTotal,
+        startTime: currentStartTime
       });
     }
 
@@ -249,8 +254,8 @@ router.put("/:tableId/status", async (req, res) => {
       SET Status = @status, 
           LockedByName = CASE WHEN @status = 5 THEN @lockedByName ELSE NULL END,
           StartTime = CASE 
-            -- Status 1 (Dining) or 3 (Hold) starts the timer
-            WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
+            -- Status 1 (Dining), 2 (Checkout), or 3 (Hold) starts/maintains the timer
+            WHEN (@status = 1 OR @status = 2 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
             -- Status 0 (Available) or 5 (Locked) resets the timer
             WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
@@ -270,19 +275,18 @@ router.put("/:tableId/status", async (req, res) => {
     }
 
     // 🔥 Emit socket event for real-time sync across devices
-    const io = req.app.get("io");
-    // ✅ Get current total to include in socket
-    const tableRes = await pool.request()
-      .input("tableId", sql.VarChar(50), cleanTableId)
-      .query("SELECT TotalAmount FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
-    
-    const currentTotal = tableRes.recordset[0]?.TotalAmount || 0;
-
     if (io) {
+      // Get latest state for accurate broadcast
+      const tableRes = await pool.request()
+        .input("tableId", sql.VarChar(50), cleanTableId)
+        .query("SELECT TotalAmount, StartTime FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
+      
+      const row = tableRes.recordset[0];
       io.emit("table_status_updated", { 
         tableId: cleanTableId, 
         status: Number(status),
-        totalAmount: currentTotal
+        totalAmount: row?.TotalAmount || 0,
+        startTime: row?.StartTime || null
       });
     }
 
@@ -308,7 +312,7 @@ router.get("/:tableId", async (req, res) => {
           TableNumber AS label,
           DiningSection, 
           Status, 
-          StartTime, 
+          CONVERT(VARCHAR, StartTime, 126) as StartTime, 
           ISNULL(TotalAmount, 0) as totalAmount, 
           CurrentOrderId as currentOrderId,
           LockedByName as lockedByName

@@ -564,7 +564,8 @@ router.get("/active-kitchen", async (req, res) => {
       FROM [dbo].[CartItems] c
       LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
       LEFT JOIN [dbo].[TableMaster] t ON CAST(c.CartId AS NVARCHAR(128)) = CAST(t.TableId AS NVARCHAR(128))
-      WHERE c.Status IN ('SENT', 'READY')
+      WHERE c.Status IN ('SENT', 'READY', 'NEW', 'HOLD', 'SERVED')
+      AND (t.Status IN (1, 2, 3) OR c.Status = 'NEW')
       ORDER BY c.DateCreated ASC
     `);
 
@@ -577,12 +578,19 @@ router.get("/active-kitchen", async (req, res) => {
       if (!orderId) return;
 
       if (!ordersMap.has(orderId)) {
+        const ds = Number(row.section);
+        let sectionStr = "SECTION_1";
+        if (ds === 1) sectionStr = "SECTION_1";
+        else if (ds === 2) sectionStr = "SECTION_2";
+        else if (ds === 3) sectionStr = "SECTION_3";
+        else if (ds === 4) sectionStr = "TAKEAWAY";
+
         ordersMap.set(orderId, {
           orderId,
           context: {
             orderType: row.tableNo ? "DINE_IN" : "TAKEAWAY",
             tableNo: row.tableNo,
-            section: row.section,
+            section: sectionStr,
             tableId: row.tableId,
             takeawayNo: !row.tableNo ? (row.OrderNo || row.CartId) : null
           },
