@@ -326,7 +326,7 @@ private static escapeHtml(str: string): string {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>Tax Invoice</title>
+        <title>Invoice_${saleData.invoiceNumber || saleData.id}</title>
         <style>
           body {
             font-family: 'Courier New', Courier, monospace;
@@ -688,7 +688,9 @@ private static escapeHtml(str: string): string {
       const { uri } = await Print.printToFileAsync({
         html: html,
         base64: false,
-        width: 226
+        width: 226,
+        // ✅ On mobile, this will set the actual filename
+        name: `Invoice_${saleData.invoiceNumber || saleData.id}`
       });
       
       return uri;
