@@ -313,17 +313,6 @@ private static async printThermalReceipt(
     printers.forEach((p, i) => { message += `${i+1}. ${p.name}\n   Type: ${p.type}\n   Paper: ${p.paperSize || 'Unknown'}\n   Default: ${p.isDefault ? '✅' : '❌'}\n\n`; });
     Alert.alert('Printer Detection', message);
   }
-
-  private static generateItemsTable(items: any[], symbol: string): string {
-    if (!items.length) return '<p>No items</p>';
-    return `<table><thead><tr><th>Item</th><th class="amount">Qty</th><th class="amount">Price</th><th class="amount">Total</th></tr></thead><tbody>${items.map(i => `<tr><td>${i.name}</td><td class="amount">${i.quantity||0}</td><td class="amount">${symbol}${(i.price||0).toFixed(2)}</td><td class="amount">${symbol}${(i.revenue||0).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
-  }
-
-  private static generateTableFromObject(obj: Record<string, any>, symbol: string): string {
-    const entries = Object.entries(obj);
-    if (!entries.length) return '<p>No data</p>';
-    return `<table><tbody>${entries.map(([k,v]) => `<tr><td>${k}</td><td class="amount">${symbol}${(v as number).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
-  }
 }
 
 export default UniversalPrinter;
