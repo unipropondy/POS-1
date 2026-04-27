@@ -562,14 +562,19 @@ private static escapeHtml(str: string): string {
               </div>
             </div>
             
-            <!-- ✅ ORIGINAL SALE DATE -->
+            <!-- ✅ ORIGINAL SALE DATE (DD/MM/YYYY) -->
             <div class="detail-row">
               <span class="detail-label">DATE:</span>
-              <span class="detail-value">${saleDate.toLocaleDateString()} ${saleDate.toLocaleTimeString()}</span>
+              <span class="detail-value">
+                ${(() => {
+                  const d = saleDate.getDate().toString().padStart(2, '0');
+                  const m = (saleDate.getMonth() + 1).toString().padStart(2, '0');
+                  const y = saleDate.getFullYear();
+                  const t = saleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                  return `${d}/${m}/${y} ${t}`;
+                })()}
+              </span>
             </div>
-            
-            
-          
             
             ${company.cashierName ? `
             <div class="detail-row">

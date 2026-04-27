@@ -194,8 +194,12 @@ class SunmiPrinterService {
       await SunmiModule.lineWrap(1);
       
       // ============ BILL DETAILS ============
+      const now = new Date();
+      const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      
       await this.left(`INVOICE NO: ${saleData.invoiceNumber || saleData.id}`);
-      await this.left(`DATE: ${new Date().toLocaleString()}`);
+      await this.left(`DATE: ${dateStr} ${timeStr}`);
       await this.left(`CASHIER: ${saleData.cashier || companySettings.cashierName || 'Staff'}`);
       await this.divider('-');
       
