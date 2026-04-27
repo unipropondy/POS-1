@@ -36,15 +36,24 @@ class BillPDFGenerator {
   static async uploadImage(fileUri: string): Promise<string | null> {
     try {
       const formData = new FormData();
-      const filename = fileUri.split('/').pop() || 'image.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image`;
+      
+      if (Platform.OS === 'web') {
+        // ✅ WEB: Convert URI to Blob
+        const response = await fetch(fileUri);
+        const blob = await response.json ? await response.blob() : await response.blob();
+        formData.append('image', blob, 'logo.png');
+      } else {
+        // ✅ MOBILE: Use the URI object trick
+        const filename = fileUri.split('/').pop() || 'image.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
 
-      formData.append('image', {
-        uri: fileUri,
-        name: filename,
-        type,
-      } as any);
+        formData.append('image', {
+          uri: fileUri,
+          name: filename,
+          type,
+        } as any);
+      }
 
       const response = await API.post('/upload', formData, {
         headers: {
@@ -56,8 +65,8 @@ class BillPDFGenerator {
         return response.data.imageUrl;
       }
       return null;
-    } catch (error) {
-      console.log('Upload error:', error);
+    } catch (error: any) {
+      console.log('Upload error:', error.response?.data || error.message);
       return null;
     }
   }
