@@ -455,9 +455,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 {item.isTakeaway && (
                   <TouchableOpacity 
                     onPress={(e) => { e.stopPropagation(); updateCartItemTakeaway(item.lineItemId, !item.isTakeaway); }}
-                    style={[styles.twBadge, { backgroundColor: Theme.primary }]}
+                    style={[styles.twBadge, { backgroundColor: Theme.danger + '15', borderColor: Theme.danger + '30' }]}
                   >
-                    <Text style={[styles.twBadgeText, { color: '#FFF' }]}>TW</Text>
+                    <Text style={[styles.twBadgeText, { color: Theme.danger }]}>TW</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1124,12 +1124,13 @@ const styles = StyleSheet.create({
   },
   modalBtnTextConfirm: { color: "#fff", fontFamily: Fonts.black },
   twBadge: {
+    backgroundColor: Theme.danger + "15",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     marginLeft: 8,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: Theme.danger + "30",
     minWidth: 28,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1137,6 +1138,7 @@ const styles = StyleSheet.create({
   twBadgeText: {
     fontSize: 10,
     fontFamily: Fonts.black,
+    color: Theme.danger,
   },
   strikeThrough: {
     textDecorationLine: "line-through",
