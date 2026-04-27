@@ -156,14 +156,14 @@ class SunmiPrinterService {
       
       // ============ HEADER SECTION ============
       await this.doubleDivider('=');
-      await lineWrap(1);
+      await SunmiModule.lineWrap(1);
       
       // Print logos
       await this.printLogos(companySettings);
       
       // Company Name - Large and Bold
       await this.center(companySettings.name || 'YOUR STORE');
-      await lineWrap(1);
+      await SunmiModule.lineWrap(1);
       
       // Address
       if (companySettings.address) {
@@ -191,7 +191,7 @@ class SunmiPrinterService {
       }
       
       await this.doubleDivider('=');
-      await lineWrap(1);
+      await SunmiModule.lineWrap(1);
       
       // ============ BILL DETAILS ============
       await this.left(`INVOICE NO: ${saleData.invoiceNumber || saleData.id}`);
