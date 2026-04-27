@@ -343,6 +343,13 @@ private static escapeHtml(str: string): string {
 
           /* ✅ FORCE ONLY RECEIPT TO SHOW IN PRINT */
           @media print {
+            @page { 
+              margin: 0; /* ✅ Hides browser header (date) and footer (URL) */
+            }
+            body { 
+              margin: 0; 
+              padding: 0;
+            }
             body * { visibility: hidden; }
             .receipt, .receipt * { visibility: visible; }
             .receipt { 
@@ -351,7 +358,7 @@ private static escapeHtml(str: string): string {
               top: 0; 
               width: 100% !important; 
               margin: 0 !important; 
-              padding: 0 !important;
+              padding: 5mm !important; /* ✅ Add small internal padding instead of page margin */
             }
           }
           
