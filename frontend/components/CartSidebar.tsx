@@ -31,7 +31,6 @@ import {
 } from "../stores/cartStore";
 import { holdOrder } from "../stores/heldOrdersStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
-import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 
 if (
@@ -275,7 +274,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       );
       
       if (cart.length > 0) {
-        let targetOrderId = activeOrder?.orderId || getNextOrderId();
+        let targetOrderId = activeOrder?.orderId;
+        // If we don't have an ID yet, we must wait for the server to provide one during checkout/send
+
         appendOrder(targetOrderId, orderContext, cart);
         markItemsSent(targetOrderId);
         try {
@@ -314,7 +315,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     const unsentItems = cart.filter((i: any) => !i.status || i.status === "NEW");
     if (unsentItems.length === 0) return;
 
-    let targetOrderId = activeOrder?.orderId || getNextOrderId();
+    let targetOrderId = activeOrder?.orderId;
+    // No more getNextOrderId() - we wait for the database
+
     
     appendOrder(targetOrderId, orderContext, unsentItems);
     markItemsSent(targetOrderId);
@@ -598,8 +601,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 <TouchableOpacity
                   style={styles.holdBtn}
                   onPress={async () => {
-                    let targetOrderId =
-                      activeOrder?.orderId || getNextOrderId();
+                    let targetOrderId = activeOrder?.orderId;
+
                     if (orderContext.tableId) {
                       try {
                         await fetch(`${API_URL}/api/orders/save-cart`, {
