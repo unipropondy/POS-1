@@ -22,11 +22,11 @@ async function getOrGenerateOrderId(req, tableId) {
     return tableCheck.recordset[0].CurrentOrderId;
   }
 
-  // 2. Resolve BusinessUnitId (same logic as sales.js)
+  // 2. Resolve BusinessUnitId from CompanySettings (Single Source of Truth)
   const bizRow = await pool.request().query(`
-    SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+    SELECT TOP 1 BusinessUnitId FROM CompanySettings WHERE BusinessUnitId IS NOT NULL
     UNION ALL
-    SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+    SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
   `);
   let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
 
