@@ -58,9 +58,6 @@ export default function RootLayout() {
       } else {
         router.replace("/(tabs)");
       }
-    } else if (!user && !segments[0]) {
-      // Start at login if entering the app for the first time
-      router.replace("/login");
     }
   }, [user, segments, fontsLoaded]);
 
