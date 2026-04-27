@@ -61,7 +61,7 @@ export default function LoginScreen() {
         if (userName === "KDS") {
           router.replace("/kds" as any);
         } else {
-          router.replace("/(tabs)/category");
+          router.replace("/(tabs)");
         }
         return;
       }
@@ -134,7 +134,7 @@ export default function LoginScreen() {
         if (userName === "KDS") {
           router.replace("/kds" as any);
         } else {
-          router.replace("/(tabs)/category");
+          router.replace("/(tabs)");
         }
       } else {
         setError(data.message || "Login failed. Please try again.");

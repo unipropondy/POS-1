@@ -68,6 +68,10 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
         };
         return { ...newState, tables: updatedTables };
       } else {
+        // If it's a new entry (e.g. app load), only default to Date.now() if it's actually active
+        // and we weren't given a time from the backend.
+        const defaultStartTime = (status !== 'EMPTY' && status !== 'LOCKED') ? Date.now() : 0;
+
         return {
           ...newState,
           tables: [
@@ -77,7 +81,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
               section,
               tableNo,
               orderId,
-              startTime: startTime || Date.now(),
+              startTime: startTime || defaultStartTime,
               status,
               lockedByName,
               totalAmount,
@@ -179,7 +183,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
             section: lockedItem.section,
             tableNo: lockedItem.tableNo,
             orderId: "RESERVED",
-            startTime: Date.now(),
+            startTime: 0, // No timer for locked tables
             status: "LOCKED",
             lockedByName: lockedItem.lockedByName
           });

@@ -83,8 +83,7 @@ export default function SummaryScreen() {
   const hasHydrated = useActiveOrdersStore((s: any) => s._hasHydrated);
 
   useEffect(() => {
-    // loadGlobalSettings() is handled by the main app or store
-    // ✅ Sync official Order ID from DB to avoid "#NEW" bug
+    // 1. Sync official Order ID from DB
     if (context?.tableId) {
       fetch(`${API_URL}/api/tables/${context.tableId}`)
         .then(res => res.json())
@@ -95,7 +94,13 @@ export default function SummaryScreen() {
         })
         .catch(err => console.error("Summary ID sync error:", err));
     }
-  }, []);
+
+    // 2. If activeOrder is missing (e.g. fresh reload on summary page), fetch it
+    if (!activeOrder) {
+      console.log("🔍 [Summary] Active order missing, fetching from kitchen...");
+      useActiveOrdersStore.getState().fetchActiveKitchenOrders();
+    }
+  }, [activeOrder]);
 
   const discountInfo = useCartStore((s: any) => {
     const id = s.currentContextId;
@@ -190,7 +195,7 @@ export default function SummaryScreen() {
       setCancelPassword("");
 
       setTimeout(() => {
-        router.replace("/(tabs)/category");
+        router.replace("/(tabs)");
       }, 500);
     } catch (error) {
       console.error("Cancel error:", error);

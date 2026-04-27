@@ -56,7 +56,7 @@ export default function RootLayout() {
       if (userName === "KDS") {
         router.replace("/kds" as any);
       } else {
-        router.replace("/(tabs)/category");
+        router.replace("/(tabs)");
       }
     } else if (!user && !segments[0]) {
       // Start at login if entering the app for the first time

@@ -387,6 +387,7 @@ export default function Category() {
     fetchTables();
     fetchLockedTables();
     usePaymentSettingsStore.getState().fetchSettings();
+    useActiveOrdersStore.getState().fetchActiveKitchenOrders();
   }, []);
 
   useFocusEffect(
@@ -470,6 +471,12 @@ export default function Category() {
         // Sync to global store for components to use
         const store = useTableStatusStore.getState();
         convertedData.forEach(t => {
+          let ts = undefined;
+          if (t.StartTime) {
+            const parsed = new Date(t.StartTime).getTime();
+            if (!isNaN(parsed)) ts = parsed;
+          }
+
           store.updateTableStatus(
             t.id,
             getSectionFromDiningSection(t.DiningSection),
@@ -479,7 +486,7 @@ export default function Category() {
             t.Status === 1 ? "SENT" : 
             t.Status === 2 ? "BILL_REQUESTED" : 
             t.Status === 3 ? "HOLD" : "EMPTY",
-            t.StartTime ? new Date(t.StartTime).getTime() : undefined,
+            ts,
             t.lockedByName,
             t.totalAmount
           );

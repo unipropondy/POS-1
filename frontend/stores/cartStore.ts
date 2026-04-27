@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import * as Crypto from "expo-crypto";
 import { create } from "zustand";
 import { Platform } from "react-native";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -141,7 +141,7 @@ export const useCartStore = create<CartState>()(
         if (!tableId) return "";
 
         const isTakeawayDefault = orderContext?.orderType === "TAKEAWAY";
-        const targetLineItemId = uuidv4();
+        const targetLineItemId = Crypto.randomUUID();
 
         try {
           await fetch(`${API_URL}/api/orders/add-item`, {
@@ -327,7 +327,7 @@ export const useCartStore = create<CartState>()(
               i.lineItemId === matchingExistingItem.lineItemId ? { ...i, qty: i.qty + 1 } : i,
             );
           } else {
-            updatedCart.push({ ...sourceItem, qty: 1, lineItemId: uuidv4(), modifiers, price: newPrice });
+            updatedCart.push({ ...sourceItem, qty: 1, lineItemId: Crypto.randomUUID(), modifiers, price: newPrice });
           }
         } else {
           if (matchingExistingItem) {

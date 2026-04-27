@@ -73,7 +73,12 @@ async function getOrGenerateOrderId(req, tableId) {
   await pool.request()
     .input("tid", sql.UniqueIdentifier, cleanId)
     .input("oid", sql.NVarChar(50), displayOrderId)
-    .query("UPDATE TableMaster SET CurrentOrderId = @oid WHERE TableId = @tid");
+    .query(`
+      UPDATE TableMaster 
+      SET CurrentOrderId = @oid, 
+          StartTime = ISNULL(StartTime, GETDATE()) 
+      WHERE TableId = @tid
+    `);
 
   console.log(`✨ [OrderID] Generated ${displayOrderId} for Table ${cleanId}`);
   return displayOrderId;

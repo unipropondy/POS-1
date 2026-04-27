@@ -328,7 +328,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         action: "CLOSE",
       });
 
-      router.replace(`/(tabs)/category?section=${orderContext.section}`);
+      router.replace(`/(tabs)?section=${orderContext.section}`);
     } else {
       router.push("/summary");
     }
@@ -409,7 +409,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     }
 
 
-    router.replace(`/(tabs)/category?section=${orderContext.section}`);
+    router.replace(`/(tabs)?section=${orderContext.section}`);
   };
 
   const renderEmptyState = () => (
@@ -682,7 +682,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     );
                     holdOrder(targetOrderId || "HOLD", cart, orderContext);
                     router.replace(
-                      `/(tabs)/category?section=${orderContext.section}`,
+                      `/(tabs)?section=${orderContext.section}`,
                     );
                   }}
                 >

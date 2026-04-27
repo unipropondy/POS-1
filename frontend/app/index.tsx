@@ -1,0 +1,16 @@
+import { Redirect } from "expo-router";
+import { useAuthStore } from "../stores/authStore";
+
+export default function Index() {
+  const user = useAuthStore((s) => s.user);
+
+  if (user) {
+    const userName = (user.userName || "").trim().toUpperCase();
+    if (userName === "KDS") {
+      return <Redirect href="/kds" />;
+    }
+    return <Redirect href="/(tabs)" />;
+  }
+
+  return <Redirect href="/login" />;
+}

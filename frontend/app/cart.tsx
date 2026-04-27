@@ -346,7 +346,7 @@ export default function CartScreen() {
   }, [orderContext?.tableId, currentTableData?.tableId]);
 
   React.useEffect(() => {
-    if (!orderContext) router.replace("/(tabs)/category");
+    if (!orderContext) router.replace("/(tabs)");
   }, [orderContext]);
 
   if (!orderContext) {
@@ -423,7 +423,7 @@ export default function CartScreen() {
           "EMPTY",
         );
       }
-      router.replace("/(tabs)/category");
+      router.replace("/(tabs)");
     }
 
     setShowCancelModal(false);
@@ -520,7 +520,7 @@ export default function CartScreen() {
         }
       }
       clearCart();
-      router.replace(`/(tabs)/category?section=${context.section}`);
+      router.replace(`/(tabs)?section=${context.section}`);
 
     } else if (context.orderType === "TAKEAWAY") {
       try {
@@ -555,10 +555,10 @@ export default function CartScreen() {
         console.error("Takeaway Send Error:", err);
       }
       clearCart();
-      router.replace(`/(tabs)/category?section=TAKEAWAY`);
+      router.replace(`/(tabs)?section=TAKEAWAY`);
     } else {
       clearCart();
-      router.replace("/(tabs)/category");
+      router.replace("/(tabs)");
     }
   };
 
@@ -682,15 +682,15 @@ export default function CartScreen() {
                       updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
-                      router.replace(`/(tabs)/category?section=${orderContext.section}`);
+                      router.replace(`/(tabs)?section=${orderContext.section}`);
                     } else if (orderContext.orderType === "TAKEAWAY") {
                       updateTableStatus("", "TAKEAWAY", orderContext.takeawayNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
-                      router.replace(`/(tabs)/category?section=TAKEAWAY`);
+                      router.replace(`/(tabs)?section=TAKEAWAY`);
                     } else {
                       clearCart();
-                      router.replace("/(tabs)/category");
+                      router.replace("/(tabs)");
                     }
                   }}
                 >

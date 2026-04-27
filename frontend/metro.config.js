@@ -18,6 +18,9 @@ config.resolver.extraNodeModules = {
   tedious: STUB,
 };
 
+config.resolver.unstable_enablePackageExports = false;
+
+
 config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
 module.exports = config;
