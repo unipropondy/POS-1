@@ -327,33 +327,32 @@ private static escapeHtml(str: string): string {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>Tax Invoice</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          
-          body {
+               body {
             font-family: 'Courier New', Courier, monospace;
             background: #fff;
-            display: flex;
-            justify-content: center;
-            padding: 0;
             margin: 0;
+            padding: 0;
           }
 
-          /* ✅ FORCE ONLY RECEIPT TO SHOW IN PRINT */
+          .print-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            min-height: 100vh;
+          }
+ 
           @media print {
-            @page { 
-              margin: 0; /* ✅ Hides browser header (date) and footer (URL) */
+            @page { margin: 0; }
+            body { background: white; }
+            .print-wrapper {
+              display: flex !important;
+              justify-content: center !important;
             }
-            body { 
-              margin: 0; 
-              padding: 0;
-            }
-            body * { visibility: hidden; }
-            .receipt, .receipt * { visibility: visible; }
-            .receipt { 
-              margin: 0 auto !important; /* ✅ Centered on the page */
-              width: 72mm !important; 
-              padding: 5mm !important;
+            .receipt {
+              margin: 0 !important;
+              box-shadow: none !important;
+              width: 72mm !important;
             }
           }
           
@@ -361,8 +360,8 @@ private static escapeHtml(str: string): string {
             width: 72mm;
             max-width: 72mm;
             background: white;
-            padding: 3mm 2mm;
-            margin: 0 auto;
+            padding: 4mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); /* Visible on screen */
           }
           
           /* Logo Header */
@@ -552,7 +551,8 @@ private static escapeHtml(str: string): string {
         </style>
       </head>
       <body>
-        <div class="receipt">
+        <div class="print-wrapper">
+          <div class="receipt">
           
           <!-- Logo Header -->
           <div class="logo-header">
@@ -673,7 +673,7 @@ private static escapeHtml(str: string): string {
             <div class="thankyou">THANK YOU! COME AGAIN!</div>
             <div class="copyright">SMART-POS BY UNIPROSG</div>
           </div>
-          
+          </div>
         </div>
       </body>
       </html>
