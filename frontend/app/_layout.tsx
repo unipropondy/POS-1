@@ -20,23 +20,17 @@ import { ToastProvider } from "../components/Toast";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
+import { useAuthStore } from "../stores/authStore";
+import { useRouter, useSegments, Slot } from "expo-router";
+
 // Keep the splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 768;
-
-  // Enable free rotation on all devices
-  useEffect(() => {
-    ScreenOrientation.unlockAsync();
-  }, []);
-
+  const router = useRouter();
+  const segments = useSegments();
+  const user = useAuthStore((s) => s.user);
 
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -47,15 +41,35 @@ export default function RootLayout() {
     Inter_900Black,
   });
 
+  // ✅ AUTH GUARD: Redirect based on auth state
+  useEffect(() => {
+    if (!fontsLoaded) return;
+
+    const inAuthGroup = segments[0] === "(tabs)" || segments[0] === "menu";
+    
+    if (!user && inAuthGroup) {
+      // Redirect to login if not logged in and trying to access protected routes
+      router.replace("/login");
+    } else if (user && segments[0] === "login") {
+      // Redirect to dashboard if logged in and trying to access login
+      const userName = (user.userName || "").trim().toUpperCase();
+      if (userName === "KDS") {
+        router.replace("/kds" as any);
+      } else {
+        router.replace("/(tabs)/category");
+      }
+    } else if (!user && segments.length === 0) {
+      // Start at login if entering the app for the first time
+      router.replace("/login");
+    }
+  }, [user, segments, fontsLoaded]);
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      // All Order IDs are now managed by the backend
-      
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
-  // Don't render until fonts are ready
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -63,11 +77,8 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <ToastProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="login" options={{ gestureEnabled: false }} />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="menu" />
         </Stack>
