@@ -27,7 +27,6 @@ import { API_URL } from "../constants/Config";
 import { OrderItem, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { CartItem, useCartStore } from "../stores/cartStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
-import { getNextOrderId } from "../stores/orderIdStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { holdOrder } from "../stores/heldOrdersStore";
 import EditDishModal from "../components/EditDishModal";
@@ -361,7 +360,18 @@ export default function CartScreen() {
   const [itemToVoid, setItemToVoid] = React.useState<any>(null);
 
   const handleCancelOrder = () => {
-    if (cancelPassword !== "786") {
+    // Securely verify password with backend instead of hardcoding "786"
+    const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        userName: "admin", 
+        password: cancelPassword 
+      })
+    });
+    const verifyData = await verifyRes.json();
+
+    if (!verifyData.success) {
       showToast({
         type: "error",
         message: "Incorrect Password",
@@ -456,9 +466,7 @@ export default function CartScreen() {
     if (!context || cart.length === 0) return;
 
     let targetOrderId = activeOrder?.orderId;
-    if (!targetOrderId) {
-      targetOrderId = getNextOrderId();
-    }
+    // No more local generation - wait for backend
 
     appendOrder(targetOrderId, context, cart);
     markItemsSent(targetOrderId);
@@ -599,7 +607,6 @@ export default function CartScreen() {
                   style={[styles.checkoutBtn, { backgroundColor: Theme.info }]}
                   onPress={async () => {
                     let targetOrderId = activeOrder?.orderId;
-                    if (!targetOrderId) targetOrderId = getNextOrderId();
 
                     if (orderContext.orderType === "DINE_IN") {
                       const tableId = orderContext.tableId || currentTableData?.tableId;

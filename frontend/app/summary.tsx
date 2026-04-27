@@ -130,7 +130,18 @@ export default function SummaryScreen() {
   };
 
   const handleCancelOrder = async () => {
-    if (cancelPassword !== "786") {
+    // Securely verify password with backend instead of hardcoding "786"
+    const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        userName: "admin", 
+        password: cancelPassword 
+      })
+    });
+    const verifyData = await verifyRes.json();
+
+    if (!verifyData.success) {
       showToast({ type: "error", message: "Incorrect Password", subtitle: "Admin password required to cancel order" });
       return;
     }
@@ -600,7 +611,18 @@ export default function SummaryScreen() {
               <TouchableOpacity
                 style={[styles.modalBtnConfirm, { backgroundColor: Theme.danger }]}
                 onPress={() => {
-                  if (voidPassword === "786") {
+                  // Securely verify password with backend instead of hardcoding "786"
+                  const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                      userName: "admin", 
+                      password: voidPassword 
+                    })
+                  });
+                  const verifyData = await verifyRes.json();
+
+                  if (verifyData.success) {
                     if (activeOrder && itemToVoid) {
                       voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
                       showToast({ type: "success", message: "Item Voided" });

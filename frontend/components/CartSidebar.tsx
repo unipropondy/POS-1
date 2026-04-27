@@ -710,42 +710,54 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 <TouchableOpacity
                   style={styles.modalBtnConfirm}
                   onPress={() => {
-                    if (cancelPassword === "786") {
-                      if (itemToVoid && orderContext.tableId) {
-                        // 1. Remove from Backend Database
-                        fetch(`${API_URL}/api/orders/remove-item`, {
+                        // Securely verify password with backend instead of hardcoding "786"
+                        const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ 
-                            tableId: orderContext.tableId, 
-                            itemId: itemToVoid.lineItemId 
-                          }),
-                        }).catch(err => console.error("Void sync error:", err));
-
-                        // 2. Update local store
-                        if (activeOrder) {
-                          voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
-                        }
-                        
-                        setItemToVoid(null);
-                        setCancelPassword("");
-                        setShowCancelModal(false);
-                        showToast({
-                          type: "success",
-                          message: "Item Voided",
-                          subtitle: "Database & Kitchen updated",
+                            userName: "admin", // Or use currently logged in user
+                            password: cancelPassword 
+                          })
                         });
-                      } else {
-                        clearCartStandalone();
-                        setCancelPassword("");
-                        setShowCancelModal(false);
-                      }
-                    } else {
-                      showToast({
-                        type: "error",
-                        message: "Invalid Password",
-                      });
-                    }
+                        const verifyData = await verifyRes.json();
+
+                        if (verifyData.success) {
+                          if (itemToVoid && orderContext.tableId) {
+                            // 1. Remove from Backend Database
+                            fetch(`${API_URL}/api/orders/remove-item`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ 
+                                tableId: orderContext.tableId, 
+                                itemId: itemToVoid.lineItemId 
+                              }),
+                            }).catch(err => console.error("Void sync error:", err));
+
+                            // 2. Update local store
+                            if (activeOrder) {
+                              voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+                            }
+                            
+                            setItemToVoid(null);
+                            setCancelPassword("");
+                            setShowCancelModal(false);
+                            showToast({
+                              type: "success",
+                              message: "Item Voided",
+                              subtitle: "Database & Kitchen updated",
+                            });
+                          } else {
+                            clearCartStandalone();
+                            setCancelPassword("");
+                            setShowCancelModal(false);
+                          }
+                        } else {
+                          showToast({
+                            type: "error",
+                            message: "Invalid Password",
+                          });
+                        }
+
                   }}
                 >
                   <Text style={styles.modalBtnTextConfirm}>Confirm</Text>
