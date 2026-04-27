@@ -34,18 +34,27 @@ export default function CompanySettingsScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const storedId = await AsyncStorage.getItem('userId') || '1';
-      setUserId(storedId);
-      await fetchSettings(storedId);
+      // ✅ CONSISTENT ID LOGIC: Match BillPDFGenerator
+      const outletId = await AsyncStorage.getItem('selectedOutletId');
+      const storedUserId = await AsyncStorage.getItem('userId') || '1';
+      const targetId = outletId || storedUserId;
+      
+      setUserId(targetId);
+      await fetchSettings(targetId);
     };
     load();
   }, []);
 
   const handleSave = async () => {
-    if (!userId) return;
+    // ✅ CONSISTENT ID LOGIC: Match BillPDFGenerator
+    const outletId = await AsyncStorage.getItem('selectedOutletId');
+    const storedUserId = await AsyncStorage.getItem('userId') || '1';
+    const targetId = outletId || storedUserId;
+
+    if (!targetId) return;
     setSaving(true);
     try {
-      const success = await BillPDFGenerator.saveSettings(settings, userId);
+      const success = await BillPDFGenerator.saveSettings(settings, targetId);
       if (success) {
         showToast({ type: 'success', message: 'Settings saved successfully' });
       } else {

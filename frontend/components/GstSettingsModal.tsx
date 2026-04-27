@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Modal,
   StyleSheet,
@@ -66,12 +67,16 @@ export default function GstSettingsModal({
   const handleSave = async () => {
     if (!isValid || regErr) return;
     
-    // Use "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88" as the default Company ID if none provided
+    // ✅ CONSISTENT ID LOGIC: Match BillPDFGenerator
+    const outletId = await AsyncStorage.getItem('selectedOutletId');
+    const storedUserId = await AsyncStorage.getItem('userId') || '1';
+    const targetId = outletId || storedUserId;
+
     const success = await updateSettings({
       gstPercentage: enabled ? rate : 0,
       gstNo: regNo.trim(),
       taxMode: taxMode,
-    }, "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88");
+    }, targetId);
 
     if (success) {
       onClose();

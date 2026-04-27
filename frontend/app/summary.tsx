@@ -28,7 +28,7 @@ import { useToast } from "../components/Toast";
 import { API_URL } from "@/constants/Config";
 
 import DiscountModal from "../components/DiscountModal";
-// Removed local GstSettingsModal
+import GstSettingsModal from "../components/GstSettingsModal";
 import { findActiveOrder, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { useCartStore } from "../stores/cartStore";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
@@ -414,6 +414,14 @@ export default function SummaryScreen() {
                   </View>
                 )}
 
+                <TouchableOpacity 
+                   style={styles.gstBtn} 
+                   onPress={() => setShowGstModal(true)}
+                >
+                   <Ionicons name="options-outline" size={14} color={Theme.primary} />
+                   <Text style={styles.gstBtnText}>GST Alter</Text>
+                </TouchableOpacity>
+
                 <View style={[styles.dashedDivider, isLandscape && !isTablet && { marginVertical: 10 }]}>
                   <View style={[styles.dashLine, { borderColor: Theme.border }]} />
                 </View>
@@ -623,6 +631,10 @@ export default function SummaryScreen() {
           </View>
         </View>
       </Modal>
+      <GstSettingsModal 
+        visible={showGstModal} 
+        onClose={() => setShowGstModal(false)} 
+      />
     </SafeAreaView>
   );
 }

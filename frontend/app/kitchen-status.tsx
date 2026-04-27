@@ -185,7 +185,7 @@ export default function KitchenStatusScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8FAFC" }, // Soft cool gray background
+  safe: { flex: 1, backgroundColor: "#F0EBE3" }, // Warm Stone background to match Theme.bgMuted
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     backgroundColor: "#FFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: Theme.border,
     ...Theme.shadowSm,
   },
   backBtn: {
@@ -202,14 +202,16 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Theme.bgNav,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Theme.border,
   },
   titleContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: {
     fontSize: 22,
     fontFamily: Fonts.black,
-    color: "#1E293B",
+    color: Theme.textPrimary,
     letterSpacing: -0.5,
   },
   list: { padding: 16, paddingBottom: 60 },
@@ -220,17 +222,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Theme.border,
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12,
-      },
-      android: { elevation: 3 }
-    })
+    ...Theme.shadowMd,
   },
   orderHeader: {
     flexDirection: "row",
@@ -238,10 +232,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: Theme.border + "50",
   },
-  headerDineIn: { backgroundColor: "#F0F9FF" },
-  headerTakeaway: { backgroundColor: "#FFFBEB" },
+  headerDineIn: { backgroundColor: "#F0F9FF" }, // Soft Blue
+  headerTakeaway: { backgroundColor: "#FFFBEB" }, // Soft Amber
   headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconCircle: {
     width: 36,
@@ -251,16 +245,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...Theme.shadowSm,
+    borderWidth: 1,
+    borderColor: Theme.border,
   },
   tableNumber: {
     fontSize: 16,
     fontFamily: Fonts.black,
-    color: "#1E293B",
+    color: Theme.textPrimary,
   },
   orderId: {
     fontSize: 11,
     fontFamily: Fonts.bold,
-    color: "#64748B",
+    color: Theme.textSecondary,
     letterSpacing: 0.5,
   },
   headerRight: { alignItems: 'flex-end', gap: 4 },
@@ -275,12 +271,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Theme.border,
   },
   statsText: {
     fontSize: 10,
     fontFamily: Fonts.black,
-    color: "#475569",
+    color: Theme.textSecondary,
   },
   itemsContainer: { padding: 16 },
   itemRow: {
@@ -289,7 +285,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: Theme.border + "50",
   },
   itemReadyRow: {
     backgroundColor: "#F0FDF4",
@@ -306,7 +302,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontFamily: Fonts.bold,
-    color: "#1E293B",
+    color: Theme.textPrimary,
     flex: 1,
   },
   strikeThrough: {
@@ -316,7 +312,7 @@ const styles = StyleSheet.create({
   modifierText: {
     fontSize: 13,
     fontFamily: Fonts.medium,
-    color: "#64748B",
+    color: Theme.textSecondary,
     marginLeft: 34,
     marginTop: 2,
   },
@@ -342,7 +338,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#1E293B", // Premium Slate
+    backgroundColor: Theme.primary, // Brand Orange
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -377,14 +373,15 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFF",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
+    ...Theme.shadowMd,
   },
   emptyText: {
     fontSize: 20,
     fontFamily: Fonts.bold,
-    color: "#64748B",
+    color: Theme.textMuted,
   },
 });

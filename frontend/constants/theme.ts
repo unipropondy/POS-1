@@ -19,6 +19,12 @@ export const Theme = {
   bgMuted: '#F0EBE3',
   bgOverlay: 'rgba(250,247,242,0.95)',
 
+  // ── Dark/Professional Palette ──
+  bgDark: '#0F172A',     // Midnight Slate
+  cardDark: '#1E293B',   // Shadow Slate
+  borderDark: '#334155', // Slate Border
+  bgDarkMuted: '#1E293B',
+
   // ── Text ──
   textPrimary: '#1C1C1E',
   textSecondary: '#6B6B6B',

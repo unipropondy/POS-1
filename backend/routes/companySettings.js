@@ -40,8 +40,8 @@ router.post("/:id", async (req, res) => {
       .input("CashierName", sql.NVarChar, s.CashierName)
       .input("Currency", sql.NVarChar, s.Currency)
       .input("CurrencySymbol", sql.NVarChar, s.CurrencySymbol)
-      .input("CompanyLogoUrl", sql.NVarChar, s.CompanyLogoUrl)
-      .input("HalalLogoUrl", sql.NVarChar, s.HalalLogoUrl)
+      .input("CompanyLogoUrl", sql.NVarChar(sql.MAX), s.CompanyLogoUrl)
+      .input("HalalLogoUrl", sql.NVarChar(sql.MAX), s.HalalLogoUrl)
       .input("PrinterIP", sql.NVarChar, s.PrinterIP) // ✅ ADDED
       .input("ShowCompanyLogo", sql.Bit, s.ShowCompanyLogo)
       .input("ShowHalalLogo", sql.Bit, s.ShowHalalLogo)
