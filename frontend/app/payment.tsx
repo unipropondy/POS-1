@@ -38,7 +38,7 @@ import {
   getOrderContext,
 } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
-import { useGstStore } from "../stores/gstStore";
+import { useCompanySettingsStore } from "../stores/companySettingsStore";
 import { usePaymentSettingsStore } from "../stores/paymentSettingsStore";
 import UPIPaymentModal from "../components/payment/UPIPaymentModal";
 import PayNowPaymentModal from "../components/payment/PayNowPaymentModal";
@@ -148,12 +148,14 @@ export default function PaymentScreen() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isUPIVisible, setIsUPIVisible] = useState(false);
   const [isPayNowVisible, setIsPayNowVisible] = useState(false);
-  const { enabled: gstEnabled, percentage: gstPercentage, registrationNumber: gstRegNo, taxMode, loadSettings: loadGst } = useGstStore();
+  const settingsStore = useCompanySettingsStore((state) => state.settings);
+  const currencySymbol = settingsStore.currencySymbol || "$";
+  const gstRate = (settingsStore.gstPercentage || 0) / 100;
   const { settings } = usePaymentSettingsStore();
 
   useEffect(() => {
     const init = async () => {
-      await loadGst();
+      // loadGst() removed
       await usePaymentSettingsStore.getState().fetchSettings();
       await fetchPaymentMethods();
       
@@ -292,17 +294,9 @@ export default function PaymentScreen() {
 
   const discSubtotal = Math.max(0, subtotal - discountAmount);
   
-  const tax = useMemo(() => {
-    if (!gstEnabled) return 0;
-    const rate = gstPercentage / 100;
-    if (taxMode === "inclusive") {
-      return parseFloat((discSubtotal - discSubtotal / (1 + rate)).toFixed(2));
-    }
-    return parseFloat((discSubtotal * rate).toFixed(2));
-  }, [gstEnabled, gstPercentage, taxMode, discSubtotal]);
-
-  const displaySubtotal = taxMode === "inclusive" ? subtotal - tax : subtotal;
-  const total = taxMode === "inclusive" ? discSubtotal : discSubtotal + tax;
+  const tax = subtotal * gstRate;
+  const total = subtotal - discountAmount + tax;
+  const displaySubtotal = subtotal;
 
   const paidNum = parseFloat(cashInput) || 0;
   const change = Math.max(0, paidNum - total);
@@ -394,7 +388,7 @@ export default function PaymentScreen() {
     if (processing) return;
 
     if (total > 0 && isCashMethod(method) && (paidNum < total && Math.abs(paidNum - total) > 0.01)) {
-      showToast({ type: "warning", message: "Insufficient Payment", subtitle: `Please enter at least $${total.toFixed(2)}` });
+      showToast({ type: "warning", message: "Insufficient Payment", subtitle: `Please enter at least ${currencySymbol}${total.toFixed(2)}` });
       return;
     }
 
@@ -489,7 +483,7 @@ export default function PaymentScreen() {
           {isVoided && " (VOIDED)"}
         </Text>
         <Text style={[styles.itemPrice, isVoided && styles.textVoided]}>
-          ${(item.price * item.qty).toFixed(2)}
+          {currencySymbol}{(item.price * item.qty).toFixed(2)}
         </Text>
       </View>
     );
@@ -565,7 +559,7 @@ export default function PaymentScreen() {
                     )}
 
                     <View style={styles.breakRow}>
-                      <Text style={styles.breakLabel}>GST ({gstPercentage}%)</Text>
+                      <Text style={styles.breakLabel}>GST ({settingsStore.gstPercentage || 0}%)</Text>
                       <Text style={styles.breakValue}>${tax.toFixed(2)}</Text>
                     </View>
                   </View>

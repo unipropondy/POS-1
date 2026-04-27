@@ -69,26 +69,37 @@ export default function CompanySettingsScreen() {
       mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.6, // Slightly lower quality to keep DB size manageable
+      base64: true,
     });
 
     if (!result.canceled && result.assets[0].uri) {
       setSaving(true);
-      const imageUrl = await BillPDFGenerator.uploadImage(result.assets[0].uri);
-      if (imageUrl) {
+      try {
+        // Use the base64 from asset if available (ImagePicker supports it)
+        let base64Data = result.assets[0].base64;
+        
+        // If not available, we could fetch it, but ImagePicker quality 0.7 + base64: true is best
+        if (!base64Data) {
+          // Fallback if needed, but we'll enable it in the picker options
+        }
+
+        const dataUri = `data:image/jpeg;base64,${base64Data}`;
         updateSettings({
-          [type === 'company' ? 'companyLogo' : 'halalLogo']: imageUrl
+          [type === 'company' ? 'companyLogo' : 'halalLogo']: dataUri
         });
-        showToast({ type: 'success', message: 'Logo uploaded successfully' });
-      } else {
-        showToast({ type: 'error', message: 'Failed to upload image' });
+        showToast({ type: 'success', message: 'Logo processed successfully' });
+      } catch (error) {
+        showToast({ type: 'error', message: 'Failed to process image' });
+      } finally {
+        setSaving(false);
       }
-      setSaving(false);
     }
   };
 
   const getLogoUri = (logo: string) => {
     if (!logo) return undefined;
+    if (logo.startsWith('data:image')) return logo;
     if (logo.startsWith('http')) return `${logo}?t=${Date.now()}`;
     return `${API_URL}${logo.startsWith('/') ? '' : '/'}${logo}?t=${Date.now()}`;
   };
@@ -152,7 +163,7 @@ export default function CompanySettingsScreen() {
                   <Text style={styles.toggleText}>{settings.showCompanyLogo ? 'Active on bill' : 'Hidden on bill'}</Text>
                   <Switch 
                     value={settings.showCompanyLogo} 
-                    onValueChange={(val) => updateSettings({ showCompanyLogo: val })}
+                    onValueChange={(val) => { updateSettings({ showCompanyLogo: val }); }}
                     trackColor={{ false: '#ddd', true: Theme.primary }}
                   />
                 </View>
@@ -179,7 +190,7 @@ export default function CompanySettingsScreen() {
                   <Text style={styles.toggleText}>{settings.showHalalLogo ? 'Active on bill' : 'Hidden on bill'}</Text>
                   <Switch 
                     value={settings.showHalalLogo} 
-                    onValueChange={(val) => updateSettings({ showHalalLogo: val })}
+                    onValueChange={(val) => { updateSettings({ showHalalLogo: val }); }}
                     trackColor={{ false: '#ddd', true: Theme.primary }}
                   />
                 </View>
@@ -196,7 +207,7 @@ export default function CompanySettingsScreen() {
               <TextInput 
                 style={styles.input}
                 value={settings.name}
-                onChangeText={(val) => updateSettings({ name: val })}
+                onChangeText={(val) => { updateSettings({ name: val }); }}
                 placeholder="Enter shop name"
                 placeholderTextColor={Theme.textMuted}
               />
@@ -207,7 +218,7 @@ export default function CompanySettingsScreen() {
               <TextInput 
                 style={[styles.input, styles.textArea]}
                 value={settings.address}
-                onChangeText={(val) => updateSettings({ address: val })}
+                onChangeText={(val) => { updateSettings({ address: val }); }}
                 placeholder="Enter shop address"
                 placeholderTextColor={Theme.textMuted}
                 multiline
@@ -221,7 +232,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.phone}
-                  onChangeText={(val) => updateSettings({ phone: val })}
+                  onChangeText={(val) => { updateSettings({ phone: val }); }}
                   placeholder="+65 ..."
                   placeholderTextColor={Theme.textMuted}
                   keyboardType="phone-pad"
@@ -232,7 +243,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.email}
-                  onChangeText={(val) => updateSettings({ email: val })}
+                  onChangeText={(val) => { updateSettings({ email: val }); }}
                   placeholder="shop@example.com"
                   placeholderTextColor={Theme.textMuted}
                   keyboardType="email-address"
@@ -251,7 +262,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.gstNo}
-                  onChangeText={(val) => updateSettings({ gstNo: val })}
+                  onChangeText={(val) => { updateSettings({ gstNo: val }); }}
                   placeholder="Registration No"
                   placeholderTextColor={Theme.textMuted}
                 />
@@ -261,7 +272,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.gstPercentage.toString()}
-                  onChangeText={(val) => updateSettings({ gstPercentage: parseFloat(val) || 0 })}
+                  onChangeText={(val) => { updateSettings({ gstPercentage: parseFloat(val) || 0 }); }}
                   placeholder="9.0"
                   placeholderTextColor={Theme.textMuted}
                   keyboardType="numeric"
@@ -275,7 +286,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.currency}
-                  onChangeText={(val) => updateSettings({ currency: val })}
+                  onChangeText={(val) => { updateSettings({ currency: val }); }}
                   placeholder="SGD"
                   placeholderTextColor={Theme.textMuted}
                 />
@@ -285,7 +296,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.currencySymbol}
-                  onChangeText={(val) => updateSettings({ currencySymbol: val })}
+                  onChangeText={(val) => { updateSettings({ currencySymbol: val }); }}
                   placeholder="$"
                   placeholderTextColor={Theme.textMuted}
                 />
@@ -301,7 +312,7 @@ export default function CompanySettingsScreen() {
               <TextInput 
                 style={styles.input}
                 value={settings.printerIp}
-                onChangeText={(val) => updateSettings({ printerIp: val })}
+                onChangeText={(val) => { updateSettings({ printerIp: val }); }}
                 placeholder="e.g. 192.168.1.100"
                 placeholderTextColor={Theme.textMuted}
                 keyboardType="numeric"

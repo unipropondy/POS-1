@@ -87,7 +87,17 @@ export default function EditDishModal({
                     placeholder="0"
                     placeholderTextColor={Theme.textMuted}
                     value={discountValue}
-                    onChangeText={setDiscountValue}
+                    onChangeText={(val) => {
+                      // Allow only numbers
+                      const numericVal = val.replace(/[^0-9]/g, "");
+                      const num = parseInt(numericVal) || 0;
+                      // Clamp between 0 and 100
+                      if (num > 100) {
+                        setDiscountValue("100");
+                      } else {
+                        setDiscountValue(numericVal);
+                      }
+                    }}
                     maxLength={3}
                     selectTextOnFocus
                   />

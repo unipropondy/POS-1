@@ -3,11 +3,13 @@ import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
   FlatList,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +22,8 @@ export default function KitchenStatusScreen() {
   const router = useRouter();
   const activeOrders = useActiveOrdersStore((s) => s.activeOrders);
   const markItemServed = useActiveOrdersStore((s) => s.markItemServed);
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   useKdsSocket();
 
@@ -69,6 +73,7 @@ export default function KitchenStatusScreen() {
             <Text style={[styles.itemName, item.status === "VOIDED" && styles.strikeThrough]}>{item.name}</Text>
             {item.isTakeaway && (
               <View style={styles.takeawayBadge}>
+                <Ionicons name="bag-handle" size={10} color="#FFF" />
                 <Text style={styles.takeawayBadgeText}>TAKEAWAY</Text>
               </View>
             )}
@@ -78,23 +83,27 @@ export default function KitchenStatusScreen() {
           ))}
         </View>
 
-        <View style={{ alignItems: 'flex-end', gap: 8 }}>
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
           <View style={[styles.statusBadge, isReady ? styles.statusBadgeReady : styles.statusBadgePrep]}>
             <Ionicons 
-              name={isReady ? "checkmark-circle" : "time-outline"} 
-              size={14} 
+              name={isReady ? "notifications" : "restaurant"} 
+              size={12} 
               color="#FFF" 
             />
             <Text style={styles.statusBadgeText}>
-              {isReady ? "READY" : "PREPARING"}
+              {isReady ? "READY" : "COOKING"}
             </Text>
           </View>
 
           {isReady && (
             <Pressable 
-              style={styles.servedBtn}
+              style={({ pressed }) => [
+                styles.servedBtn,
+                pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] }
+              ]}
               onPress={() => markItemServed(orderId, item.lineItemId)}
             >
+              <Ionicons name="checkmark-done-circle" size={16} color="#FFF" />
               <Text style={styles.servedBtnText}>SERVED</Text>
             </Pressable>
           )}
@@ -106,21 +115,31 @@ export default function KitchenStatusScreen() {
   const renderOrderCard = ({ item }: { item: any }) => {
     const readyCount = item.items.filter((i: any) => i.status === "READY").length;
     const totalCount = item.items.length;
+    const isDineIn = item.context.orderType === "DINE_IN";
 
     return (
       <View style={styles.orderCard}>
-        <View style={styles.orderHeader}>
-          <View>
-            <Text style={styles.tableNumber}>
-              {item.context.orderType === "DINE_IN"
-                ? `Table ${item.context.tableNo}`
-                : `Takeaway #${item.context.takeawayNo}`}
-            </Text>
-            <Text style={styles.orderId}>Order #{item.orderId}</Text>
-            <Text style={styles.orderTime}>{formatElapsedTime(item.createdAt)}</Text>
+        <View style={[styles.orderHeader, isDineIn ? styles.headerDineIn : styles.headerTakeaway]}>
+          <View style={styles.headerInfo}>
+            <View style={styles.iconCircle}>
+              <Ionicons 
+                name={isDineIn ? "restaurant" : "bag-handle"} 
+                size={18} 
+                color={isDineIn ? Theme.primary : Theme.warning} 
+              />
+            </View>
+            <View>
+              <Text style={styles.tableNumber}>
+                {isDineIn ? `Table ${item.context.tableNo}` : `Order #${item.context.takeawayNo}`}
+              </Text>
+              <Text style={styles.orderId}>#{item.orderId.slice(-6)}</Text>
+            </View>
           </View>
-          <View style={styles.orderStats}>
-            <Text style={styles.statsText}>{readyCount}/{totalCount} Ready</Text>
+          <View style={styles.headerRight}>
+            <Text style={styles.orderTime}>{formatElapsedTime(item.createdAt)}</Text>
+            <View style={styles.orderStats}>
+              <Text style={styles.statsText}>{readyCount}/{totalCount} READY</Text>
+            </View>
           </View>
         </View>
 
@@ -136,9 +155,12 @@ export default function KitchenStatusScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Theme.textPrimary} />
+          <Ionicons name="chevron-back" size={24} color={Theme.textPrimary} />
         </Pressable>
-        <Text style={styles.title}>Kitchen Status</Text>
+        <View style={styles.titleContainer}>
+          <Ionicons name="clipboard" size={20} color={Theme.primary} />
+          <Text style={styles.title}>Kitchen Status</Text>
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
@@ -146,13 +168,15 @@ export default function KitchenStatusScreen() {
         data={groupedOrders}
         renderItem={renderOrderCard}
         keyExtractor={(item: any) => item?.orderId || Math.random().toString()}
-        numColumns={2}
+        numColumns={isLandscape ? 3 : 2}
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="restaurant-outline" size={80} color={Theme.border} />
-            <Text style={styles.emptyText}>No orders in kitchen</Text>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="restaurant-outline" size={60} color={Theme.textMuted} />
+            </View>
+            <Text style={styles.emptyText}>All orders served! 🎉</Text>
           </View>
         }
       />
@@ -161,108 +185,140 @@ export default function KitchenStatusScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Theme.bgMain },
+  safe: { flex: 1, backgroundColor: "#F8FAFC" }, // Soft cool gray background
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 18,
     backgroundColor: "#FFF",
     borderBottomWidth: 1,
-    borderBottomColor: Theme.border,
+    borderBottomColor: "#E2E8F0",
+    ...Theme.shadowSm,
   },
   backBtn: {
-    padding: 8,
-    backgroundColor: Theme.bgMuted,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 14,
   },
+  titleContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: Fonts.black,
-    color: Theme.textPrimary,
+    color: "#1E293B",
+    letterSpacing: -0.5,
   },
-  list: { padding: 10, paddingBottom: 40 },
-  columnWrapper: { gap: 15 },
+  list: { padding: 16, paddingBottom: 60 },
+  columnWrapper: { gap: 16 },
   orderCard: {
     flex: 1,
     backgroundColor: "#FFF",
-    borderRadius: 20,
-    marginBottom: 20,
+    borderRadius: 24,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: Theme.border,
+    borderColor: "#E2E8F0",
     overflow: "hidden",
-    ...Theme.shadowSm,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+      },
+      android: { elevation: 3 }
+    })
   },
   orderHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
-    backgroundColor: Theme.bgMuted,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Theme.border,
+    borderBottomColor: "#F1F5F9",
+  },
+  headerDineIn: { backgroundColor: "#F0F9FF" },
+  headerTakeaway: { backgroundColor: "#FFFBEB" },
+  headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+    ...Theme.shadowSm,
   },
   tableNumber: {
     fontSize: 16,
     fontFamily: Fonts.black,
-    color: Theme.textPrimary,
+    color: "#1E293B",
   },
   orderId: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts.bold,
-    color: Theme.textMuted,
+    color: "#64748B",
+    letterSpacing: 0.5,
   },
+  headerRight: { alignItems: 'flex-end', gap: 4 },
   orderTime: {
     fontSize: 12,
-    fontFamily: Fonts.bold,
-    color: Theme.primary,
-    marginTop: 2,
-  },
-  orderStats: {
-    backgroundColor: Theme.primary + "15",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  statsText: {
-    fontSize: 14,
     fontFamily: Fonts.black,
     color: Theme.primary,
   },
-  itemsContainer: { padding: 15 },
+  orderStats: {
+    backgroundColor: "#FFF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  statsText: {
+    fontSize: 10,
+    fontFamily: Fonts.black,
+    color: "#475569",
+  },
+  itemsContainer: { padding: 16 },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Theme.border + "50",
+    borderBottomColor: "#F1F5F9",
   },
   itemReadyRow: {
-    backgroundColor: Theme.success + "05",
+    backgroundColor: "#F0FDF4",
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
   },
-  itemMain: { flex: 1, marginRight: 10 },
+  itemMain: { flex: 1, marginRight: 12 },
   itemTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
   itemQty: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: Fonts.black,
     color: Theme.primary,
   },
   itemName: {
     fontSize: 16,
     fontFamily: Fonts.bold,
-    color: Theme.textPrimary,
+    color: "#1E293B",
+    flex: 1,
   },
   strikeThrough: {
     textDecorationLine: 'line-through',
-    opacity: 0.6,
+    opacity: 0.4,
   },
   modifierText: {
     fontSize: 13,
     fontFamily: Fonts.medium,
-    color: Theme.textSecondary,
-    marginLeft: 32,
+    color: "#64748B",
+    marginLeft: 34,
+    marginTop: 2,
   },
   statusBadge: {
     flexDirection: "row",
@@ -270,49 +326,65 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
-    minWidth: 100,
+    borderRadius: 10,
+    minWidth: 90,
     justifyContent: "center",
   },
-  statusBadgePrep: { backgroundColor: Theme.info },
-  statusBadgeReady: { backgroundColor: Theme.success },
+  statusBadgePrep: { backgroundColor: "#3B82F6" },
+  statusBadgeReady: { backgroundColor: "#22C55E" },
   statusBadgeText: {
     color: "#FFF",
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: Fonts.black,
+    letterSpacing: 0.5,
   },
   servedBtn: {
-    backgroundColor: Theme.textPrimary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#1E293B", // Premium Slate
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Theme.border,
+    paddingVertical: 8,
+    borderRadius: 12,
+    ...Theme.shadowSm,
   },
   servedBtnText: {
     color: "#FFF",
     fontSize: 12,
     fontFamily: Fonts.black,
+    letterSpacing: 0.5,
   },
   takeawayBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: Theme.warning,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   takeawayBadgeText: {
     color: "#FFF",
-    fontSize: 8,
+    fontSize: 9,
     fontFamily: Fonts.black,
   },
   emptyContainer: {
-    marginTop: 100,
+    marginTop: 120,
     alignItems: "center",
-    gap: 20,
+    justifyContent: "center",
+  },
+  emptyIconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: Fonts.bold,
-    color: Theme.textMuted,
+    color: "#64748B",
   },
 });

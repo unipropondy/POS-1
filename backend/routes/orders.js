@@ -135,8 +135,8 @@ async function syncTableStatus(req, tableId) {
         DECLARE @itemCount INT = 0;
         DECLARE @total DECIMAL(18,2) = 0;
         
-        SELECT @itemCount = COUNT(*), @total = ISNULL(SUM(Cost * Quantity), 0) 
-        FROM CartItems WHERE CartId = CAST(@tableId AS NVARCHAR(128));
+        SELECT @itemCount = COUNT(*), @total = ISNULL(SUM((Cost * (1 - ISNULL(DiscountAmount, 0)/100)) * Quantity), 0) 
+        FROM CartItems WHERE CartId = CAST(@tableId AS NVARCHAR(128)) AND (Status <> 'VOIDED' OR Status IS NULL);
 
         UPDATE TableMaster
         SET 
@@ -644,7 +644,8 @@ router.get("/cart/:tableId", async (req, res) => {
       spicy: item.Spicy,
       salt: item.Salt,
       oil: item.Oil,
-      sugar: item.Sugar
+      sugar: item.Sugar,
+      discount: item.DiscountAmount || 0
     }));
 
     const tableInfo = await pool.request()

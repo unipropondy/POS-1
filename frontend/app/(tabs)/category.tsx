@@ -96,7 +96,12 @@ const TableItemComponent = React.memo(
     isTabletPortrait?: boolean;
   }) => {
     const status = Number(item.Status);
-    const ui = getStatusUI(status);
+    let ui = getStatusUI(status);
+
+    // Dynamic Overtime: If Dining and backend flagged as overtime, override UI
+    if (status === 1 && item.isOvertime) {
+      ui = getStatusUI(4); // Use OVERTIME UI settings
+    }
 
     // Use ONLY ui values derived from status
     const borderColor = status === 0 ? Theme.border : ui.color;
@@ -260,6 +265,7 @@ type TableItem = {
   StartTime?: string | number | Date;
   totalAmount?: number;
   lockedByName?: string;
+  isOvertime?: number;
 };
 
 const SECTIONS = ["SECTION_1", "SECTION_2", "SECTION_3", "TAKEAWAY"];
@@ -318,7 +324,7 @@ export default function Category() {
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    socket.on("table_status_updated", ({ tableId, status, totalAmount, startTime, currentOrderId }) => {
+    socket.on("table_status_updated", ({ tableId, status, totalAmount, startTime, currentOrderId, isOvertime }) => {
       console.log(
         `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Order ${currentOrderId}, Total ${totalAmount}`,
       );
@@ -331,6 +337,7 @@ export default function Category() {
                 totalAmount: Number(totalAmount || 0),
                 StartTime: startTime,
                 currentOrderId: currentOrderId,
+                isOvertime: Number(isOvertime) || 0,
               }
             : t,
         ),
@@ -392,24 +399,10 @@ export default function Category() {
   // --- Real-time Sync (Polling every 15s as backup) ---
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now();
-      const OVERTIME_LIMIT = 60 * 60 * 1000; // 1 hour
-
-      // 1. Efficiently check for Overtime
-      allTables.forEach((table: TableItem) => {
-        if (table.Status === 1 && table.StartTime) {
-          const startTime = new Date(table.StartTime).getTime();
-          if (now - startTime > OVERTIME_LIMIT) {
-            updateTableStatus(table.id, 4); 
-          }
-        }
-      });
-
-      // 2. Fetch as backup (less frequent)
       fetchTables();
     }, 15000); 
     return () => clearInterval(interval);
-  }, [allTables.length]); // Only restart if table count changes, not every status update
+  }, [allTables.length]); 
 
   const fetchLockedTables = async () => {
     try {
@@ -468,6 +461,7 @@ export default function Category() {
             lockedByName: item.lockedByName,
             totalAmount: Number(item.totalAmount) || 0,
             currentOrderId: item.currentOrderId,
+            isOvertime: Number(item.isOvertime) || 0,
           }))
           .filter((item) => item.id && item.label);
         

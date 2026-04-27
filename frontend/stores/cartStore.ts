@@ -456,6 +456,7 @@ export const useCartStore = create<CartState>()(
             qty: item.Quantity || item.qty,
             price: item.Cost || item.price,
             note: item.Note || item.note,
+            discount: item.DiscountAmount !== undefined ? item.DiscountAmount : (item.Discount || item.discount || 0),
             isTakeaway: !!(item.IsTakeaway !== undefined ? item.IsTakeaway : item.isTakeaway),
             isVoided: !!(item.IsVoided !== undefined ? item.IsVoided : item.isVoided),
             modifiers: typeof item.ModifiersJSON === 'string' ? JSON.parse(item.ModifiersJSON) : (item.modifiers || []),

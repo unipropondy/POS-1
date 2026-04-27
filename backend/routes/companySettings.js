@@ -45,6 +45,7 @@ router.post("/:id", async (req, res) => {
       .input("PrinterIP", sql.NVarChar, s.PrinterIP) // ✅ ADDED
       .input("ShowCompanyLogo", sql.Bit, s.ShowCompanyLogo)
       .input("ShowHalalLogo", sql.Bit, s.ShowHalalLogo)
+      .input("TaxMode", sql.NVarChar, s.TaxMode || 'exclusive')
       .query(`
         IF EXISTS (SELECT 1 FROM CompanySettings WHERE Id = @Id)
         BEGIN
@@ -60,16 +61,17 @@ router.post("/:id", async (req, res) => {
             CurrencySymbol = @CurrencySymbol,
             CompanyLogoUrl = @CompanyLogoUrl,
             HalalLogoUrl = @HalalLogoUrl,
-            PrinterIP = @PrinterIP, -- ✅ ADDED
+            PrinterIP = @PrinterIP,
             ShowCompanyLogo = @ShowCompanyLogo,
             ShowHalalLogo = @ShowHalalLogo,
+            TaxMode = @TaxMode,
             UpdatedOn = GETDATE()
           WHERE Id = @Id
         END
         ELSE
         BEGIN
-          INSERT INTO CompanySettings (Id, CompanyName, Address, GSTNo, GSTPercentage, Phone, Email, CashierName, Currency, CurrencySymbol, CompanyLogoUrl, HalalLogoUrl, PrinterIP, ShowCompanyLogo, ShowHalalLogo)
-          VALUES (@Id, @CompanyName, @Address, @GSTNo, @GSTPercentage, @Phone, @Email, @CashierName, @Currency, @CurrencySymbol, @CompanyLogoUrl, @HalalLogoUrl, @PrinterIP, @ShowCompanyLogo, @ShowHalalLogo)
+          INSERT INTO CompanySettings (Id, CompanyName, Address, GSTNo, GSTPercentage, Phone, Email, CashierName, Currency, CurrencySymbol, CompanyLogoUrl, HalalLogoUrl, PrinterIP, ShowCompanyLogo, ShowHalalLogo, TaxMode)
+          VALUES (@Id, @CompanyName, @Address, @GSTNo, @GSTPercentage, @Phone, @Email, @CashierName, @Currency, @CurrencySymbol, @CompanyLogoUrl, @HalalLogoUrl, @PrinterIP, @ShowCompanyLogo, @ShowHalalLogo, @TaxMode)
         END
       `);
 

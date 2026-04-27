@@ -67,7 +67,11 @@ router.get("/all", async (req, res) => {
     let query = `
       SELECT TableId AS id, CAST(TableNumber AS VARCHAR(50)) AS label,
       CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName,
-      Status, StartTime, ISNULL(TotalAmount, 0) as totalAmount, CurrentOrderId as currentOrderId
+      Status, StartTime, ISNULL(TotalAmount, 0) as totalAmount, CurrentOrderId as currentOrderId,
+      CASE 
+        WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+        ELSE 0 
+      END AS isOvertime
       FROM TableMaster
     `;
 

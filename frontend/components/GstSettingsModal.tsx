@@ -12,10 +12,11 @@ import {
   KeyboardAvoidingView,
   StatusBar,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
-import { GstTaxMode, useGstStore } from "../stores/gstStore";
+import { useCompanySettingsStore } from "../stores/companySettingsStore";
 
 interface Props {
   visible: boolean;
@@ -23,36 +24,30 @@ interface Props {
   previewSubtotal?: number;
 }
 
-const PRESETS = [0, 2.15, 6, 9, 10];
+const PRESETS = [0, 5, 7, 10, 12, 18];
 
 export default function GstSettingsModal({
   visible,
   onClose,
   previewSubtotal = 100,
 }: Props) {
-  const {
-    percentage,
-    registrationNumber,
-    taxMode: savedMode,
-    enabled: savedEnabled,
-    updateSettings,
-  } = useGstStore();
+  const { settings, updateSettings, loading } = useCompanySettingsStore();
 
-  const [percentStr, setPercentStr] = useState("2.15");
+  const [percentStr, setPercentStr] = useState("0");
   const [regNo, setRegNo] = useState("");
   const [regErr, setRegErr] = useState(false);
-  const [taxMode, setTaxMode] = useState<GstTaxMode>("exclusive");
+  const [taxMode, setTaxMode] = useState<"exclusive" | "inclusive">("exclusive");
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      setPercentStr(percentage.toString());
-      setRegNo(registrationNumber);
-      setTaxMode(savedMode ?? "exclusive");
-      setEnabled(savedEnabled ?? false);
+      setPercentStr(settings.gstPercentage.toString());
+      setRegNo(settings.gstNo);
+      setTaxMode(settings.taxMode || "exclusive");
+      setEnabled(settings.gstPercentage > 0);
       setRegErr(false);
     }
-  }, [visible]);
+  }, [visible, settings]);
 
   const rate = parseFloat(percentStr) || 0;
   const gstAmt = taxMode === "exclusive"
@@ -70,8 +65,17 @@ export default function GstSettingsModal({
 
   const handleSave = async () => {
     if (!isValid || regErr) return;
-    await updateSettings(rate, regNo.trim(), taxMode, enabled);
-    onClose();
+    
+    // Use "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88" as the default Company ID if none provided
+    const success = await updateSettings({
+      gstPercentage: enabled ? rate : 0,
+      gstNo: regNo.trim(),
+      taxMode: taxMode,
+    }, "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88");
+
+    if (success) {
+      onClose();
+    }
   };
 
   return (
@@ -81,7 +85,7 @@ export default function GstSettingsModal({
           <View style={s.titleRow}>
             <View style={s.titleLeft}>
               <View style={[s.dot, { backgroundColor: enabled ? Theme.success : Theme.textMuted }]} />
-              <Text style={s.title}>Tax Settings</Text>
+              <Text style={s.title}>Global Tax Settings</Text>
             </View>
             <View style={s.titleRight}>
               <Text style={[s.toggleLabel, { color: enabled ? Theme.success : Theme.textSecondary }]}>{enabled ? "ACTIVE" : "INACTIVE"}</Text>
@@ -117,17 +121,17 @@ export default function GstSettingsModal({
                 <View style={s.preview}>
                   <View>
                     <Text style={s.previewLabel}>SUBTOTAL</Text>
-                    <Text style={s.previewVal}>${baseAmt.toFixed(2)}</Text>
+                    <Text style={s.previewVal}>{settings.currencySymbol}{baseAmt.toFixed(2)}</Text>
                   </View>
                   <View style={s.previewDivider} />
                   <View style={{ alignItems: "center" }}>
                     <Text style={s.previewLabel}>TAX ({rate}%)</Text>
-                    <Text style={[s.previewVal, { color: Theme.success }]}>+${gstAmt.toFixed(2)}</Text>
+                    <Text style={[s.previewVal, { color: Theme.success }]}>+{settings.currencySymbol}{gstAmt.toFixed(2)}</Text>
                   </View>
                   <View style={s.previewDivider} />
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={s.previewLabel}>GRAND TOTAL</Text>
-                    <Text style={[s.previewVal, { color: Theme.primary }]}>${total.toFixed(2)}</Text>
+                    <Text style={[s.previewVal, { color: Theme.primary }]}>{settings.currencySymbol}{total.toFixed(2)}</Text>
                   </View>
                 </View>
 
@@ -155,7 +159,9 @@ export default function GstSettingsModal({
 
           <View style={s.btns}>
             <TouchableOpacity style={s.btnCancel} onPress={onClose}><Text style={s.btnCancelTxt}>Discard</Text></TouchableOpacity>
-            <TouchableOpacity style={[s.btnSave, (!isValid || regErr) && s.btnDisabled]} onPress={handleSave} disabled={!isValid || regErr}><Text style={s.btnSaveTxt}>Apply Settings</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.btnSave, (!isValid || regErr) && s.btnDisabled]} onPress={handleSave} disabled={!isValid || regErr || loading}>
+              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.btnSaveTxt}>Save Globally</Text>}
+            </TouchableOpacity>
           </View>
         </View>
       </View>

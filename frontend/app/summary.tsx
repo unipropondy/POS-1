@@ -28,10 +28,10 @@ import { useToast } from "../components/Toast";
 import { API_URL } from "@/constants/Config";
 
 import DiscountModal from "../components/DiscountModal";
-import GstSettingsModal from "../components/GstSettingsModal";
+// Removed local GstSettingsModal
 import { findActiveOrder, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { useCartStore } from "../stores/cartStore";
-import { useGstStore } from "../stores/gstStore"; 
+import { useCompanySettingsStore } from "../stores/companySettingsStore";
 import { getOrderContext } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 
@@ -61,7 +61,9 @@ export default function SummaryScreen() {
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidPassword, setVoidPassword] = useState("");
 
-  const { enabled: gstEnabled, percentage: gstPercentage, taxMode, isConfigured: gstConfigured, setEnabled: setGstEnabled, loadSettings: loadGst } = useGstStore();
+  const settings = useCompanySettingsStore((state) => state.settings);
+  const currencySymbol = settings.currencySymbol || "$";
+  const gstRate = (settings.gstPercentage || 0) / 100;
 
   const carts = useCartStore((s: any) => s.carts);
   const currentContextId = useCartStore((s: any) => s.currentContextId);
@@ -81,7 +83,7 @@ export default function SummaryScreen() {
   const hasHydrated = useActiveOrdersStore((s: any) => s._hasHydrated);
 
   useEffect(() => {
-    loadGst();
+    // loadGlobalSettings() is handled by the main app or store
     // ✅ Sync official Order ID from DB to avoid "#NEW" bug
     if (context?.tableId) {
       fetch(`${API_URL}/api/tables/${context.tableId}`)
@@ -224,19 +226,9 @@ export default function SummaryScreen() {
 
   const discSubtotal = Math.max(0, subtotal - discountAmount);
   
-  const gstAmount = useMemo(() => {
-    if (!gstEnabled) return 0;
-    const rate = gstPercentage / 100;
-    if (taxMode === "inclusive") {
-      // Extract tax from price: Total - (Total / (1 + rate))
-      return parseFloat((discSubtotal - discSubtotal / (1 + rate)).toFixed(2));
-    }
-    // Add tax on top
-    return parseFloat((discSubtotal * rate).toFixed(2));
-  }, [gstEnabled, gstPercentage, taxMode, discSubtotal]);
-
-  const displaySubtotal = taxMode === "inclusive" ? discSubtotal - gstAmount : subtotal;
-  const grandTotal = taxMode === "inclusive" ? discSubtotal : discSubtotal + gstAmount;
+  const gstAmount = subtotal * gstRate;
+  const grandTotal = subtotal - discountAmount + gstAmount;
+  const displaySubtotal = subtotal;
 
   if (!context) return null;
 
@@ -358,7 +350,7 @@ export default function SummaryScreen() {
                         (item as any).status === "VOIDED" && styles.textVoided,
                       ]}
                     >
-                      ${((item.price || 0) * item.qty).toFixed(2)}
+                      {currencySymbol}{((item.price || 0) * item.qty).toFixed(2)}
                     </Text>
                   </View>
 
@@ -403,7 +395,7 @@ export default function SummaryScreen() {
 
                 <View style={[styles.summaryRow, isLandscape && !isTablet && { marginBottom: 8 }]}>
                   <Text style={styles.summaryLabel}>Subtotal</Text>
-                  <Text style={styles.summaryValue}>${displaySubtotal.toFixed(2)}</Text>
+                  <Text style={styles.summaryValue}>{currencySymbol}{displaySubtotal.toFixed(2)}</Text>
                 </View>
 
                 {discountInfo?.applied && (
@@ -411,28 +403,15 @@ export default function SummaryScreen() {
                     <Text style={[styles.summaryLabel, { color: Theme.danger }]}>
                       {discountInfo.label || "Discount"}
                     </Text>
-                    <Text style={[styles.summaryValue, { color: Theme.danger }]}>-${discountAmount.toFixed(2)}</Text>
+                    <Text style={[styles.summaryValue, { color: Theme.danger }]}>-{currencySymbol}{discountAmount.toFixed(2)}</Text>
                   </View>
                 )}
 
-                {gstEnabled ? (
+                {gstRate > 0 && (
                   <View style={[styles.summaryRow, isLandscape && !isTablet && { marginBottom: 8 }]}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={styles.summaryLabel}>GST ({gstPercentage}%)</Text>
-                      <TouchableOpacity onPress={() => setShowGstModal(true)}>
-                        <Ionicons name="settings-outline" size={12} color={Theme.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.summaryValue}>${gstAmount.toFixed(2)}</Text>
+                    <Text style={styles.summaryLabel}>GST ({settings.gstPercentage}%)</Text>
+                    <Text style={styles.summaryValue}>{currencySymbol}{gstAmount.toFixed(2)}</Text>
                   </View>
-                ) : (
-                  <TouchableOpacity 
-                    style={[styles.gstBtn, isLandscape && !isTablet && { marginBottom: 8, paddingVertical: 4 }]} 
-                    onPress={() => gstConfigured ? setGstEnabled(true) : setShowGstModal(true)}
-                  >
-                    <Ionicons name="add-circle-outline" size={14} color={Theme.primary} />
-                    <Text style={styles.gstBtnText}>Enable GST</Text>
-                  </TouchableOpacity>
                 )}
 
                 <View style={[styles.dashedDivider, isLandscape && !isTablet && { marginVertical: 10 }]}>
@@ -444,7 +423,7 @@ export default function SummaryScreen() {
                     <Text style={[styles.grandLabel, isLandscape && !isTablet && { fontSize: 12 }]}>Total Amount</Text>
                     <Text style={styles.grandSub}>Including all taxes</Text>
                   </View>
-                  <Text style={[styles.grandValue, isLandscape && !isTablet && { fontSize: 24 }]}>${grandTotal.toFixed(2)}</Text>
+                  <Text style={[styles.grandValue, isLandscape && !isTablet && { fontSize: 24 }]}>{currencySymbol}{grandTotal.toFixed(2)}</Text>
                 </View>
 
                 <TouchableOpacity
@@ -462,11 +441,6 @@ export default function SummaryScreen() {
         </View>
       </View>
 
-      <GstSettingsModal
-        visible={showGstModal}
-        onClose={() => setShowGstModal(false)}
-        previewSubtotal={subtotal}
-      />
 
       <DiscountModal
         visible={showDiscount}

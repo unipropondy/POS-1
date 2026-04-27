@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../constants/Config";
 import API from "../api";
 
-interface CompanySettings {
+export interface CompanySettings {
   name: string;
   address: string;
   gstNo: string;
@@ -16,16 +16,17 @@ interface CompanySettings {
   currencySymbol: string;
   companyLogo: string;
   halalLogo: string;
-  printerIp: string; // ✅ ADDED
+  printerIp: string;
   showCompanyLogo: boolean;
   showHalalLogo: boolean;
+  taxMode: "exclusive" | "inclusive";
 }
 
 interface CompanySettingsState {
   settings: CompanySettings;
   loading: boolean;
   fetchSettings: (userId: string) => Promise<void>;
-  updateSettings: (newSettings: Partial<CompanySettings>) => void;
+  updateSettings: (newSettings: Partial<CompanySettings>, userId?: string) => Promise<boolean>;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
@@ -40,9 +41,10 @@ const DEFAULT_SETTINGS: CompanySettings = {
   currencySymbol: "$",
   companyLogo: "",
   halalLogo: "",
-  printerIp: "", // ✅ ADDED
+  printerIp: "",
   showCompanyLogo: true,
   showHalalLogo: true,
+  taxMode: "exclusive",
 };
 
 export const useCompanySettingsStore = create<CompanySettingsState>()(
@@ -77,6 +79,7 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
                 printerIp: s.PrinterIP || "",
                 showCompanyLogo: !!s.ShowCompanyLogo,
                 showHalalLogo: !!s.ShowHalalLogo,
+                taxMode: s.TaxMode || "exclusive",
               },
             });
             console.log("✅ [CompanySettingsStore] Settings loaded");
@@ -88,10 +91,48 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
         }
       },
 
-      updateSettings: (newSettings) => {
-        set((state) => ({
-          settings: { ...state.settings, ...newSettings },
-        }));
+      updateSettings: async (newSettings, userId) => {
+        const current = get().settings;
+        const updated = { ...current, ...newSettings };
+        
+        // Update local state first for immediate UI response
+        set({ settings: updated });
+
+        if (!userId) return true; // Just local update if no user ID
+
+        set({ loading: true });
+        try {
+          // Map frontend names back to backend DB names
+          const payload = {
+            CompanyName: updated.name,
+            Address: updated.address,
+            GSTNo: updated.gstNo,
+            GSTPercentage: updated.gstPercentage,
+            Phone: updated.phone,
+            Email: updated.email,
+            CashierName: updated.cashierName,
+            Currency: updated.currency,
+            CurrencySymbol: updated.currencySymbol,
+            CompanyLogoUrl: updated.companyLogo,
+            HalalLogoUrl: updated.halalLogo,
+            PrinterIP: updated.printerIp,
+            ShowCompanyLogo: updated.showCompanyLogo,
+            ShowHalalLogo: updated.showHalalLogo,
+            TaxMode: updated.taxMode,
+          };
+
+          const response = await API.post(`/company-settings/${userId}`, payload);
+          if (response.data?.success) {
+            console.log("✅ [CompanySettingsStore] Global settings saved to DB");
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error("❌ [CompanySettingsStore] Save Error:", error);
+          return false;
+        } finally {
+          set({ loading: false });
+        }
       },
     }),
     {

@@ -14,6 +14,7 @@ import { Fonts } from "../constants/Fonts";
 import BillPrompt from "../components/BillPrompt";
 import UniversalPrinter from "../components/UniversalPrinter";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCompanySettingsStore } from "../stores/companySettingsStore";
 
 const formatSection = (sec: string) => {
   if (!sec) return "";
@@ -24,6 +25,8 @@ const formatSection = (sec: string) => {
 export default function PaymentSuccess() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const settings = useCompanySettingsStore((state) => state.settings);
+  const currencySymbol = settings.currencySymbol || "$";
 
   const total = String(params.total ?? "0");
   const paid = String(params.paidNum ?? "0");
@@ -98,17 +101,17 @@ export default function PaymentSuccess() {
 
             <View style={styles.row}>
               <Text style={styles.label}>Total Amount</Text>
-              <Text style={styles.value}>${total}</Text>
+              <Text style={styles.value}>{currencySymbol}{total}</Text>
             </View>
 
             <View style={styles.row}>
               <Text style={styles.label}>Amount Paid</Text>
-              <Text style={styles.value}>${paid}</Text>
+              <Text style={styles.value}>{currencySymbol}{paid}</Text>
             </View>
 
             <View style={[styles.row, styles.changeRow]}>
               <Text style={styles.label}>Change Due</Text>
-              <Text style={[styles.value, { color: Theme.primary }]}>${change}</Text>
+              <Text style={[styles.value, { color: Theme.primary }]}>{currencySymbol}{change}</Text>
             </View>
           </View>
 

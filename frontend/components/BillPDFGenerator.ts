@@ -120,6 +120,7 @@ static async loadSettings(userId?: string | number): Promise<CompanySettings> {
             
             const formatUrl = (url: string) => {
                 if (!url) return '';
+                if (url.startsWith('data:image')) return url;
                 if (url.startsWith('http')) return url;
                 return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
             };
