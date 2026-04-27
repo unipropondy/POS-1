@@ -60,20 +60,10 @@ class UniversalPrinter {
   }
 
   static async openCashDrawer(): Promise<boolean> {
-    try {
-      if (Platform.OS === 'android') {
-        try {
-          const SunmiPrinter = require('react-native-sunmi-inner-printer');
-          if (SunmiPrinter?.hasPrinter?.()) {
-            await SunmiPrinter.openCashDrawer();
-            return true;
-          }
-        } catch (e) {}
-      }
-      return false;
-    } catch (error) {
-      return false;
-    }
+    // Currently disabled to prevent crashes with uninstalled native modules
+    // Use sunmi-printer-expo for this if supported in future
+    console.log('Cash drawer opening requested');
+    return false;
   }
 
   private static getPrintWidth(printer: PrinterInfo): number {

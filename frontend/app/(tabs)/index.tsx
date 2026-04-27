@@ -54,6 +54,18 @@ export default function LoginScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // ✅ Check if already logged in and redirect
+      const user = useAuthStore.getState().user;
+      if (user) {
+        const userName = (user.userName || "").trim().toUpperCase();
+        if (userName === "KDS") {
+          router.replace("/kds" as any);
+        } else {
+          router.replace("/(tabs)/category");
+        }
+        return;
+      }
+
       // Reset state on focus
       setError("");
       setLoading(false);
