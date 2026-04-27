@@ -367,17 +367,17 @@ private static escapeHtml(str: string): string {
           .logo-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start; /* ✅ Lift logos to top */
             margin-bottom: 4mm;
             border-bottom: 2px solid #000;
             padding-bottom: 2mm;
           }
           
-          .company-logo { width: 40px; height: 40px; object-fit: contain; }
-          .halal-logo { width: 35px; height: 35px; object-fit: contain; }
+          .company-logo { width: 45px; height: 45px; object-fit: contain; margin-top: 1mm; }
+          .halal-logo { width: 40px; height: 40px; object-fit: contain; margin-top: 1mm; }
           
-          .shop-info { text-align: center; flex: 1;font-family: monospace; }
-          .shop-name { font-size: 18px; font-weight: 900; text-transform: uppercase; font-family: monospace;letter-spacing: 1px; }
+          .shop-info { text-align: center; flex: 1; font-family: monospace; padding: 0 2mm; }
+          .shop-name { font-size: 20px; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px; line-height: 1.2; }
           .shop-address { font-size: 10px; font-weight: 700; line-height: 1.3;font-family: monospace;white-space: pre-line; }
           .gst-no { font-size: 10px; font-weight: 700; background: #f0f0f0;font-family: monospace; padding: 1mm; margin: 2mm 0; }
           .contact { font-size: 9px; font-weight: 700;font-family: monospace; }
