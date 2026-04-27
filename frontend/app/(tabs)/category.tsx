@@ -1149,6 +1149,28 @@ export default function Category() {
                 style={styles.menuItem}
                 onPress={() => {
                   setIsMenuVisible(false);
+                  router.push("/company-settings" as any);
+                }}
+              >
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: Theme.primary + "10" },
+                  ]}
+                >
+                  <Ionicons
+                    name="receipt-outline"
+                    size={18}
+                    color={Theme.primary}
+                  />
+                </View>
+                <Text style={styles.menuItemText}>Receipt Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setIsMenuVisible(false);
                   router.push("/kitchen-status");
                 }}
               >

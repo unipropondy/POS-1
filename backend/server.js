@@ -18,6 +18,7 @@ const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/orders");
 const serverRoutes = require("./routes/servers");
 const settingsRoutes = require("./routes/settings");
+const companySettingsRoutes = require("./routes/companySettings");
 const uploadRoutes = require("./routes/upload");
 
 const http = require("http");
@@ -84,6 +85,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/servers", serverRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/company-settings", companySettingsRoutes);
 app.use("/api/upload", uploadRoutes);
 
 // Root Endpoints

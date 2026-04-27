@@ -11,6 +11,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Theme } from "../constants/theme";
 import { Fonts } from "../constants/Fonts";
+import BillPrompt from "../components/BillPrompt";
+import UniversalPrinter from "../components/UniversalPrinter";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const formatSection = (sec: string) => {
   if (!sec) return "";
@@ -31,12 +34,39 @@ export default function PaymentSuccess() {
   const section = String(params.section ?? "");
   const orderType = String(params.orderType ?? "");
   const method = String(params.method ?? "");
+  const discountInfoRaw = String(params.discountInfo ?? "{}");
+  const itemsRaw = String(params.items ?? "[]");
+
+  const [promptVisible, setPromptVisible] = React.useState(true);
 
   const handleDone = () => {
     router.replace({
-      pathname: "/category",
+      pathname: "/(tabs)",
       params: { section },
     });
+  };
+
+  const handlePrint = async () => {
+    setPromptVisible(false);
+    try {
+      const discountInfo = JSON.parse(discountInfoRaw);
+      const items = JSON.parse(itemsRaw);
+      const userId = await AsyncStorage.getItem("userId") || "1";
+      
+      const saleData = {
+        invoiceNumber: orderId,
+        total: parseFloat(total),
+        paymentMethod: method,
+        cashPaid: parseFloat(paid),
+        change: parseFloat(change),
+        items: items,
+        date: new Date().toISOString(),
+      };
+
+      await UniversalPrinter.smartPrint(saleData, userId, {}, discountInfo);
+    } catch (error) {
+      console.error("Print error:", error);
+    }
   };
 
   return (
@@ -87,6 +117,22 @@ export default function PaymentSuccess() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <BillPrompt
+        visible={promptVisible}
+        onClose={() => setPromptVisible(false)}
+        onSkip={() => setPromptVisible(false)}
+        onPrintBill={handlePrint}
+        theme={Theme}
+        t={{
+          printBillReceipt: "Print Receipt?",
+          totalAmount: "Total",
+          printBillMessage: "Would you like to print a receipt for this order?",
+          skipBill: "Skip",
+          printBill: "Print",
+        }}
+        total={total}
+      />
     </SafeAreaView>
   );
 }

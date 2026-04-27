@@ -420,74 +420,9 @@ export default function PaymentScreen() {
 
     const realOrderId = saveResult.orderId;
 
-    const printBill = () => {
-      const dateStr = new Date().toLocaleString();
-      let itemsHtml = "";
-      cart.forEach((i: any) => {
-        const nameLine = `${i.qty}x ${i.name}`;
-        const priceLine = `$${((i.price || 0) * i.qty).toFixed(2)}`;
-        itemsHtml += `<div><span style="float:left">${nameLine}</span><span style="float:right">${priceLine}</span><div style="clear:both"></div></div>`;
-        const mods = i.modifiers as any[];
-        if (mods && mods.length > 0) {
-          mods.forEach((mod: any) => {
-            itemsHtml += `<div style="color: #444; font-size: 11px; padding-left: 15px;">+ ${mod.ModifierName}</div>`;
-          });
-        }
-      });
 
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Receipt</title>
-            <style>
-              body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 0 auto; padding: 10px; color: #000; font-size: 12px; line-height: 1.4; }
-              .text-center { text-align: center; }
-              .bold { font-weight: bold; }
-              .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-              .divider { border-top: 1px dashed #000; margin: 8px 0; }
-              .flex-row { display: flex; justify-content: space-between; }
-            </style>
-          </head>
-          <body>
-            <div class="text-center">
-              <div class="title">SMART POS</div>
-              <div>Tel: +65 1234 5678</div>
-              ${gstRegNo ? `<div>GST Reg No: ${gstRegNo}</div>` : ''}
-            </div>
-            <div class="divider"></div>
-            <div>
-              <div>Date: ${dateStr}</div>
-              <div>Order #: ${realOrderId || activeOrder?.orderId || 'N/A'}</div>
-              <div>Method: ${method}</div>
-            </div>
-            <div class="divider"></div>
-            ${itemsHtml}
-            <div class="divider"></div>
-            <div class="flex-row"><span>Subtotal:</span><span>$${displaySubtotal.toFixed(2)}</span></div>
-            ${discountAmount > 0 ? `<div class="flex-row"><span>${discount?.label || 'Discount'}:</span><span>-$${discountAmount.toFixed(2)}</span></div>` : ''}
-            ${gstEnabled ? `<div class="flex-row"><span>GST (${gstPercentage}%):</span><span>$${tax.toFixed(2)}</span></div>` : ''}
-            <div class="flex-row bold" style="font-size: 14px; margin-top: 5px;"><span>TOTAL:</span><span>$${total.toFixed(2)}</span></div>
-            <div class="divider"></div>
-            <div class="flex-row"><span>Paid:</span><span>$${paidNum.toFixed(2)}</span></div>
-            <div class="flex-row"><span>Change:</span><span>$${change.toFixed(2)}</span></div>
-            <div class="divider"></div>
-            <div class="text-center" style="margin-top: 15px;"><div>Thank you!</div></div>
-          </body>
-        </html>
-      `;
 
-      if (Platform.OS === "web") {
-        const win = window.open("", "", "width=300,height=600");
-        if (win) {
-          win.document.write(html);
-          win.document.close();
-          win.print();
-        }
-      }
-    };
 
-    printBill();
 
     setTimeout(() => {
       router.replace({
@@ -501,6 +436,8 @@ export default function PaymentScreen() {
           tableNo: context?.tableNo ?? "",
           section: context?.section ?? "",
           orderType: context?.orderType ?? "",
+          discountInfo: JSON.stringify(discount || {}),
+          items: JSON.stringify(cart || []),
         },
       });
 

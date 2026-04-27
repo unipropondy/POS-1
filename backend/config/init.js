@@ -189,6 +189,30 @@ async function initDB(pool) {
             END
         `);
 
+    // 9. Table: CompanySettings (Rich Settings)
+    await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CompanySettings]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[CompanySettings](
+                    [Id] [nvarchar](128) PRIMARY KEY,
+                    [CompanyName] [nvarchar](255) NULL,
+                    [Address] [nvarchar](max) NULL,
+                    [GSTNo] [nvarchar](50) NULL,
+                    [GSTPercentage] [decimal](18, 2) NULL,
+                    [Phone] [nvarchar](50) NULL,
+                    [Email] [nvarchar](255) NULL,
+                    [CashierName] [nvarchar](255) NULL,
+                    [Currency] [nvarchar](10) NULL,
+                    [CurrencySymbol] [nvarchar](10) NULL,
+                    [CompanyLogoUrl] [nvarchar](max) NULL,
+                    [HalalLogoUrl] [nvarchar](max) NULL,
+                    [ShowCompanyLogo] [bit] NULL,
+                    [ShowHalalLogo] [bit] NULL,
+                    [UpdatedOn] [datetime] DEFAULT GETDATE()
+                );
+            END
+        `);
+
     console.log("✅ Database schema is up to date.");
   } catch (err) {
     console.error("❌ initDB ERROR:", err.message);
