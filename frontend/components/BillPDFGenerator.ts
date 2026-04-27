@@ -333,6 +333,20 @@ private static escapeHtml(str: string): string {
             padding: 0;
             margin: 0;
           }
+
+          /* ✅ FORCE ONLY RECEIPT TO SHOW IN PRINT */
+          @media print {
+            body * { visibility: hidden; }
+            .receipt, .receipt * { visibility: visible; }
+            .receipt { 
+              position: absolute; 
+              left: 0; 
+              top: 0; 
+              width: 100% !important; 
+              margin: 0 !important; 
+              padding: 0 !important;
+            }
+          }
           
           .receipt {
             width: 72mm;

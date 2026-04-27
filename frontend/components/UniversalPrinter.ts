@@ -289,24 +289,35 @@ private static async printThermalReceipt(
   // ==================== PDF FALLBACK WITH DISCOUNT ====================
   static async offerPDFFallback(saleData: any, userId?: string | number, t?: any, discountInfo?: DiscountInfo): Promise<boolean> {
     if (Platform.OS === 'web') {
-      // ✅ WEB: Use a more reliable method to print ONLY the HTML content
+      // ✅ WEB: Fail-proof Iframe printing (ignores popup blockers)
       try {
         const html = await BillPDFGenerator.generateHTML(saleData, userId, discountInfo);
         
-        // Create a hidden iframe or new window to isolate the print
-        const printWindow = window.open('', '_blank', 'width=600,height=800');
-        if (printWindow) {
-          printWindow.document.write(html);
-          printWindow.document.close();
+        let frame = document.getElementById('print-iframe') as HTMLIFrameElement;
+        if (!frame) {
+          frame = document.createElement('iframe');
+          frame.id = 'print-iframe';
+          frame.style.display = 'none';
+          document.body.appendChild(frame);
+        }
+
+        const doc = frame.contentWindow?.document || frame.contentDocument;
+        if (doc) {
+          doc.open();
+          doc.write(html);
+          doc.close();
+
+          // Wait for images to load in the iframe
+          frame.contentWindow?.addEventListener('load', () => {
+            frame.contentWindow?.focus();
+            frame.contentWindow?.print();
+          });
           
-          // Wait for images to load before printing
-          printWindow.onload = () => {
-            printWindow.print();
-            printWindow.close();
-          };
-        } else {
-          // Fallback if popup blocked
-          await Print.printAsync({ html });
+          // Fallback if load event doesn't fire
+          setTimeout(() => {
+            frame.contentWindow?.focus();
+            frame.contentWindow?.print();
+          }, 1000);
         }
         return true;
       } catch (err) {
