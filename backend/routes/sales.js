@@ -395,11 +395,10 @@ router.post("/save", async (req, res) => {
       const settlementId = settlementIdResult.recordset[0].id;
       let billNo = ""; // Will be set to displayOrderId later
 
-        console.log(`[SAVE SALE] Step 1: Resolving BusinessUnitId...`);
         const bizRow = await transaction.request().query(`
-          SELECT TOP 1 BusinessUnitId FROM CompanySettings WHERE BusinessUnitId IS NOT NULL
-          UNION ALL
           SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+          UNION ALL
+          SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
         `);
         let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
         console.log(`[SAVE SALE] BusinessUnitId resolved to: ${businessUnitId}`);

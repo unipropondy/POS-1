@@ -156,6 +156,19 @@ export default function PaymentScreen() {
       await loadGst();
       await usePaymentSettingsStore.getState().fetchSettings();
       await fetchPaymentMethods();
+      
+      // ✅ Fetch official Order ID from DB to avoid "#NEW" bug
+      if (context?.tableId) {
+        try {
+          const res = await fetch(`${API_URL}/api/tables/${context.tableId}`);
+          const data = await res.json();
+          if (data.success && data.table?.CurrentOrderId) {
+             useCartStore.getState().setTableOrderId(context.tableId, data.table.CurrentOrderId);
+          }
+        } catch (err) {
+          console.error("Failed to sync official Order ID:", err);
+        }
+      }
     };
     init();
   }, []);

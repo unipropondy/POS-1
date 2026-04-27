@@ -465,48 +465,94 @@ export default function CartScreen() {
     if (!context || cart.length === 0) return;
 
     let targetOrderId = activeOrder?.orderId;
-    // No more local generation - wait for backend
-
-    appendOrder(targetOrderId, context, cart);
-    markItemsSent(targetOrderId);
-
-    // 🔥 EMIT SOCKET EVENT FOR KDS
-    socket.emit("new_order", {
-      orderId: targetOrderId,
-      context,
-      items: cart
-    });
-
+    
     if (context.orderType === "DINE_IN") {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
         try {
-          // 1. Save Cart first
-          await fetch(`${API_URL}/api/orders/save-cart`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              tableId: tableId, 
-              orderId: targetOrderId, 
-              items: cart 
-            }),
-          });
-
-          // 2. Then set status to Dining
-          await fetch(`${API_URL}/api/orders/send`, {
+          // 1. Send Order and Get Official ID
+          const sendRes = await fetch(`${API_URL}/api/orders/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tableId }),
           });
+          const sendData = await sendRes.json();
+
+          if (sendData.success) {
+            const officialId = sendData.currentOrderId || sendData.CurrentOrderId || targetOrderId;
+            
+            if (officialId) {
+              // 2. Sync Cart with official ID
+              await fetch(`${API_URL}/api/orders/save-cart`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  tableId: tableId, 
+                  orderId: officialId, 
+                  items: cart 
+                }),
+              });
+
+              // 3. Update Local Store & UI
+              appendOrder(officialId, context, cart);
+              markItemsSent(officialId);
+              useCartStore.getState().setTableOrderId(tableId, officialId);
+              updateTableStatus(tableId, context.section!, context.tableNo!, officialId, 'SENT', undefined, undefined, payableAmount);
+
+              // 4. Notify Kitchen via Socket
+              socket.emit("new_order", {
+                orderId: officialId,
+                context,
+                items: cart
+              });
+
+              showToast({
+                type: "success",
+                message: "Order Sent",
+                subtitle: `Kitchen notified. Order #${officialId}`,
+              });
+            }
+          }
         } catch (err) {
-          console.error("Failed to update status on server:", err);
+          console.error("Failed to send order:", err);
+          showToast({ type: "error", message: "Failed to send order" });
         }
-        updateTableStatus(tableId, context.section!, context.tableNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
       }
       clearCart();
       router.replace(`/(tabs)/category?section=${context.section}`);
+
     } else if (context.orderType === "TAKEAWAY") {
-      updateTableStatus("", "TAKEAWAY", context.takeawayNo!, targetOrderId, 'SENT', undefined, undefined, payableAmount);
+      try {
+        // 1. Generate ID for Takeaway (No tableId needed)
+        const sendRes = await fetch(`${API_URL}/api/orders/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderType: "TAKEAWAY" }), 
+        });
+        const sendData = await sendRes.json();
+
+        if (sendData.success && sendData.currentOrderId) {
+          const officialId = sendData.currentOrderId;
+          
+          appendOrder(officialId, context, cart);
+          markItemsSent(officialId);
+          updateTableStatus("", "TAKEAWAY", context.takeawayNo!, officialId, 'SENT', undefined, undefined, payableAmount);
+          
+          socket.emit("new_order", {
+            orderId: officialId,
+            context,
+            items: cart
+          });
+
+          showToast({
+            type: "success",
+            message: "Order Sent",
+            subtitle: `Takeaway notified. Order #${officialId}`,
+          });
+        }
+      } catch (err) {
+        console.error("Takeaway Send Error:", err);
+      }
       clearCart();
       router.replace(`/(tabs)/category?section=TAKEAWAY`);
     } else {

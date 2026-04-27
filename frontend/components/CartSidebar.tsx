@@ -159,6 +159,20 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   }, [orderContext?.tableId]);
 
   useEffect(() => {
+    // ✅ Sync official Order ID from DB whenever table changes
+    if (orderContext?.tableId) {
+      fetch(`${API_URL}/api/tables/${orderContext.tableId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.table?.CurrentOrderId) {
+            useCartStore.getState().setTableOrderId(orderContext.tableId!, data.table.CurrentOrderId);
+          }
+        })
+        .catch(err => console.error("Sidebar ID sync error:", err));
+    }
+  }, [orderContext?.tableId]);
+
+  useEffect(() => {
     const handleCartUpdate = (data: { tableId: string }) => {
       if (orderContext?.tableId && String(data.tableId) === String(orderContext.tableId)) {
         console.log(`🔌 [Socket] Cart updated for table ${data.tableId}, re-fetching...`);
@@ -347,35 +361,38 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       });
       
       const sendData = await sendRes.json();
-      if (sendData.success && sendData.currentOrderId) {
-        useCartStore.getState().setTableOrderId(orderContext.tableId!, sendData.currentOrderId);
-        // Correctly update the active order with the official ID from server
-        useActiveOrdersStore.getState().updateOrderId(targetOrderId || "NEW", sendData.currentOrderId);
-        
-        updateTableStatus(
-          orderContext.tableId || "",
-          orderContext.section || "TAKEAWAY",
-          orderContext.orderType === "DINE_IN" ? orderContext.tableNo! : orderContext.takeawayNo!,
-          sendData.currentOrderId || "SENT",
-          "SENT",
-          undefined,
-          undefined,
-          payableAmount,
-        );
-      }
-      
-      const finalOrderId = sendData.currentOrderId || targetOrderId;
-      socket.emit("new_order", {
-        orderId: finalOrderId,
-        context: orderContext,
-        items: unsentItems,
-      });
+        if (sendData.success) {
+          const officialOrderId = sendData.currentOrderId || sendData.CurrentOrderId || targetOrderId;
+          
+          if (officialOrderId) {
+            useCartStore.getState().setTableOrderId(orderContext.tableId!, officialOrderId);
+            useActiveOrdersStore.getState().updateOrderId(targetOrderId || "NEW", officialOrderId);
+            
+            updateTableStatus(
+              orderContext.tableId || "",
+              orderContext.section || "TAKEAWAY",
+              orderContext.orderType === "DINE_IN" ? orderContext.tableNo! : orderContext.takeawayNo!,
+              officialOrderId,
+              "SENT",
+              undefined,
+              undefined,
+              payableAmount,
+            );
 
-      showToast({
-        type: "success",
-        message: "Order Sent",
-        subtitle: `Kitchen notified. Order #${finalOrderId}`,
-      });
+            socket.emit("new_order", {
+              orderId: officialOrderId,
+              context: orderContext,
+              items: unsentItems,
+            });
+
+            showToast({
+              type: "success",
+              message: "Order Sent",
+              subtitle: `Kitchen notified. Order #${officialOrderId}`,
+            });
+          }
+        }
+
     } catch (err) {
       console.error("Cart Save/Send Error:", err);
     }

@@ -12,21 +12,22 @@ async function getOrGenerateOrderId(req, tableId) {
   const pool = await poolPromise;
   const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
-  // 1. Check if table already has an ID
-  const tableCheck = await pool.request()
-    .input("tid", sql.NVarChar(128), `%${cleanId}%`)
-    .query("SELECT CurrentOrderId FROM TableMaster WHERE UPPER(CAST(TableId AS NVARCHAR(128))) LIKE @tid");
+  // 1. Check if table already has an ID (Only for Dine-In)
+  if (tableId && tableId !== "undefined" && tableId !== "null") {
+    const tableCheck = await pool.request()
+      .input("tid", sql.NVarChar(128), `%${cleanId}%`)
+      .query("SELECT CurrentOrderId FROM TableMaster WHERE UPPER(CAST(TableId AS NVARCHAR(128))) LIKE @tid");
 
-
-  if (tableCheck.recordset[0]?.CurrentOrderId) {
-    return tableCheck.recordset[0].CurrentOrderId;
+    if (tableCheck.recordset[0]?.CurrentOrderId) {
+      return tableCheck.recordset[0].CurrentOrderId;
+    }
   }
 
-  // 2. Resolve BusinessUnitId from CompanySettings (Single Source of Truth)
+  // 2. Resolve BusinessUnitId (Safe Logic)
   const bizRow = await pool.request().query(`
-    SELECT TOP 1 BusinessUnitId FROM CompanySettings WHERE BusinessUnitId IS NOT NULL
-    UNION ALL
     SELECT TOP 1 BusinessUnitId FROM [dbo].[PaymentDetailCur] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
+    UNION ALL
+    SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
   `);
   let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
 
@@ -177,29 +178,35 @@ async function syncTableStatus(req, tableId) {
 // 1. Send Order (KOT/KDS) -> Dining
 router.post("/send", async (req, res) => {
   try {
-    const { tableId } = req.body;
-    if (!tableId) return res.status(400).json({ error: "TableId is required" });
+    const { tableId, orderType } = req.body;
+    const isTakeaway = orderType === "TAKEAWAY" || (!tableId || tableId === "undefined" || tableId === "null");
 
     const pool = await poolPromise;
-    const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+    const cleanId = !isTakeaway ? String(tableId).replace(/^\{|\}$/g, "").trim() : null;
 
-    // Generate Order ID if needed
+    // Generate Order ID (Logic handles null tableId for Takeaway)
     const currentOrderId = await getOrGenerateOrderId(req, cleanId);
 
-    await pool.request()
-      .input("tableId", sql.NVarChar(128), cleanId)
-      .input("orderId", sql.NVarChar(50), currentOrderId)
-      .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
-    
-    // Also update all NEW cart items with this Order ID and reset timing to NOW
-    await pool.request()
-      .input("cartId", sql.NVarChar(128), cleanId)
-      .input("orderId", sql.NVarChar(50), currentOrderId)
-      .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE() WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING')");
+    if (cleanId) {
+      await pool.request()
+        .input("tableId", sql.NVarChar(128), cleanId)
+        .input("orderId", sql.NVarChar(50), currentOrderId)
+        .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
+      
+      // Also update all NEW cart items with this Order ID and reset timing to NOW
+      await pool.request()
+        .input("cartId", sql.NVarChar(128), cleanId)
+        .input("orderId", sql.NVarChar(50), currentOrderId)
+        .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE() WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING')");
 
-    const updated = await syncTableStatus(req, tableId);
-    res.json({ success: true, ...updated });
+      const updated = await syncTableStatus(req, tableId);
+      return res.json({ success: true, currentOrderId, ...updated });
+    } else {
+      // Takeaway logic: Just return the new ID
+      return res.json({ success: true, currentOrderId });
+    }
   } catch (err) {
+    console.error("❌ [Send Order] Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

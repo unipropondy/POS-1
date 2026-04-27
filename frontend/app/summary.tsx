@@ -82,7 +82,17 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     loadGst();
-    // ✅ No more redundant fetch here, as useCartStore handles it on mount/socket
+    // ✅ Sync official Order ID from DB to avoid "#NEW" bug
+    if (context?.tableId) {
+      fetch(`${API_URL}/api/tables/${context.tableId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.table?.CurrentOrderId) {
+            useCartStore.getState().setTableOrderId(context.tableId!, data.table.CurrentOrderId);
+          }
+        })
+        .catch(err => console.error("Summary ID sync error:", err));
+    }
   }, []);
 
   const discountInfo = useCartStore((s: any) => {
