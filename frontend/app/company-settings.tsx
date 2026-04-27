@@ -99,16 +99,22 @@ export default function CompanySettingsScreen() {
       setSaving(true);
       const imageUrl = await BillPDFGenerator.uploadImage(result.assets[0].uri);
       if (imageUrl) {
-        setSettings({
-          ...settings,
-          [type === 'company' ? 'companyLogo' : 'halalLogo']: `${API_URL}${imageUrl}`,
-        });
+        setSettings(prev => ({
+          ...prev,
+          [type === 'company' ? 'companyLogo' : 'halalLogo']: imageUrl // ✅ Store relative path only
+        }));
         showToast({ type: 'success', message: 'Logo uploaded successfully' });
       } else {
         showToast({ type: 'error', message: 'Failed to upload image' });
       }
       setSaving(false);
     }
+  };
+
+  const getLogoUri = (logo: string) => {
+    if (!logo) return null;
+    if (logo.startsWith('http')) return logo;
+    return `${API_URL}${logo.startsWith('/') ? '' : '/'}${logo}`;
   };
 
   if (loading) {
@@ -156,7 +162,7 @@ export default function CompanySettingsScreen() {
                   onPress={() => pickImage('company')}
                 >
                   {settings.companyLogo ? (
-                    <Image source={{ uri: settings.companyLogo }} style={styles.logoPreview} />
+                    <Image source={{ uri: getLogoUri(settings.companyLogo) }} style={styles.logoPreview} />
                   ) : (
                     <Ionicons name="cloud-upload-outline" size={30} color={Theme.textMuted} />
                   )}
@@ -178,7 +184,7 @@ export default function CompanySettingsScreen() {
                   onPress={() => pickImage('halal')}
                 >
                   {settings.halalLogo ? (
-                    <Image source={{ uri: settings.halalLogo }} style={styles.logoPreview} />
+                    <Image source={{ uri: getLogoUri(settings.halalLogo) }} style={styles.logoPreview} />
                   ) : (
                     <Ionicons name="ribbon-outline" size={30} color={Theme.textMuted} />
                   )}
