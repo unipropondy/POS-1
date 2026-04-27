@@ -565,8 +565,8 @@ router.post("/save", async (req, res) => {
           .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
           
         await transaction.request()
-          .input("tid", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE TableId = @tid");
+          .input("tid", sql.NVarChar(128), cleanTableId)
+          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tid)");
 
         const io = req.app.get("io");
         if (io) {

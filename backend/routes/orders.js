@@ -186,9 +186,9 @@ router.post("/send", async (req, res) => {
     const currentOrderId = await getOrGenerateOrderId(req, cleanId);
 
     await pool.request()
-      .input("tableId", sql.VarChar(50), cleanId)
+      .input("tableId", sql.NVarChar(128), cleanId)
       .input("orderId", sql.NVarChar(50), currentOrderId)
-      .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+      .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
     
     // Also update all NEW cart items with this Order ID and reset timing to NOW
     await pool.request()
@@ -214,8 +214,8 @@ router.post("/hold", async (req, res) => {
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
     
     await pool.request()
-      .input("tableId", sql.VarChar(50), cleanId)
-      .query("UPDATE TableMaster SET Status = 3 WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+      .input("tableId", sql.NVarChar(128), cleanId)
+      .query("UPDATE TableMaster SET Status = 3 WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
@@ -233,8 +233,8 @@ router.post("/checkout", async (req, res) => {
     const pool = await poolPromise;
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
     await pool.request()
-      .input("tableId", sql.VarChar(50), cleanId)
-      .query("UPDATE TableMaster SET Status = 2 WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+      .input("tableId", sql.NVarChar(128), cleanId)
+      .query("UPDATE TableMaster SET Status = 2 WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
