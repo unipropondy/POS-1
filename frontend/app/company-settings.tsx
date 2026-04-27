@@ -23,6 +23,7 @@ import { Fonts } from '../constants/Fonts';
 import BillPDFGenerator from '../components/BillPDFGenerator';
 import { useToast } from '../components/Toast';
 import { API_URL } from '@/constants/Config';
+import { useCompanySettingsStore } from '../stores/companySettingsStore';
 
 export default function CompanySettingsScreen() {
   const { settings, loading, fetchSettings, updateSettings } = useCompanySettingsStore();
