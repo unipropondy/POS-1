@@ -15,6 +15,7 @@ import {
   UIManager,
   useWindowDimensions,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { API_URL } from "../constants/Config";
 import { Fonts } from "../constants/Fonts";
@@ -602,46 +603,48 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         <View
           style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}
         >
-          <View
-            style={[
-              styles.summary,
-              isPhone && isLandscape && { marginBottom: 8 },
-            ]}
-          >
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>
-                {currencySymbol}{subtotal.toFixed(2)}
-              </Text>
-            </View>
-            {taxAmount > 0 && (
+          <>
+            <View
+              style={[
+                styles.summary,
+                isPhone && isLandscape && { marginBottom: 8 },
+              ]}
+            >
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>GST ({settings.gstPercentage}%)</Text>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
                 <Text style={styles.summaryValue}>
-                  {currencySymbol}{taxAmount.toFixed(2)}
+                  {currencySymbol}{subtotal.toFixed(2)}
                 </Text>
               </View>
-            )}
-              <Text
-                style={[
-                  styles.payableLabel,
-                  isPhone && isLandscape && { fontSize: 13 },
-                ]}
-              >
-                Subtotal
-              </Text>
-              <Text
-                style={[
-                  styles.payableValue,
-                  isPhone && isLandscape && { fontSize: 14 },
-                ]}
-              >
-                ${subtotal.toFixed(2)}
-              </Text>
+              {taxAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>GST ({settings.gstPercentage}%)</Text>
+                  <Text style={styles.summaryValue}>
+                    {currencySymbol}{taxAmount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[
+                    styles.payableLabel,
+                    isPhone && isLandscape && { fontSize: 13 },
+                  ]}
+                >
+                  Payable
+                </Text>
+                <Text
+                  style={[
+                    styles.payableValue,
+                    isPhone && isLandscape && { fontSize: 14 },
+                  ]}
+                >
+                  {currencySymbol}{payableAmount.toFixed(2)}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.actions}>
+            <View style={styles.actions}>
             {unsentCount > 0 ? (
               <>
                 <TouchableOpacity
@@ -729,7 +732,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               </TouchableOpacity>
             ) : null}
           </View>
-        </View>
+        </>
+      </View>
       )}
 
       {/* CANCEL PASSWORD MODAL */}
@@ -1001,10 +1005,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sentQtyText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: Fonts.black,
     color: Theme.textSecondary,
-    textTransform: "uppercase",
   },
   qtyControlSmall: {
     flexDirection: "row",
@@ -1201,12 +1204,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 12,
   },
-  sentLabel: {
-    backgroundColor: Theme.bgMuted,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
   discountBadge: {
     backgroundColor: "#22C55E15",
     paddingHorizontal: 5,
@@ -1232,11 +1229,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-  },
-  sentQtyText: {
-    fontSize: 12,
-    fontFamily: Fonts.black,
-    color: Theme.textSecondary,
   },
   syncBadge: {
     flexDirection: 'row',
