@@ -371,19 +371,40 @@ private static escapeHtml(str: string): string {
           /* Logo Header */
           .logo-header {
             display: flex;
+            flex-direction: row;
             justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 2mm; /* ✅ Tighter gap */
-            border-bottom: 2px solid #000;
-            padding-bottom: 2mm;
+            align-items: center; /* ✅ Center logos vertically relative to text */
+            margin-bottom: 3mm;
+            border-bottom: 2.5px solid #000; /* ✅ Thicker border like reference */
+            padding-bottom: 3mm;
           }
           
-          .company-logo { width: 45px; height: 45px; object-fit: contain; margin-top: 1mm; }
-          .halal-logo { width: 40px; height: 40px; object-fit: contain; margin-top: 1mm; }
+          .company-logo { width: 45px; height: 45px; object-fit: contain; }
+          .halal-logo { width: 45px; height: 45px; object-fit: contain; }
           
-          .shop-info { text-align: center; flex: 1; font-family: monospace; padding: 0 1mm; }
-          .shop-name { font-size: 20px; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px; line-height: 1.1; margin-bottom: 1mm; }
-          .shop-address { font-size: 9px; font-weight: 700; line-height: 1.2; font-family: monospace; white-space: pre-line; }
+          .shop-info { 
+            text-align: center; 
+            flex: 1; 
+            padding: 0 1mm;
+          }
+          
+          .shop-name { 
+            font-size: 18px; /* ✅ Matches reference proportion */
+            font-weight: 900; 
+            text-transform: uppercase; 
+            letter-spacing: 3px; /* ✅ The "Premium" spaced look */
+            line-height: 1.2; 
+            margin-bottom: 1.5mm;
+            display: block;
+          }
+          
+          .shop-address { 
+            font-size: 9px; 
+            font-weight: 700; 
+            line-height: 1.3; 
+            font-family: monospace; 
+            white-space: pre-line; 
+          }
           .gst-no { font-size: 9px; font-weight: 700; background: #eee; font-family: monospace; padding: 0.5mm; margin: 1mm 0; display: inline-block; }
           .contact { font-size: 9px; font-weight: 700; font-family: monospace; margin-top: 1.5mm; line-height: 1.3; }
           
