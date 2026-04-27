@@ -688,9 +688,7 @@ private static escapeHtml(str: string): string {
       const { uri } = await Print.printToFileAsync({
         html: html,
         base64: false,
-        width: 226,
-        // ✅ On mobile, this will set the actual filename
-        name: `Invoice_${saleData.invoiceNumber || saleData.id}`
+        width: 226
       });
       
       return uri;
