@@ -89,8 +89,8 @@ export default function CompanySettingsScreen() {
 
   const getLogoUri = (logo: string) => {
     if (!logo) return undefined;
-    if (logo.startsWith('http')) return logo;
-    return `${API_URL}${logo.startsWith('/') ? '' : '/'}${logo}`;
+    if (logo.startsWith('http')) return `${logo}?t=${Date.now()}`;
+    return `${API_URL}${logo.startsWith('/') ? '' : '/'}${logo}?t=${Date.now()}`;
   };
 
   if (loading) {

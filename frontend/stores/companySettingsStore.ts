@@ -75,8 +75,8 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
                 companyLogo: s.CompanyLogoUrl || "",
                 halalLogo: s.HalalLogoUrl || "",
                 printerIp: s.PrinterIP || "",
-                showCompanyLogo: s.ShowCompanyLogo !== false && s.ShowCompanyLogo !== 0,
-                showHalalLogo: s.ShowHalalLogo !== false && s.ShowHalalLogo !== 0,
+                showCompanyLogo: !!s.ShowCompanyLogo,
+                showHalalLogo: !!s.ShowHalalLogo,
               },
             });
             console.log("✅ [CompanySettingsStore] Settings loaded");
