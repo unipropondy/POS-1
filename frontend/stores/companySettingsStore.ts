@@ -15,6 +15,7 @@ interface CompanySettings {
   currencySymbol: string;
   companyLogo: string;
   halalLogo: string;
+  printerIp: string; // ✅ ADDED
   showCompanyLogo: boolean;
   showHalalLogo: boolean;
 }
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   currencySymbol: "$",
   companyLogo: "",
   halalLogo: "",
+  printerIp: "", // ✅ ADDED
   showCompanyLogo: true,
   showHalalLogo: true,
 };
@@ -75,6 +77,7 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
                 currencySymbol: data.CurrencySymbol || "$",
                 companyLogo: formatUrl(data.CompanyLogoUrl),
                 halalLogo: formatUrl(data.HalalLogoUrl),
+                printerIp: data.PrinterIP || "", // ✅ ADDED
                 showCompanyLogo: data.ShowCompanyLogo !== false,
                 showHalalLogo: data.ShowHalalLogo !== false,
               },

@@ -220,19 +220,40 @@ static async smartPrint(
   isReprint: boolean = false
 ): Promise<boolean> {
   try {
-    // ✅ Auto-detect printer type
+    const company = await BillPDFGenerator.loadSettings(outletId);
+    
+    // ✅ 1. Try WiFi Printer if IP is configured
+    if (company.printerIp && company.printerIp.trim().length > 0) {
+      console.log(`🌐 Attempting WiFi print to: ${company.printerIp}`);
+      try {
+        const printed = await this.printNetwork(saleData, outletId, { 
+          type: 'network', 
+          name: 'WiFi Printer', 
+          address: company.printerIp,
+          isDefault: true 
+        } as PrinterInfo, discountInfo);
+        
+        if (printed) {
+          Alert.alert('✅ Success', 'Receipt printed via WiFi!');
+          return true;
+        }
+      } catch (wifiError) {
+        console.log('❌ WiFi Print failed, falling back...', wifiError);
+      }
+    }
+
+    // ✅ 2. Auto-detect local printer type (Sunmi)
     const printerType = await PrinterDetector.detectPrinter();
     
     if (printerType === 'sunmi') {
-      // Sunmi direct print - NO PREVIEW
       const printed = await this.printThermalReceipt(saleData, outletId, undefined, discountInfo);
       if (printed) {
-        Alert.alert('✅ Success', 'Receipt printed!');
+        Alert.alert('✅ Success', 'Receipt printed via Sunmi!');
         return true;
       }
     }
     
-    // ✅ Fallback to PDF
+    // ✅ 3. Fallback to PDF/Web
     return await this.offerPDFFallback(saleData, outletId, t, discountInfo);
     
   } catch (error) { 
@@ -285,6 +306,53 @@ private static async printThermalReceipt(
     return false; 
   }
 }
+  // ==================== NETWORK PRINTING ====================
+  private static async printNetwork(saleData: any, userId?: string | number, printer?: PrinterInfo, discountInfo?: DiscountInfo): Promise<boolean> {
+    try {
+      // Use thermal printer IP printing
+      const ThermalPrinter = require('react-native-thermal-printer');
+      const company = await BillPDFGenerator.loadSettings(userId);
+      const text = this.formatThermalTextWithDiscount(saleData, company, discountInfo);
+      
+      await ThermalPrinter.default.printIP(printer?.address || '', { 
+        text,
+        width: 384, // 58mm
+        characterSet: 'PC437'
+      });
+      return true;
+    } catch (error) { 
+      console.log('❌ Network print error:', error);
+      return false; 
+    }
+  }
+
+  private static formatThermalTextWithDiscount(saleData: any, company: any, discountInfo?: DiscountInfo): string {
+    const symbol = company.currencySymbol || '$';
+    const hasDiscount = discountInfo?.applied && discountInfo.amount > 0;
+    const originalTotal = hasDiscount ? (saleData.total || 0) + discountInfo.amount : (saleData.total || 0);
+    
+    let text = '[C]================================\n';
+    text += `[L]Bill No: ${saleData.invoiceNumber || saleData.id || ''}\n`;
+    text += `[L]Date: ${new Date().toLocaleDateString()}\n`;
+    text += '[L]--------------------------------\n';
+    
+    saleData.items?.forEach((item: any) => {
+      const name = (item.name || '').substring(0, 18).padEnd(18);
+      const qty = (item.quantity || 1).toString().padStart(3);
+      const total = `${symbol}${(item.price * item.quantity).toFixed(2)}`.padStart(10);
+      text += `[L]${name}${qty}${total}\n`;
+    });
+    
+    text += '[L]--------------------------------\n';
+    if (hasDiscount) {
+      text += `[R]ORIGINAL: ${symbol}${originalTotal.toFixed(2)}\n`;
+      text += `[R]DISCOUNT: -${symbol}${discountInfo.amount.toFixed(2)}\n`;
+    }
+    text += `[R]TOTAL: ${symbol}${saleData.total.toFixed(2)}\n`;
+    text += '[C]================================\n';
+    text += '[C]THANK YOU! COME AGAIN!\n\n\n';
+    return text;
+  }
 
   // ==================== PDF FALLBACK WITH DISCOUNT ====================
   static async offerPDFFallback(saleData: any, userId?: string | number, t?: any, discountInfo?: DiscountInfo): Promise<boolean> {

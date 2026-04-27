@@ -20,6 +20,7 @@ interface CompanySettings {
   currencySymbol: string;
    companyLogo?: string;        // ✅ ADD THIS
   halalLogo?: string;          // ✅ ADD THIS
+  printerIp?: string;          // ✅ ADD THIS
   showCompanyLogo?: boolean;   // ✅ ADD THIS
   showHalalLogo?: boolean; 
 }
@@ -187,6 +188,7 @@ static async loadSettings(userId?: string | number): Promise<CompanySettings> {
             CurrencySymbol: settings.currencySymbol,
             CompanyLogoUrl: settings.companyLogo || '',
             HalalLogoUrl: settings.halalLogo || '',
+            PrinterIP: settings.printerIp || '', // ✅ ADDED
             ShowCompanyLogo: settings.showCompanyLogo ? 1 : 0,  // ✅ Simplified
             ShowHalalLogo: settings.showHalalLogo ? 1 : 0      // ✅ Simplified
         };

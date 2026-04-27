@@ -274,6 +274,24 @@ export default function CompanySettingsScreen() {
               </View>
             </View>
           </View>
+          
+          {/* Printer Settings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Printer Settings</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>WiFi Printer IP Address</Text>
+              <TextInput 
+                style={styles.input}
+                value={settings.printerIp}
+                onChangeText={(val) => updateSettings({ printerIp: val })}
+                placeholder="e.g. 192.168.1.100"
+                keyboardType="numeric"
+              />
+              <Text style={[styles.note, { textAlign: 'left', marginTop: 5 }]}>
+                Leave empty if using Sunmi or Web printing only.
+              </Text>
+            </View>
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -413,5 +431,12 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+  },
+  note: {
+    fontSize: 11,
+    fontFamily: Fonts.medium,
+    color: Theme.textSecondary,
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

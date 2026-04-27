@@ -42,6 +42,7 @@ router.post("/:id", async (req, res) => {
       .input("CurrencySymbol", sql.NVarChar, s.CurrencySymbol)
       .input("CompanyLogoUrl", sql.NVarChar, s.CompanyLogoUrl)
       .input("HalalLogoUrl", sql.NVarChar, s.HalalLogoUrl)
+      .input("PrinterIP", sql.NVarChar, s.PrinterIP) // ✅ ADDED
       .input("ShowCompanyLogo", sql.Bit, s.ShowCompanyLogo)
       .input("ShowHalalLogo", sql.Bit, s.ShowHalalLogo)
       .query(`
@@ -59,6 +60,7 @@ router.post("/:id", async (req, res) => {
             CurrencySymbol = @CurrencySymbol,
             CompanyLogoUrl = @CompanyLogoUrl,
             HalalLogoUrl = @HalalLogoUrl,
+            PrinterIP = @PrinterIP, -- ✅ ADDED
             ShowCompanyLogo = @ShowCompanyLogo,
             ShowHalalLogo = @ShowHalalLogo,
             UpdatedOn = GETDATE()
@@ -66,8 +68,8 @@ router.post("/:id", async (req, res) => {
         END
         ELSE
         BEGIN
-          INSERT INTO CompanySettings (Id, CompanyName, Address, GSTNo, GSTPercentage, Phone, Email, CashierName, Currency, CurrencySymbol, CompanyLogoUrl, HalalLogoUrl, ShowCompanyLogo, ShowHalalLogo)
-          VALUES (@Id, @CompanyName, @Address, @GSTNo, @GSTPercentage, @Phone, @Email, @CashierName, @Currency, @CurrencySymbol, @CompanyLogoUrl, @HalalLogoUrl, @ShowCompanyLogo, @ShowHalalLogo)
+          INSERT INTO CompanySettings (Id, CompanyName, Address, GSTNo, GSTPercentage, Phone, Email, CashierName, Currency, CurrencySymbol, CompanyLogoUrl, HalalLogoUrl, PrinterIP, ShowCompanyLogo, ShowHalalLogo)
+          VALUES (@Id, @CompanyName, @Address, @GSTNo, @GSTPercentage, @Phone, @Email, @CashierName, @Currency, @CurrencySymbol, @CompanyLogoUrl, @HalalLogoUrl, @PrinterIP, @ShowCompanyLogo, @ShowHalalLogo)
         END
       `);
 
