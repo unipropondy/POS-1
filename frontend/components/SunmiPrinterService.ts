@@ -272,7 +272,7 @@ class SunmiPrinterService {
       // ============ FOOTER ============
       await this.center('THANK YOU! COME AGAIN!');
       await SunmiModule.lineWrap(1);
-      await this.center('SMARTHAWKER BY UNIPROSG');
+      await this.center('SMART-POS BY UNIPROSG');
       
       if (companySettings.gstPercentage > 0) {
         await this.center(`* Prices include ${companySettings.gstPercentage}% GST`);

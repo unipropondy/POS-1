@@ -646,7 +646,7 @@ private static escapeHtml(str: string): string {
           <!-- Footer -->
           <div class="footer">
             <div class="thankyou">THANK YOU! COME AGAIN!</div>
-            <div class="copyright">SMARTHAWKER BY UNIPROSG</div>
+            <div class="copyright">SMART-POS BY UNIPROSG</div>
           </div>
           
         </div>
