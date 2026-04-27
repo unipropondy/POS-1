@@ -258,7 +258,7 @@ router.post("/complete", async (req, res) => {
 
     await pool.request()
       .input("tid", sql.UniqueIdentifier, cleanId)
-      .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL WHERE TableId = @tid");
+      .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE TableId = @tid");
 
     if (io) {
       io.emit("table_status_updated", { tableId: cleanId, status: 0, totalAmount: 0, startTime: null });
@@ -333,7 +333,7 @@ router.post("/save-cart", async (req, res) => {
         // 3. If items are empty, reset table to Available (0)
         await transaction.request()
           .input("tableId", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE TableMaster SET Status = 0, StartTime = NULL WHERE TableId = @tableId");
+          .query("UPDATE TableMaster SET Status = 0, StartTime = NULL, CurrentOrderId = NULL WHERE TableId = @tableId");
         
         if (io) io.emit("table_status_updated", { tableId: cleanTableId, status: 0 });
         console.log(`🧹 [CartSave] Cart cleared. Table Status -> 0`);
