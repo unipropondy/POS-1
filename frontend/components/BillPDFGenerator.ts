@@ -327,7 +327,8 @@ private static escapeHtml(str: string): string {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>Tax Invoice</title>
-               body {
+        <style>
+          body {
             font-family: 'Courier New', Courier, monospace;
             background: #fff;
             margin: 0;
