@@ -106,41 +106,46 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/* ================= AUTH - VERIFY PASSWORD ================= */
+/* ================= AUTH - VERIFY PASSWORD (ROLE-BASED) ================= */
 router.post("/verify", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { userName, password } = req.body;
+    const { password } = req.body;
 
-    if (!userName || !password) {
-      return res.status(400).json({ success: false, message: "Missing credentials" });
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Missing password" });
     }
 
+    // Fetch all users with ADMIN or MANAGER privileges
     const result = await pool.request()
-      .input("UserName", userName.trim())
-      .query(`SELECT UserPassword FROM [dbo].[UserMaster] WHERE LTRIM(RTRIM(UserName)) = @UserName`);
+      .query(`
+        SELECT u.UserPassword 
+        FROM [dbo].[UserMaster] u
+        LEFT JOIN [dbo].[UserGroupMaster] g ON u.UserGroupid = g.UserGroupId
+        WHERE g.UserGroupCode IN ('ADMIN', 'MANAGER', 'OWNER')
+      `);
 
-    if (result.recordset.length === 0) {
-      return res.status(401).json({ success: false });
-    }
-
-    const dbPassword = (result.recordset[0].UserPassword || "").trim();
     let isValid = false;
 
-    // Password Match Logic (Mirroring Login)
-    const parts = dbPassword.split("-");
-    const candidates = [dbPassword, parts[0]].filter(c => c.length > 0);
+    // Check the password against all authorized users
+    for (const row of result.recordset) {
+      const dbPassword = (row.UserPassword || "").trim();
+      const parts = dbPassword.split("-");
+      const candidates = [dbPassword, parts[0]].filter(c => c.length > 0);
 
-    for (const cand of candidates) {
-      if (cand === password) { isValid = true; break; }
-      try {
-        const decoded = Buffer.from(cand, "base64").toString("utf-8").trim();
-        if (decoded === password) { isValid = true; break; }
-      } catch (e) {}
+      for (const cand of candidates) {
+        if (cand === password) { isValid = true; break; }
+        try {
+          const decoded = Buffer.from(cand, "base64").toString("utf-8").trim();
+          if (decoded === password) { isValid = true; break; }
+        } catch (e) {}
+      }
+      if (isValid) break;
     }
 
     return res.json({ success: isValid });
   } catch (err) {
+    console.error("VERIFY ERROR:", err);
     res.status(500).json({ success: false });
   }
 });

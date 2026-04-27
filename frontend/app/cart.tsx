@@ -359,13 +359,12 @@ export default function CartScreen() {
 
   const [itemToVoid, setItemToVoid] = React.useState<any>(null);
 
-  const handleCancelOrder = () => {
-    // Securely verify password with backend instead of hardcoding "786"
+  const handleCancelOrder = async () => {
+    // Securely verify password with backend - checks for any Admin/Manager password
     const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-        userName: "admin", 
         password: cancelPassword 
       })
     });

@@ -277,8 +277,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         let targetOrderId = activeOrder?.orderId;
         // If we don't have an ID yet, we must wait for the server to provide one during checkout/send
 
-        appendOrder(targetOrderId, orderContext, cart);
-        markItemsSent(targetOrderId);
+        appendOrder(targetOrderId || "NEW", orderContext, cart);
+        markItemsSent(targetOrderId || "NEW");
         try {
           await fetch(`${API_URL}/api/orders/save-cart`, {
             method: "POST",
@@ -319,8 +319,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     // No more getNextOrderId() - we wait for the database
 
     
-    appendOrder(targetOrderId, orderContext, unsentItems);
-    markItemsSent(targetOrderId);
+    appendOrder(targetOrderId || "NEW", orderContext, unsentItems);
+    markItemsSent(targetOrderId || "NEW");
 
     const updatedCart = cart.map(item => {
       if (!item.status || item.status === "NEW") {
@@ -350,13 +350,13 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       if (sendData.success && sendData.currentOrderId) {
         useCartStore.getState().setTableOrderId(orderContext.tableId!, sendData.currentOrderId);
         // Correctly update the active order with the official ID from server
-        useActiveOrdersStore.getState().updateOrderId(targetOrderId, sendData.currentOrderId);
+        useActiveOrdersStore.getState().updateOrderId(targetOrderId || "NEW", sendData.currentOrderId);
         
         updateTableStatus(
           orderContext.tableId || "",
           orderContext.section || "TAKEAWAY",
           orderContext.orderType === "DINE_IN" ? orderContext.tableNo! : orderContext.takeawayNo!,
-          sendData.currentOrderId,
+          sendData.currentOrderId || "SENT",
           "SENT",
           undefined,
           undefined,
@@ -628,10 +628,10 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                       orderContext.tableId || "",
                       orderContext.section!,
                       orderContext.tableNo!,
-                      targetOrderId,
+                      targetOrderId || "HOLD",
                       "HOLD",
                     );
-                    holdOrder(targetOrderId, cart, orderContext);
+                    holdOrder(targetOrderId || "HOLD", cart, orderContext);
                     router.replace(
                       `/(tabs)/category?section=${orderContext.section}`,
                     );
@@ -709,13 +709,12 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.modalBtnConfirm}
-                  onPress={() => {
-                        // Securely verify password with backend instead of hardcoding "786"
+                  onPress={async () => {
+                        // Securely verify password with backend - checks for any Admin/Manager password
                         const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ 
-                            userName: "admin", // Or use currently logged in user
                             password: cancelPassword 
                           })
                         });

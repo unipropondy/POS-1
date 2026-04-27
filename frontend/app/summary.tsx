@@ -130,12 +130,11 @@ export default function SummaryScreen() {
   };
 
   const handleCancelOrder = async () => {
-    // Securely verify password with backend instead of hardcoding "786"
+    // Securely verify password with backend - checks for any Admin/Manager password
     const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-        userName: "admin", 
         password: cancelPassword 
       })
     });
@@ -610,13 +609,12 @@ export default function SummaryScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtnConfirm, { backgroundColor: Theme.danger }]}
-                onPress={() => {
-                  // Securely verify password with backend instead of hardcoding "786"
+                onPress={async () => {
+                  // Securely verify password with backend - checks for any Admin/Manager password
                   const verifyRes = await fetch(`${API_URL}/api/auth/verify`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ 
-                      userName: "admin", 
                       password: voidPassword 
                     })
                   });
