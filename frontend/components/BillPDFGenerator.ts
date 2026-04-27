@@ -559,7 +559,7 @@ private static escapeHtml(str: string): string {
           <!-- Logo Header -->
           <div class="logo-header">
             ${showCompanyLogo && companyLogoUrl ? 
-              `<img src="${companyLogoUrl}" class="company-logo" crossOrigin="anonymous" />` : 
+              `<img src="${companyLogoUrl}" class="company-logo" />` : 
               '<div style="width:45px"></div>'
             }
             <div class="shop-info">
@@ -572,7 +572,7 @@ private static escapeHtml(str: string): string {
               </div>
             </div>
             ${showHalalLogo && halalLogoUrl ? 
-              `<img src="${halalLogoUrl}" class="halal-logo" crossOrigin="anonymous" />` : 
+              `<img src="${halalLogoUrl}" class="halal-logo" />` : 
               '<div style="width:45px"></div>'
             }
           </div>
