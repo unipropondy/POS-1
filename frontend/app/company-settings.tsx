@@ -134,7 +134,7 @@ export default function CompanySettingsScreen() {
               <View style={styles.logoItem}>
                 <Text style={styles.logoLabel}>Company Logo</Text>
                 <TouchableOpacity 
-                  style={styles.logoPicker} 
+                  style={[styles.logoPicker, settings.companyLogo ? styles.logoPickerActive : null]} 
                   onPress={() => pickImage('company')}
                 >
                   {settings.companyLogo ? (
@@ -143,8 +143,13 @@ export default function CompanySettingsScreen() {
                     <Ionicons name="cloud-upload-outline" size={30} color={Theme.textMuted} />
                   )}
                 </TouchableOpacity>
+                <View style={styles.statusContainer}>
+                   <Text style={[styles.statusText, settings.companyLogo ? styles.statusSuccess : styles.statusMuted]}>
+                     {settings.companyLogo ? '✅ Uploaded' : '❌ Not Uploaded'}
+                   </Text>
+                </View>
                 <View style={styles.toggleRow}>
-                  <Text style={styles.toggleText}>Show on bill</Text>
+                  <Text style={styles.toggleText}>{settings.showCompanyLogo ? 'Active on bill' : 'Hidden on bill'}</Text>
                   <Switch 
                     value={settings.showCompanyLogo} 
                     onValueChange={(val) => updateSettings({ showCompanyLogo: val })}
@@ -156,7 +161,7 @@ export default function CompanySettingsScreen() {
               <View style={styles.logoItem}>
                 <Text style={styles.logoLabel}>Halal Logo</Text>
                 <TouchableOpacity 
-                  style={styles.logoPicker} 
+                  style={[styles.logoPicker, settings.halalLogo ? styles.logoPickerActive : null]} 
                   onPress={() => pickImage('halal')}
                 >
                   {settings.halalLogo ? (
@@ -165,8 +170,13 @@ export default function CompanySettingsScreen() {
                     <Ionicons name="ribbon-outline" size={30} color={Theme.textMuted} />
                   )}
                 </TouchableOpacity>
+                <View style={styles.statusContainer}>
+                   <Text style={[styles.statusText, settings.halalLogo ? styles.statusSuccess : styles.statusMuted]}>
+                     {settings.halalLogo ? '✅ Uploaded' : '❌ Not Uploaded'}
+                   </Text>
+                </View>
                 <View style={styles.toggleRow}>
-                  <Text style={styles.toggleText}>Show on bill</Text>
+                  <Text style={styles.toggleText}>{settings.showHalalLogo ? 'Active on bill' : 'Hidden on bill'}</Text>
                   <Switch 
                     value={settings.showHalalLogo} 
                     onValueChange={(val) => updateSettings({ showHalalLogo: val })}
@@ -397,6 +407,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Theme.bgNav,
     overflow: 'hidden',
+  },
+  logoPickerActive: {
+    borderStyle: 'solid',
+    borderColor: Theme.primaryBorder,
+    backgroundColor: Theme.primaryLight,
+  },
+  statusContainer: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: Theme.bgNav,
+  },
+  statusText: {
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+  },
+  statusSuccess: {
+    color: Theme.success,
+  },
+  statusMuted: {
+    color: Theme.textMuted,
   },
   logoPreview: {
     width: '100%',
