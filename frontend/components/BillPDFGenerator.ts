@@ -351,12 +351,9 @@ private static escapeHtml(str: string): string {
             body * { visibility: hidden; }
             .receipt, .receipt * { visibility: visible; }
             .receipt { 
-              position: absolute; 
-              left: 0; 
-              top: 0; 
-              width: 100% !important; 
-              margin: 0 !important; 
-              padding: 5mm !important; /* ✅ Add small internal padding instead of page margin */
+              margin: 0 auto !important; /* ✅ Centered on the page */
+              width: 72mm !important; 
+              padding: 5mm !important;
             }
           }
           
