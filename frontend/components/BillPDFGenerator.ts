@@ -6,6 +6,7 @@ import { Platform, Alert } from 'react-native';
 import API from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { API_URL } from '@/constants/Config';
 
 interface CompanySettings {
   name: string;
