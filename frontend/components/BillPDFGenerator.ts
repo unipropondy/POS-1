@@ -285,7 +285,7 @@ private static escapeHtml(str: string): string {
                      new Date();
     
     const isReprint = saleData.isReprint === true;
-    const billNo = saleData.invoiceNumber || `INV-${saleDate.getFullYear()}${(saleDate.getMonth()+1).toString().padStart(2,'0')}${saleDate.getDate().toString().padStart(2,'0')}-${Math.floor(1000 + Math.random()*9000)}`;
+    const billNo = saleData.invoiceNumber || saleData.orderId || saleData.id || `ORD-${saleDate.getFullYear()}${(saleDate.getMonth()+1).toString().padStart(2,'0')}${saleDate.getDate().toString().padStart(2,'0')}-${Math.floor(1000 + Math.random()*9000)}`;
     
     const hasGST = company.gstPercentage > 0;
     const gstRate = company.gstPercentage || 9;
