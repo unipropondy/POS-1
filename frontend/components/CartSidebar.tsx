@@ -346,6 +346,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       const sendData = await sendRes.json();
       if (sendData.success && sendData.currentOrderId) {
         useCartStore.getState().setTableOrderId(orderContext.tableId!, sendData.currentOrderId);
+        // Correctly update the active order with the official ID from server
         useActiveOrdersStore.getState().updateOrderId(targetOrderId, sendData.currentOrderId);
         
         updateTableStatus(
@@ -360,7 +361,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         );
       }
       
-      const finalOrderId = (sendData && sendData.currentOrderId) || targetOrderId;
+      const finalOrderId = sendData.currentOrderId || targetOrderId;
       socket.emit("new_order", {
         orderId: finalOrderId,
         context: orderContext,
