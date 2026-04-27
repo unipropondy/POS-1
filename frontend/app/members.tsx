@@ -27,6 +27,8 @@ type MemberType = {
   Name: string;
   Phone: string;
   Email?: string;
+  Address?: string;
+  IsActive?: boolean | number;
   CreditLimit?: number;
   CurrentBalance?: number;
   Balance?: number;
@@ -49,6 +51,8 @@ export default function MembersScreen() {
     name: "",
     phone: "",
     email: "",
+    address: "",
+    isActive: true,
     creditLimit: "1000",
     currentBalance: "0",
     balance: "0",
@@ -77,6 +81,8 @@ export default function MembersScreen() {
       name: "", 
       phone: "", 
       email: "", 
+      address: "",
+      isActive: true,
       creditLimit: "1000", 
       currentBalance: "0", 
       balance: "0" 
@@ -91,6 +97,8 @@ export default function MembersScreen() {
       name: member.Name,
       phone: member.Phone,
       email: member.Email || "",
+      address: member.Address || "",
+      isActive: member.IsActive === true || member.IsActive === 1,
       creditLimit: String(member.CreditLimit ?? 0),
       currentBalance: String(member.CurrentBalance ?? 0),
       balance: String(member.Balance ?? 0),
@@ -117,6 +125,8 @@ export default function MembersScreen() {
           name: formData.name.trim(),
           phone: formData.phone.trim(),
           email: formData.email.trim(),
+          address: formData.address.trim(),
+          isActive: formData.isActive,
           creditLimit: parseFloat(formData.creditLimit) || 0,
           currentBalance: parseFloat(formData.currentBalance) || 0,
           balance: parseFloat(formData.balance) || 0,
@@ -183,8 +193,10 @@ export default function MembersScreen() {
 
         <View style={styles.dataGrid}>
           <View style={styles.dataBox}><Text style={styles.label}>EMAIL</Text><Text style={styles.val} numberOfLines={1}>{item.Email || "—"}</Text></View>
+          <View style={styles.dataBox}><Text style={styles.label}>STATUS</Text><Text style={[styles.val, { color: (item.IsActive === true || item.IsActive === 1) ? Theme.success : Theme.danger }]}>{(item.IsActive === true || item.IsActive === 1) ? "ACTIVE" : "INACTIVE"}</Text></View>
           <View style={styles.dataBox}><Text style={styles.label}>CREDIT LIMIT</Text><Text style={[styles.val, { color: Theme.success }]}>${(item.CreditLimit || 0).toFixed(2)}</Text></View>
           <View style={styles.dataBox}><Text style={styles.label}>CURRENT BAL</Text><Text style={styles.val}>${(item.CurrentBalance || 0).toFixed(2)}</Text></View>
+          <View style={[styles.dataBox, { width: '100%' }]}><Text style={styles.label}>ADDRESS</Text><Text style={styles.val}>{item.Address || "—"}</Text></View>
           <View style={styles.dataBox}><Text style={styles.label}>FINAL BALANCE</Text><Text style={[styles.val, { fontFamily: Fonts.black }]}>${(item.Balance || 0).toFixed(2)}</Text></View>
         </View>
       </View>
@@ -254,6 +266,27 @@ export default function MembersScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>EMAIL</Text>
                   <TextInput style={styles.sheetInput} keyboardType="email-address" value={formData.email} onChangeText={v => setFormData({ ...formData, email: v })} placeholder="Email Address" placeholderTextColor={Theme.textMuted} />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>ADDRESS</Text>
+                  <TextInput style={[styles.sheetInput, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]} multiline value={formData.address} onChangeText={v => setFormData({ ...formData, address: v })} placeholder="Member Address" placeholderTextColor={Theme.textMuted} />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>STATUS</Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity 
+                      style={[styles.statusToggle, formData.isActive && styles.activeToggle]} 
+                      onPress={() => setFormData({ ...formData, isActive: true })}
+                    >
+                      <Text style={[styles.statusText, formData.isActive && styles.activeStatusText]}>Active</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.statusToggle, !formData.isActive && styles.inactiveToggle]} 
+                      onPress={() => setFormData({ ...formData, isActive: false })}
+                    >
+                      <Text style={[styles.statusText, !formData.isActive && styles.inactiveStatusText]}>Inactive</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <View style={styles.inputRow}>
                   <View style={{ flex: 1 }}>
@@ -383,6 +416,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, fontSize: 15, fontFamily: Fonts.bold, borderWidth: 1, borderColor: Theme.border,
     ...Platform.select({ web: { outlineStyle: "none" } as any })
   },
+  statusToggle: { flex: 1, height: 50, borderRadius: 12, backgroundColor: Theme.bgInput, borderWidth: 1, borderColor: Theme.border, justifyContent: 'center', alignItems: 'center' },
+  activeToggle: { backgroundColor: Theme.success + '15', borderColor: Theme.success },
+  inactiveToggle: { backgroundColor: Theme.danger + '15', borderColor: Theme.danger },
+  statusText: { fontFamily: Fonts.bold, color: Theme.textSecondary, fontSize: 14 },
+  activeStatusText: { color: Theme.success },
+  inactiveStatusText: { color: Theme.danger },
   submitBtn: { backgroundColor: Theme.primary, height: 60, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 15, ...Theme.shadowMd },
   submitBtnText: { color: "#fff", fontFamily: Fonts.black, fontSize: 16 },
   alertCard: { width: '100%', maxWidth: 360, backgroundColor: Theme.bgCard, borderRadius: 24, padding: 30, alignItems: 'center', ...Theme.shadowLg, borderWidth: 1, borderColor: Theme.border },

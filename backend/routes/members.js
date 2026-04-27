@@ -16,17 +16,19 @@ router.get("/", async (req, res) => {
 router.post("/add", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { name, phone, email, creditLimit, currentBalance, balance } = req.body;
+    const { name, phone, email, creditLimit, currentBalance, balance, address, isActive } = req.body;
     await pool.request()
       .input("Name", sql.NVarChar, name)
       .input("Phone", sql.NVarChar, phone)
       .input("Email", sql.NVarChar, email)
+      .input("Address", sql.NVarChar, address || null)
+      .input("IsActive", sql.Bit, isActive !== undefined ? isActive : 1)
       .input("CreditLimit", sql.Decimal(18, 2), parseFloat(creditLimit) || 0)
       .input("CurrentBalance", sql.Decimal(18, 2), parseFloat(currentBalance) || 0)
       .input("Balance", sql.Decimal(18, 2), parseFloat(balance) || 0)
       .query(`
-        INSERT INTO MemberMaster (Name, Phone, Email, CreditLimit, CurrentBalance, Balance)
-        VALUES (@Name, @Phone, @Email, @CreditLimit, @CurrentBalance, @Balance)
+        INSERT INTO MemberMaster (Name, Phone, Email, Address, IsActive, CreditLimit, CurrentBalance, Balance)
+        VALUES (@Name, @Phone, @Email, @Address, @IsActive, @CreditLimit, @CurrentBalance, @Balance)
       `);
     res.json({ success: true });
   } catch (err) {
@@ -37,18 +39,20 @@ router.post("/add", async (req, res) => {
 router.post("/update", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { memberId, name, phone, email, creditLimit, currentBalance, balance } = req.body;
+    const { memberId, name, phone, email, creditLimit, currentBalance, balance, address, isActive } = req.body;
     await pool.request()
       .input("Id", sql.UniqueIdentifier, memberId)
       .input("Name", sql.NVarChar, name)
       .input("Phone", sql.NVarChar, phone)
       .input("Email", sql.NVarChar, email)
+      .input("Address", sql.NVarChar, address || null)
+      .input("IsActive", sql.Bit, isActive !== undefined ? isActive : 1)
       .input("CreditLimit", sql.Decimal(18, 2), parseFloat(creditLimit) || 0)
       .input("CurrentBalance", sql.Decimal(18, 2), parseFloat(currentBalance) || 0)
       .input("Balance", sql.Decimal(18, 2), parseFloat(balance) || 0)
       .query(`
         UPDATE MemberMaster SET 
-          Name = @Name, Phone = @Phone, Email = @Email, 
+          Name = @Name, Phone = @Phone, Email = @Email, Address = @Address, IsActive = @IsActive,
           CreditLimit = @CreditLimit, CurrentBalance = @CurrentBalance, Balance = @Balance
         WHERE MemberId = @Id
       `);

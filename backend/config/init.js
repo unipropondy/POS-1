@@ -53,12 +53,25 @@ async function initDB(pool) {
                     [Name] [nvarchar](255) NOT NULL,
                     [Phone] [nvarchar](50) NULL,
                     [Email] [nvarchar](255) NULL,
+                    [Address] [nvarchar](max) NULL,
+                    [IsActive] [bit] DEFAULT 1,
                     [Balance] [decimal](18, 2) DEFAULT 0,
                     [CreditLimit] [decimal](18, 2) DEFAULT 0,
                     [CurrentBalance] [decimal](18, 2) DEFAULT 0,
                     [CreatedOn] [datetime] DEFAULT GETDATE()
                 )
             END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'Address')
+            ALTER TABLE [dbo].[MemberMaster] ADD Address NVARCHAR(MAX) NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'IsActive')
+            ALTER TABLE [dbo].[MemberMaster] ADD IsActive BIT DEFAULT 1;
+
+            -- Handle potential rename to CreatedAt from screenshot
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedAt')
+            AND EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedOn')
+            EXEC sp_rename 'MemberMaster.CreatedOn', 'CreatedAt', 'COLUMN';
         `);
 
     // 3. Table: DailyAttendance
