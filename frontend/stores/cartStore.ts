@@ -172,12 +172,28 @@ export const useCartStore = create<CartState>()(
         const item = currentCart.find((p: CartItem) => p.lineItemId === lineItemId);
         if (!item) return;
 
+        // ✅ If item was already SENT to kitchen, it MUST be voided, not deleted
+        if (item.status === "SENT" || item.status === "READY" || item.status === "SERVED") {
+          console.log("⚠️ Item already sent. Triggering VOID instead of DELETE.");
+          // We call the void endpoint (which we will ensure exists in orders.js)
+          try {
+            await fetch(`${API_URL}/api/orders/update-item-status`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: get().tableOrderIds[tableId],
+                lineItemId: lineItemId,
+                status: "VOIDED"
+              })
+            });
+            await fetchCartFromDB(tableId);
+          } catch (err) {
+            console.error("❌ [CartStore] Void failed:", err);
+          }
+          return;
+        }
+
         try {
-          // If qty > 1, we might need an update-qty route, 
-          // but for simplicity we'll just handle removal for now as per user prompt
-          // or use the save-cart for bulk updates.
-          // The user specifically asked for DELETE FROM CartItems.
-          
           await fetch(`${API_URL}/api/orders/remove-item`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -196,19 +212,23 @@ export const useCartStore = create<CartState>()(
       /* ================= CLEAR ================= */
 
       clearCart: async () => {
-        const { fetchCartFromDB } = get();
+        const { fetchCartFromDB, carts, currentContextId } = get();
         const orderContext = useOrderContextStore.getState().currentOrder;
         const tableId = orderContext?.tableId;
         
-        if (!tableId) return;
+        if (!tableId || !currentContextId) return;
 
         try {
+          // ✅ PROFESSIONAL FLOW: Clear ONLY items that have NOT been sent to kitchen
+          const currentCart = carts[currentContextId] || [];
+          const sentItems = currentCart.filter(i => i.status === "SENT" || i.status === "READY" || i.status === "SERVED" || i.status === "VOIDED");
+          
           await fetch(`${API_URL}/api/orders/save-cart`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tableId,
-              items: []
+              items: sentItems // Keep only sent items
             })
           });
 

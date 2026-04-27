@@ -76,6 +76,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   );
   const addToCartGlobal = useCartStore((state) => state.addToCartGlobal);
   const updateCartItemQty = useCartStore((state) => state.updateCartItemQty);
+  const updateCartItemTakeaway = useCartStore((state) => state.updateCartItemTakeaway);
+  const updateCartItemDiscount = useCartStore((state) => state.updateCartItemDiscount);
   const tableOrderIds = useCartStore((state) => state.tableOrderIds);
 
   const cart = useMemo(() => {
@@ -450,11 +452,12 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 <Text style={[styles.itemName, (isSent || isVoided) && styles.textMuted, isVoided && styles.strikeThrough, isPhone && { fontSize: 13, flex: 1 }]} numberOfLines={1}>
                   {item.name}
                 </Text>
-                {item.isTakeaway && (
-                  <View style={styles.twBadge}>
-                    <Text style={styles.twBadgeText}>TW</Text>
-                  </View>
-                )}
+                <TouchableOpacity 
+                  onPress={(e) => { e.stopPropagation(); updateCartItemTakeaway(item.lineItemId, !item.isTakeaway); }}
+                  style={[styles.twBadge, item.isTakeaway && { backgroundColor: Theme.primary }]}
+                >
+                  <Text style={[styles.twBadgeText, item.isTakeaway && { color: '#FFF' }]}>TW</Text>
+                </TouchableOpacity>
               </View>
 
               <View style={[styles.statusTag, { 
@@ -563,7 +566,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             activeOpacity={0.7}
           >
             <Ionicons name="trash-outline" size={20} color={Theme.danger} />
-            {!isPhone && <Text style={styles.clearBtnText}>Clear Cart</Text>}
+            {!isPhone && <Text style={styles.clearBtnText}>Clear Unsent</Text>}
           </TouchableOpacity>
         )}
       </View>

@@ -50,7 +50,7 @@ export default function KitchenStatusScreen() {
     return activeOrders
       .map((order) => {
         const relevantItems = order.items.filter(
-          (i: any) => i.status === "SENT" || i.status === "READY"
+          (i: any) => i.status === "SENT" || i.status === "READY" || i.status === "VOIDED"
         );
         if (relevantItems.length === 0) return null;
         return { ...order, items: relevantItems };
@@ -66,7 +66,7 @@ export default function KitchenStatusScreen() {
         <View style={styles.itemMain}>
           <View style={styles.itemTitle}>
             <Text style={styles.itemQty}>{item.qty}x</Text>
-            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={[styles.itemName, item.status === "VOIDED" && styles.strikeThrough]}>{item.name}</Text>
             {item.isTakeaway && (
               <View style={styles.takeawayBadge}>
                 <Text style={styles.takeawayBadgeText}>TAKEAWAY</Text>
@@ -253,6 +253,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Fonts.bold,
     color: Theme.textPrimary,
+  },
+  strikeThrough: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
   modifierText: {
     fontSize: 13,

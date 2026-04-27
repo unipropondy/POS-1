@@ -193,11 +193,11 @@ router.post("/send", async (req, res) => {
         .input("orderId", sql.NVarChar(50), currentOrderId)
         .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
       
-      // Also update all NEW cart items with this Order ID and reset timing to NOW
+      // Also update all NEW cart items with this Order ID and set status to SENT
       await pool.request()
         .input("cartId", sql.NVarChar(128), cleanId)
         .input("orderId", sql.NVarChar(50), currentOrderId)
-        .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE() WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING')");
+        .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE(), Status = 'SENT' WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING' OR Status = 'NEW')");
 
       const updated = await syncTableStatus(req, tableId);
       return res.json({ success: true, currentOrderId, ...updated });
@@ -291,19 +291,23 @@ router.post("/save-cart", async (req, res) => {
     await transaction.begin();
 
     try {
-      // 1. Always Clear old cart for this table first
+      // 1. PROFESSIONAL FLOW: Clear ONLY NEW (unsent) items for this table
+      // This preserves items already in the kitchen (SENT, READY, etc.)
       await transaction.request()
         .input("cartId", sql.NVarChar(sql.MAX), cleanTableId)
-        .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId");
+        .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @cartId AND (Status = 'NEW' OR Status IS NULL)");
 
       const io = req.app.get("io");
 
-      // 2. If we have items, insert them and set table to DINING (1)
+      // 2. If we have items, insert only the ones that are NOT in the DB already (or refresh NEW ones)
       if (items && items.length > 0) {
         for (const item of items) {
+          // If the item is already SENT/READY, we don't re-insert it (it was preserved by Step 1)
+          if (item.status && item.status !== "NEW") continue;
+
           const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
           const cleanOrderNo = String(orderId || "PENDING").replace(/^\{|\}$/g, "").trim();
-          const newItemId = require("crypto").randomUUID();
+          const newItemId = item.lineItemId || require("crypto").randomUUID();
           
           await transaction.request()
             .input("itemId", sql.NVarChar(128), newItemId)
@@ -314,20 +318,22 @@ router.post("/save-cart", async (req, res) => {
             .input("cost", sql.Decimal(18, 2), item.price || 0)
             .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
             .input("isVoided", sql.Bit, item.isVoided ? 1 : 0)
+            .input("discountAmount", sql.Decimal(18, 2), item.discount || 0)
+            .input("discountType", sql.NVarChar(20), "fixed") // Default to fixed
             .input("note", sql.NVarChar(sql.MAX), item.note || "")
             .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
             .input("spicy", sql.NVarChar(50), item.spicy || "")
             .input("salt", sql.NVarChar(50), item.salt || "")
             .input("oil", sql.NVarChar(50), item.oil || "")
             .input("sugar", sql.NVarChar(50), item.sugar || "")
-            .input("status", sql.NVarChar(20), item.status || "NEW")
+            .input("status", sql.NVarChar(20), "NEW")
             .query(`
               INSERT INTO [dbo].[CartItems] 
               (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
-               IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status)
+               IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status, DiscountAmount, DiscountType)
               VALUES 
               (@itemId, @cartId, @productId, @qty, @cost, @orderNo, @qty, GETDATE(), 
-               @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status)
+               @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status, @discountAmount, @discountType)
             `);
         }
 

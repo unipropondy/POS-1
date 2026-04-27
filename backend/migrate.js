@@ -6,21 +6,27 @@ async function runMigration() {
         console.log("🚀 Starting Database Migration...");
         const pool = await poolPromise;
         
-        // Check if PrinterIP column exists
-        const checkColumn = await pool.request().query(`
-            IF NOT EXISTS (
-                SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
-                WHERE TABLE_NAME = 'CompanySettings' AND COLUMN_NAME = 'PrinterIP'
-            )
-            BEGIN
+        // Add Professional Cart Columns
+        await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'CartItems' AND COLUMN_NAME = 'IsVoided')
+                ALTER TABLE CartItems ADD IsVoided BIT DEFAULT 0;
+            
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'CartItems' AND COLUMN_NAME = 'VoidReason')
+                ALTER TABLE CartItems ADD VoidReason NVARCHAR(MAX) NULL;
+
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'CartItems' AND COLUMN_NAME = 'DiscountAmount')
+                ALTER TABLE CartItems ADD DiscountAmount DECIMAL(18,2) DEFAULT 0;
+
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'CartItems' AND COLUMN_NAME = 'DiscountType')
+                ALTER TABLE CartItems ADD DiscountType NVARCHAR(20) DEFAULT 'fixed';
+
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'CartItems' AND COLUMN_NAME = 'IsTakeaway')
+                ALTER TABLE CartItems ADD IsTakeaway BIT DEFAULT 0;
+
+            IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'CompanySettings' AND COLUMN_NAME = 'PrinterIP')
                 ALTER TABLE CompanySettings ADD PrinterIP NVARCHAR(50) NULL;
-                PRINT '✅ Added PrinterIP column';
-            END
-            ELSE
-            BEGIN
-                PRINT 'ℹ️ PrinterIP column already exists';
-            END
         `);
+        console.log("✅ Added/Verified Professional Cart Columns");
         
         console.log("✅ Migration completed successfully!");
         process.exit(0);
