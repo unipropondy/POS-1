@@ -452,12 +452,14 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 <Text style={[styles.itemName, (isSent || isVoided) && styles.textMuted, isVoided && styles.strikeThrough, isPhone && { fontSize: 13, flex: 1 }]} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <TouchableOpacity 
-                  onPress={(e) => { e.stopPropagation(); updateCartItemTakeaway(item.lineItemId, !item.isTakeaway); }}
-                  style={[styles.twBadge, item.isTakeaway && { backgroundColor: Theme.primary }]}
-                >
-                  <Text style={[styles.twBadgeText, item.isTakeaway && { color: '#FFF' }]}>TW</Text>
-                </TouchableOpacity>
+                {item.isTakeaway && (
+                  <TouchableOpacity 
+                    onPress={(e) => { e.stopPropagation(); updateCartItemTakeaway(item.lineItemId, !item.isTakeaway); }}
+                    style={[styles.twBadge, { backgroundColor: Theme.primary }]}
+                  >
+                    <Text style={[styles.twBadgeText, { color: '#FFF' }]}>TW</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={[styles.statusTag, { 
@@ -1122,18 +1124,19 @@ const styles = StyleSheet.create({
   },
   modalBtnTextConfirm: { color: "#fff", fontFamily: Fonts.black },
   twBadge: {
-    backgroundColor: Theme.danger + "15",
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
     borderWidth: 1,
-    borderColor: Theme.danger + "30",
+    borderColor: 'transparent',
+    minWidth: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   twBadgeText: {
     fontSize: 10,
     fontFamily: Fonts.black,
-    color: Theme.danger,
   },
   strikeThrough: {
     textDecorationLine: "line-through",
