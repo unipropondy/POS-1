@@ -20,10 +20,10 @@ import {
   View,
 } from "react-native";
 
-import { Fonts } from "../constants/Fonts";
-import { Theme } from "../constants/theme";
-import { API_URL } from "../constants/Config";
-import { useAuthStore } from "../stores/authStore";
+import { Fonts } from "@/constants/Fonts";
+import { Theme } from "@/constants/theme";
+import { API_URL } from "@/constants/Config";
+import { useAuthStore } from "@/stores/authStore";
 
 /* ============ ROLE CONFIG ============ */
 

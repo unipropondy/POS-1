@@ -20,7 +20,7 @@ import { ToastProvider } from "../components/Toast";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
-import { useAuthStore } from "../stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useRouter, useSegments, Slot } from "expo-router";
 
 // Keep the splash screen visible while fonts load
@@ -58,7 +58,7 @@ export default function RootLayout() {
       } else {
         router.replace("/(tabs)/category");
       }
-    } else if (!user && segments.length === 0) {
+    } else if (!user && !segments[0]) {
       // Start at login if entering the app for the first time
       router.replace("/login");
     }

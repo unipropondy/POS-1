@@ -18,24 +18,24 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { API_URL } from "../../constants/Config";
-import { Fonts } from "../../constants/Fonts";
-import { Theme } from "../../constants/theme";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { API_URL } from "@/constants/Config";
+import { Fonts } from "@/constants/Fonts";
+import { Theme } from "@/constants/theme";
 
-import StoreSettingsModal from "../../components/payment/StoreSettingsModal";
-import { useActiveOrdersStore } from "../../stores/activeOrdersStore";
-import { useAuthStore } from "../../stores/authStore";
+import StoreSettingsModal from "@/components/payment/StoreSettingsModal";
+import { useActiveOrdersStore } from "@/stores/activeOrdersStore";
+import { useAuthStore } from "@/stores/authStore";
 import {
   fetchCartFromDBGlobal,
   getContextId,
   setCartItemsGlobal,
   setCurrentContext,
   useCartStore,
-} from "../../stores/cartStore";
-import { getHeldOrders } from "../../stores/heldOrdersStore";
-import { OrderContext, setOrderContext } from "../../stores/orderContextStore";
-import { usePaymentSettingsStore } from "../../stores/paymentSettingsStore";
+} from "@/stores/cartStore";
+import { getHeldOrders } from "@/stores/heldOrdersStore";
+import { OrderContext, setOrderContext } from "@/stores/orderContextStore";
+import { usePaymentSettingsStore } from "@/stores/paymentSettingsStore";
 import {
   TableStatusType,
   useTableStatusStore,
