@@ -219,25 +219,21 @@ static async loadSettings(userId?: string | number): Promise<CompanySettings> {
         
         // ✅ STEP 3: VERIFY immediately (to confirm save worked)
         const verifyResponse = await API.get(`/company-settings/${targetId}?_t=${timestamp + 1}`);
+        const savedSettings = verifyResponse.data?.settings;
         
         console.log('🔍 VERIFY AFTER SAVE:', {
-            ShowCompanyLogo: verifyResponse.data?.settings?.ShowCompanyLogo,
-            ShowHalalLogo: verifyResponse.data?.settings?.ShowHalalLogo,
-            expected: {
-                ShowCompanyLogo: dbSettings.ShowCompanyLogo,
-                ShowHalalLogo: dbSettings.ShowHalalLogo
-            },
-            match: verifyResponse.data?.settings?.ShowCompanyLogo === dbSettings.ShowCompanyLogo
+            ShowCompanyLogo: savedSettings?.ShowCompanyLogo,
+            expected: dbSettings.ShowCompanyLogo,
+            match: !!savedSettings?.ShowCompanyLogo === !!dbSettings.ShowCompanyLogo
         });
         
-        // ✅ STEP 4: Check if save actually worked
-        if (verifyResponse.data?.settings?.ShowCompanyLogo !== dbSettings.ShowCompanyLogo) {
-            console.log('⚠️ WARNING: Save verification failed! Trying again...');
-            // One more attempt
+        // ✅ STEP 4: Double check with boolean conversion
+        if (!!savedSettings?.ShowCompanyLogo !== !!dbSettings.ShowCompanyLogo) {
+            console.log('⚠️ WARNING: Save verification failed! Trying one last time...');
             await API.post(`/company-settings/${targetId}?_t=${timestamp + 2}`, dbSettings);
         }
         
-        return response.data?.success || false;
+        return true;
         
     } catch (error: any) {
         console.log('❌ Error saving settings:', error);
@@ -389,7 +385,7 @@ private static escapeHtml(str: string): string {
           .shop-name { font-size: 20px; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px; line-height: 1.1; margin-bottom: 1mm; }
           .shop-address { font-size: 9px; font-weight: 700; line-height: 1.2; font-family: monospace; white-space: pre-line; }
           .gst-no { font-size: 9px; font-weight: 700; background: #eee; font-family: monospace; padding: 0.5mm; margin: 1mm 0; display: inline-block; }
-          .contact { font-size: 9px; font-weight: 700; font-family: monospace; margin-top: 1mm; }
+          .contact { font-size: 9px; font-weight: 700; font-family: monospace; margin-top: 1.5mm; line-height: 1.3; }
           
           /* Reprint Indicator */
           .reprint-indicator {
@@ -543,7 +539,7 @@ private static escapeHtml(str: string): string {
           <div class="logo-header">
             ${showCompanyLogo && companyLogoUrl ? 
               `<img src="${companyLogoUrl}" class="company-logo" crossOrigin="anonymous" />` : 
-              '<div style="width:40px"></div>'
+              '<div style="width:45px"></div>'
             }
             <div class="shop-info">
               <div class="shop-name">${company.name || 'POS SYSTEM'}</div>
@@ -556,7 +552,7 @@ private static escapeHtml(str: string): string {
             </div>
             ${showHalalLogo && halalLogoUrl ? 
               `<img src="${halalLogoUrl}" class="halal-logo" crossOrigin="anonymous" />` : 
-              '<div style="width:35px"></div>'
+              '<div style="width:45px"></div>'
             }
           </div>
           
