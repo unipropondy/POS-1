@@ -82,18 +82,16 @@ export default function CompanySettingsScreen() {
       base64: true,
     });
 
-    if (!result.canceled && result.assets[0].uri) {
+    if (!result.canceled && result.assets[0]) {
       setSaving(true);
       try {
-        // Use the base64 from asset if available (ImagePicker supports it)
         let base64Data = result.assets[0].base64;
         
-        // If not available, we could fetch it, but ImagePicker quality 0.7 + base64: true is best
-        if (!base64Data) {
-          // Fallback if needed, but we'll enable it in the picker options
-        }
+        // ✅ SMART MIME-TYPE DETECTION: Ensure PNG/JPEG accuracy for PDF engine
+        let finalMime = result.assets[0].mimeType || 'image/jpeg';
+        if (base64Data?.startsWith('iVBOR')) finalMime = 'image/png';
 
-        const dataUri = `data:image/jpeg;base64,${base64Data}`;
+        const dataUri = `data:${finalMime};base64,${base64Data}`;
         updateSettings({
           [type === 'company' ? 'companyLogo' : 'halalLogo']: dataUri
         });
@@ -103,6 +101,23 @@ export default function CompanySettingsScreen() {
       } finally {
         setSaving(false);
       }
+    }
+  };
+
+  const removeLogo = async (type: 'company' | 'halal') => {
+    const field = type === 'company' ? 'companyLogo' : 'halalLogo';
+    const updated = { ...settings, [field]: '' };
+    updateSettings({ [field]: '' });
+    
+    setSaving(true);
+    try {
+      // Sync with DB immediately
+      await BillPDFGenerator.saveSettings(updated, userId);
+      showToast({ type: 'info', message: 'Logo removed successfully' });
+    } catch (err) {
+      showToast({ type: 'error', message: 'Failed to remove logo' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -153,16 +168,26 @@ export default function CompanySettingsScreen() {
             <View style={styles.logoGrid}>
               <View style={styles.logoItem}>
                 <Text style={styles.logoLabel}>Company Logo</Text>
-                <TouchableOpacity 
-                  style={[styles.logoPicker, settings.companyLogo ? styles.logoPickerActive : null]} 
-                  onPress={() => pickImage('company')}
-                >
-                  {settings.companyLogo ? (
-                    <Image source={{ uri: getLogoUri(settings.companyLogo) }} style={styles.logoPreview} />
-                  ) : (
-                    <Ionicons name="cloud-upload-outline" size={30} color={Theme.textMuted} />
+                <View style={styles.logoPickerContainer}>
+                  <TouchableOpacity 
+                    style={[styles.logoPicker, settings.companyLogo ? styles.logoPickerActive : null]} 
+                    onPress={() => pickImage('company')}
+                  >
+                    {settings.companyLogo ? (
+                      <Image source={{ uri: getLogoUri(settings.companyLogo) }} style={styles.logoPreview} />
+                    ) : (
+                      <Ionicons name="cloud-upload-outline" size={30} color={Theme.textMuted} />
+                    )}
+                  </TouchableOpacity>
+                  {settings.companyLogo && (
+                    <TouchableOpacity 
+                      style={styles.removeIconBtn} 
+                      onPress={() => removeLogo('company')}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#fff" />
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </View>
                 <View style={styles.statusContainer}>
                    <Text style={[styles.statusText, settings.companyLogo ? styles.statusSuccess : styles.statusMuted]}>
                      {settings.companyLogo ? '✅ Uploaded' : '❌ Not Uploaded'}
@@ -180,16 +205,26 @@ export default function CompanySettingsScreen() {
 
               <View style={styles.logoItem}>
                 <Text style={styles.logoLabel}>Halal Logo</Text>
-                <TouchableOpacity 
-                  style={[styles.logoPicker, settings.halalLogo ? styles.logoPickerActive : null]} 
-                  onPress={() => pickImage('halal')}
-                >
-                  {settings.halalLogo ? (
-                    <Image source={{ uri: getLogoUri(settings.halalLogo) }} style={styles.logoPreview} />
-                  ) : (
-                    <Ionicons name="ribbon-outline" size={30} color={Theme.textMuted} />
+                <View style={styles.logoPickerContainer}>
+                  <TouchableOpacity 
+                    style={[styles.logoPicker, settings.halalLogo ? styles.logoPickerActive : null]} 
+                    onPress={() => pickImage('halal')}
+                  >
+                    {settings.halalLogo ? (
+                      <Image source={{ uri: getLogoUri(settings.halalLogo) }} style={styles.logoPreview} />
+                    ) : (
+                      <Ionicons name="ribbon-outline" size={30} color={Theme.textMuted} />
+                    )}
+                  </TouchableOpacity>
+                  {settings.halalLogo && (
+                    <TouchableOpacity 
+                      style={styles.removeIconBtn} 
+                      onPress={() => removeLogo('halal')}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#fff" />
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </View>
                 <View style={styles.statusContainer}>
                    <Text style={[styles.statusText, settings.halalLogo ? styles.statusSuccess : styles.statusMuted]}>
                      {settings.halalLogo ? '✅ Uploaded' : '❌ Not Uploaded'}
@@ -427,6 +462,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Theme.bgNav,
     overflow: 'hidden',
+  },
+  logoPickerContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+  },
+  removeIconBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: Theme.danger,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Theme.shadowSm,
+    zIndex: 10,
   },
   logoPickerActive: {
     borderStyle: 'solid',
