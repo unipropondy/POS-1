@@ -112,7 +112,7 @@ export default function CompanySettingsScreen() {
   };
 
   const getLogoUri = (logo: string) => {
-    if (!logo) return null;
+    if (!logo) return undefined;
     if (logo.startsWith('http')) return logo;
     return `${API_URL}${logo.startsWith('/') ? '' : '/'}${logo}`;
   };
