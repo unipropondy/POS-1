@@ -68,6 +68,15 @@ async function initDB(pool) {
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'IsActive')
             ALTER TABLE [dbo].[MemberMaster] ADD IsActive BIT DEFAULT 1;
 
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'Balance')
+            ALTER TABLE [dbo].[MemberMaster] ADD Balance DECIMAL(18, 2) DEFAULT 0;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreditLimit')
+            ALTER TABLE [dbo].[MemberMaster] ADD CreditLimit DECIMAL(18, 2) DEFAULT 0;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CurrentBalance')
+            ALTER TABLE [dbo].[MemberMaster] ADD CurrentBalance DECIMAL(18, 2) DEFAULT 0;
+
             -- Handle potential rename to CreatedAt from screenshot
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedAt')
             AND EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedOn')

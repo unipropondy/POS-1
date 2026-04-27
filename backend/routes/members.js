@@ -9,6 +9,7 @@ router.get("/", async (req, res) => {
     const result = await pool.request().query("SELECT * FROM MemberMaster ORDER BY Name");
     res.json(result.recordset);
   } catch (err) {
+    console.error("[MEMBERS GET ERROR]", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -32,6 +33,7 @@ router.post("/add", async (req, res) => {
       `);
     res.json({ success: true });
   } catch (err) {
+    console.error("[MEMBERS ADD ERROR]", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -58,6 +60,7 @@ router.post("/update", async (req, res) => {
       `);
     res.json({ success: true });
   } catch (err) {
+    console.error("[MEMBERS UPDATE ERROR]", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -82,6 +85,7 @@ router.post("/delete", async (req, res) => {
     await transaction.commit();
     res.json({ success: true });
   } catch (err) {
+    console.error("[MEMBERS DELETE ERROR]", err);
     if (transaction) await transaction.rollback();
     res.status(500).json({ error: err.message });
   }
