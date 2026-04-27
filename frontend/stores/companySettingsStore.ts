@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../constants/Config";
+import API from "../api";
 
 interface CompanySettings {
   name: string;
@@ -54,34 +55,31 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
         if (!userId) return;
         set({ loading: true });
         try {
-          const response = await fetch(`${API_URL}/api/company-settings/${userId}`);
-          const data = await response.json();
+          const response = await API.get(`/company-settings/${userId}`);
+          const data = response.data;
           
-          if (data) {
-            const formatUrl = (url: string) => {
-                if (!url) return '';
-                if (url.startsWith('http')) return url;
-                return url; // Keep relative path in store
-            };
-
+          if (data && data.success && data.settings) {
+            const s = data.settings;
+            
             set({
               settings: {
-                name: data.CompanyName || "",
-                address: data.Address || "",
-                gstNo: data.GSTNo || "",
-                gstPercentage: parseFloat(data.GSTPercentage) || 0,
-                phone: data.Phone || "",
-                email: data.Email || "",
-                cashierName: data.CashierName || "",
-                currency: data.Currency || "SGD",
-                currencySymbol: data.CurrencySymbol || "$",
-                companyLogo: formatUrl(data.CompanyLogoUrl),
-                halalLogo: formatUrl(data.HalalLogoUrl),
-                printerIp: data.PrinterIP || "", // ✅ ADDED
-                showCompanyLogo: data.ShowCompanyLogo !== false,
-                showHalalLogo: data.ShowHalalLogo !== false,
+                name: s.CompanyName || "",
+                address: s.Address || "",
+                gstNo: s.GSTNo || "",
+                gstPercentage: parseFloat(s.GSTPercentage) || 0,
+                phone: s.Phone || "",
+                email: s.Email || "",
+                cashierName: s.CashierName || "",
+                currency: s.Currency || "SGD",
+                currencySymbol: s.CurrencySymbol || "$",
+                companyLogo: s.CompanyLogoUrl || "",
+                halalLogo: s.HalalLogoUrl || "",
+                printerIp: s.PrinterIP || "",
+                showCompanyLogo: s.ShowCompanyLogo !== false && s.ShowCompanyLogo !== 0,
+                showHalalLogo: s.ShowHalalLogo !== false && s.ShowHalalLogo !== 0,
               },
             });
+            console.log("✅ [CompanySettingsStore] Settings loaded");
           }
         } catch (error) {
           console.error("❌ [CompanySettingsStore] Fetch Error:", error);
