@@ -289,10 +289,25 @@ private static async printThermalReceipt(
   // ==================== PDF FALLBACK WITH DISCOUNT ====================
   static async offerPDFFallback(saleData: any, userId?: string | number, t?: any, discountInfo?: DiscountInfo): Promise<boolean> {
     if (Platform.OS === 'web') {
-      // ✅ WEB: Directly open browser print preview for best experience
+      // ✅ WEB: Use a more reliable method to print ONLY the HTML content
       try {
         const html = await BillPDFGenerator.generateHTML(saleData, userId, discountInfo);
-        await Print.printAsync({ html });
+        
+        // Create a hidden iframe or new window to isolate the print
+        const printWindow = window.open('', '_blank', 'width=600,height=800');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          
+          // Wait for images to load before printing
+          printWindow.onload = () => {
+            printWindow.print();
+            printWindow.close();
+          };
+        } else {
+          // Fallback if popup blocked
+          await Print.printAsync({ html });
+        }
         return true;
       } catch (err) {
         console.error('Web print error:', err);
