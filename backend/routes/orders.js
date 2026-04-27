@@ -15,8 +15,8 @@ async function getOrGenerateOrderId(req, tableId) {
   // 1. Check if table already has an ID (Only for Dine-In)
   if (tableId && tableId !== "undefined" && tableId !== "null") {
     const tableCheck = await pool.request()
-      .input("tid", sql.NVarChar(128), `%${cleanId}%`)
-      .query("SELECT CurrentOrderId FROM TableMaster WHERE UPPER(CAST(TableId AS NVARCHAR(128))) LIKE @tid");
+      .input("tid", sql.NVarChar(128), cleanId)
+      .query("SELECT CurrentOrderId FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tid");
 
     if (tableCheck.recordset[0]?.CurrentOrderId) {
       return tableCheck.recordset[0].CurrentOrderId;
