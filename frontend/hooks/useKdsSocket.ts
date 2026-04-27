@@ -21,9 +21,10 @@ export function useKdsSocket() {
       orderId: string;
       context: any;
       items: any[];
+      createdAt?: number; // ✅ Receive timestamp
     }) => {
       console.log("📦 [KDS] New order received via socket:", payload.orderId);
-      appendOrder(payload.orderId, payload.context, payload.items);
+      appendOrder(payload.orderId, payload.context, payload.items, payload.createdAt);
     };
 
     const handleStatusUpdate = (payload: {

@@ -27,6 +27,25 @@ export default function KitchenStatusScreen() {
     useActiveOrdersStore.getState().fetchActiveKitchenOrders();
   }, []);
 
+  const [now, setNow] = React.useState(Date.now());
+
+  React.useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatElapsedTime = (createdAt: any) => {
+    if (!createdAt) return "0s ago";
+    const start = typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime();
+    const seconds = Math.floor((now - start) / 1000);
+    
+    if (seconds < 0) return "0s ago"; // Handle slight clock drifts
+    if (seconds < 60) return `${seconds}s ago`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s ago`;
+  };
+
   const groupedOrders = useMemo(() => {
     return activeOrders
       .map((order) => {
@@ -98,6 +117,7 @@ export default function KitchenStatusScreen() {
                 : `Takeaway #${item.context.takeawayNo}`}
             </Text>
             <Text style={styles.orderId}>Order #{item.orderId}</Text>
+            <Text style={styles.orderTime}>{formatElapsedTime(item.createdAt)}</Text>
           </View>
           <View style={styles.orderStats}>
             <Text style={styles.statsText}>{readyCount}/{totalCount} Ready</Text>
@@ -192,6 +212,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts.bold,
     color: Theme.textMuted,
+  },
+  orderTime: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: Theme.primary,
+    marginTop: 2,
   },
   orderStats: {
     backgroundColor: Theme.primary + "15",

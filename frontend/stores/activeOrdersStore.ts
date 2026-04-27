@@ -32,6 +32,7 @@ type ActiveOrdersState = {
     orderId: string,
     context: OrderContext,
     cartItems: CartItem[],
+    createdAt?: number,
   ) => void;
 
   markItemsSent: (orderId: string) => void;
@@ -57,7 +58,7 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
 
   /* ================= APPEND ORDER ================= */
 
-  appendOrder: (orderId, context, cartItems) => {
+  appendOrder: (orderId, context, cartItems, createdAt) => {
     const { activeOrders } = get();
 
     const contextId = getContextId(context);
@@ -95,7 +96,7 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
           status: "NEW",
         })),
         discount: discount || undefined, // 🔥 ADD HERE
-        createdAt: Date.now(),
+        createdAt: createdAt || Date.now(),
       };
 
       set({ activeOrders: [...activeOrders, newOrder] });

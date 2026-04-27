@@ -503,7 +503,8 @@ export default function CartScreen() {
               socket.emit("new_order", {
                 orderId: officialId,
                 context,
-                items: cart
+                items: cart,
+                createdAt: Date.now(), // ✅ Add timestamp for synchronized KDS clock
               });
 
               showToast({

@@ -383,6 +383,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               orderId: officialOrderId,
               context: orderContext,
               items: unsentItems,
+              createdAt: Date.now(), // ✅ Add timestamp for synchronized KDS clock
             });
 
             showToast({
