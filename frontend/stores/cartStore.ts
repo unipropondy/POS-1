@@ -49,6 +49,7 @@ type CartState = {
   tableOrderIds: Record<string, string | null>;
 
   currentContextId: string | null;
+  pendingSync: boolean; // Item 4: Resilience
 
   setCurrentContext: (contextId: string | null) => void;
 
@@ -95,8 +96,8 @@ export const useCartStore = create<CartState>()(
       carts: {},
       discounts: {},
       tableOrderIds: {},
-
       currentContextId: null,
+      pendingSync: false,
 
       setCurrentContext: (contextId) => set({ currentContextId: contextId }),
 
@@ -412,11 +413,11 @@ export const useCartStore = create<CartState>()(
 
         if (!tableId) return;
 
-        // ✅ PROFESSIONAL DEBOUNCE: Prevents flooding the server
+        set({ pendingSync: true });
         if ((get() as any)._syncTimeout) clearTimeout((get() as any)._syncTimeout);
         const timeout = setTimeout(async () => {
           try {
-            await fetch(`${API_URL}/api/orders/save-cart`, {
+            const res = await fetch(`${API_URL}/api/orders/save-cart`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -427,10 +428,16 @@ export const useCartStore = create<CartState>()(
                 }))
               })
             });
+            if (res.ok) {
+              set({ pendingSync: false });
+            } else {
+              throw new Error("Sync failed");
+            }
           } catch (err) {
-            console.error("❌ [CartStore] Debounced Save failed:", err);
+            console.error("❌ [CartStore] Sync failed (Will retry on next change):", err);
+            // We keep pendingSync true so UI can show a warning
           }
-        }, 600); // 600ms debounce
+        }, 800); // Increased debounce for stability
         set({ _syncTimeout: timeout } as any);
       },
 

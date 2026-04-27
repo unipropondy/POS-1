@@ -15,6 +15,7 @@ import {
   UIManager,
   useWindowDimensions,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { API_URL } from "../constants/Config";
 import { Fonts } from "../constants/Fonts";
@@ -32,6 +33,7 @@ import {
 import { holdOrder } from "../stores/heldOrdersStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
+import { useCompanySettingsStore } from "../stores/companySettingsStore";
 
 if (
   Platform.OS === "android" &&
@@ -66,6 +68,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   const [itemToEdit, setItemToEdit] = useState<CartItem | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [itemToVoid, setItemToVoid] = useState<any | null>(null);
+  const [voidQty, setVoidQty] = useState("1");
   const [cancelPassword, setCancelPassword] = useState("");
 
   const orderContext = useOrderContextStore((state) => state.currentOrder);
@@ -79,6 +82,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   const updateCartItemTakeaway = useCartStore((state) => state.updateCartItemTakeaway);
   const updateCartItemDiscount = useCartStore((state) => state.updateCartItemDiscount);
   const tableOrderIds = useCartStore((state) => state.tableOrderIds);
+  const pendingSync = useCartStore((state) => state.pendingSync);
+
+  const settings = useCompanySettingsStore((state) => state.settings);
+  const currencySymbol = settings.currencySymbol || "$";
+  const gstRate = (settings.gstPercentage || 0) / 100;
 
   const cart = useMemo(() => {
     return (currentContextId && carts[currentContextId]) || [];
@@ -221,8 +229,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     }, 0);
   }, [displayItems]);
 
-  const taxRate = 0; // Tax removed
-  const taxAmount = subtotal * taxRate;
+  const taxAmount = subtotal * gstRate;
   const payableAmount = subtotal + taxAmount;
 
   const handleClearCart = () => {
@@ -569,6 +576,12 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             {!isPhone && <Text style={styles.clearBtnText}>Clear Unsent</Text>}
           </TouchableOpacity>
         )}
+        {pendingSync && (
+          <View style={styles.syncBadge}>
+            <ActivityIndicator size="small" color={Theme.primary} />
+            <Text style={styles.syncText}>Syncing...</Text>
+          </View>
+        )}
       </View>
 
       {/* ITEMS LIST */}
@@ -590,33 +603,48 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         <View
           style={[styles.footer, isPhone && isLandscape && { paddingTop: 8 }]}
         >
-          <View
-            style={[
-              styles.summary,
-              isPhone && isLandscape && { marginBottom: 8 },
-            ]}
-          >
-            <View style={styles.summaryRow}>
-              <Text
-                style={[
-                  styles.payableLabel,
-                  isPhone && isLandscape && { fontSize: 13 },
-                ]}
-              >
-                Subtotal
-              </Text>
-              <Text
-                style={[
-                  styles.payableValue,
-                  isPhone && isLandscape && { fontSize: 14 },
-                ]}
-              >
-                ${subtotal.toFixed(2)}
-              </Text>
+          <>
+            <View
+              style={[
+                styles.summary,
+                isPhone && isLandscape && { marginBottom: 8 },
+              ]}
+            >
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryValue}>
+                  {currencySymbol}{subtotal.toFixed(2)}
+                </Text>
+              </View>
+              {taxAmount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>GST ({settings.gstPercentage}%)</Text>
+                  <Text style={styles.summaryValue}>
+                    {currencySymbol}{taxAmount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[
+                    styles.payableLabel,
+                    isPhone && isLandscape && { fontSize: 13 },
+                  ]}
+                >
+                  Payable
+                </Text>
+                <Text
+                  style={[
+                    styles.payableValue,
+                    isPhone && isLandscape && { fontSize: 14 },
+                  ]}
+                >
+                  {currencySymbol}{payableAmount.toFixed(2)}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.actions}>
+            <View style={styles.actions}>
             {unsentCount > 0 ? (
               <>
                 <TouchableOpacity
@@ -704,7 +732,8 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               </TouchableOpacity>
             ) : null}
           </View>
-        </View>
+        </>
+      </View>
       )}
 
       {/* CANCEL PASSWORD MODAL */}
@@ -712,14 +741,28 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         <Modal transparent visible={showCancelModal} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Cancel Order?</Text>
+              <Text style={styles.modalTitle}>Void Item</Text>
+              
+              {itemToVoid && itemToVoid.qty > 1 && (
+                <View style={styles.voidQtyWrap}>
+                  <Text style={styles.voidQtyLabel}>Quantity to Void (max {itemToVoid.qty}):</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    keyboardType="numeric"
+                    value={voidQty}
+                    onChangeText={setVoidQty}
+                  />
+                </View>
+              )}
+
+              <Text style={styles.voidQtyLabel}>Admin Password:</Text>
               <TextInput
                 style={styles.modalInput}
                 secureTextEntry
                 autoFocus
                 value={cancelPassword}
                 onChangeText={setCancelPassword}
-                placeholder="Admin Password"
+                placeholder="Password"
               />
               <View style={styles.modalActions}>
                 <TouchableOpacity
@@ -749,8 +792,12 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ 
                                 tableId: orderContext.tableId, 
-                                itemId: itemToVoid.lineItemId 
+                                itemId: itemToVoid.lineItemId,
+                                qtyToVoid: parseInt(voidQty) || itemToVoid.qty
                               }),
+                            }).then(() => {
+                                // 2. REFRESH CART from DB to see the split/voided state correctly
+                                useCartStore.getState().fetchCartFromDB(orderContext.tableId!);
                             }).catch(err => console.error("Void sync error:", err));
 
                             // 2. Update local store
@@ -958,10 +1005,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sentQtyText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: Fonts.black,
     color: Theme.textSecondary,
-    textTransform: "uppercase",
   },
   qtyControlSmall: {
     flexDirection: "row",
@@ -1158,12 +1204,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 12,
   },
-  sentLabel: {
-    backgroundColor: Theme.bgMuted,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
   discountBadge: {
     backgroundColor: "#22C55E15",
     paddingHorizontal: 5,
@@ -1183,5 +1223,31 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     marginTop: 2,
     opacity: 0.8,
+  },
+  sentLabel: {
+    backgroundColor: Theme.bgMuted,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 10,
+  },
+  syncText: {
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    color: Theme.primary,
+  },
+  voidQtyWrap: {
+    marginBottom: 10,
+  },
+  voidQtyLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+    marginBottom: 4,
   },
 });
