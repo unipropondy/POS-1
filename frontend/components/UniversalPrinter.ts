@@ -357,9 +357,14 @@ private static async printThermalReceipt(
   // ==================== PDF FALLBACK WITH DISCOUNT ====================
   static async offerPDFFallback(saleData: any, userId?: string | number, t?: any, discountInfo?: DiscountInfo): Promise<boolean> {
     if (Platform.OS === 'web') {
-      // ✅ WEB: Fail-proof Iframe printing (ignores popup blockers)
+      // ✅ WEB: Fail-proof Iframe printing
       try {
         const html = await BillPDFGenerator.generateHTML(saleData, userId, discountInfo);
+        const invoiceName = `Invoice_${saleData.invoiceNumber || saleData.id}`;
+        
+        // ✅ CRITICAL: Temporarily change main document title for the browser's Save dialog
+        const originalTitle = document.title;
+        document.title = invoiceName;
         
         let frame = document.getElementById('print-iframe') as HTMLIFrameElement;
         if (!frame) {
@@ -379,12 +384,15 @@ private static async printThermalReceipt(
           frame.contentWindow?.addEventListener('load', () => {
             frame.contentWindow?.focus();
             frame.contentWindow?.print();
+            // Restore title after print dialog closes
+            setTimeout(() => { document.title = originalTitle; }, 1000);
           });
           
           // Fallback if load event doesn't fire
           setTimeout(() => {
             frame.contentWindow?.focus();
             frame.contentWindow?.print();
+            setTimeout(() => { document.title = originalTitle; }, 1000);
           }, 1000);
         }
         return true;
