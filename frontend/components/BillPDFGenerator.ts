@@ -541,8 +541,8 @@ private static escapeHtml(str: string): string {
               <div class="shop-address">${this.escapeHtml(company.address).replace(/\n/g, '<br/>')}</div>
               ${company.gstNo ? `<div class="gst-no">GST: ${company.gstNo}</div>` : ''}
               <div class="contact">
-                ${company.phone ? `Ph: ${company.phone}` : ''} 
-                ${company.email ? `&nbsp;Email: ${company.email}` : ''}
+                ${company.phone ? `<div>Ph: ${company.phone}</div>` : ''} 
+                ${company.email ? `<div>Email: ${company.email}</div>` : ''}
               </div>
             </div>
             ${showHalalLogo && halalLogoUrl ? 
