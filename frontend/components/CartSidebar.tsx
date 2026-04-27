@@ -338,28 +338,26 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     appendOrder(targetOrderId || "NEW", orderContext, unsentItems);
     markItemsSent(targetOrderId || "NEW");
 
-    const updatedCart = cart.map(item => {
-      if (!item.status || item.status === "NEW") {
-        return { ...item, status: "SENT" as const };
-      }
-      return item;
-    });
-
     try {
+      // 1. Save current cart state (as NEW) to ensure DB has latest
       await fetch(`${API_URL}/api/orders/save-cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           tableId: orderContext.tableId, 
           orderId: targetOrderId, 
-          items: updatedCart 
+          items: cart 
         }),
       });
 
+      // 2. Trigger SEND to kitchen (marks items as SENT in DB)
       const sendRes = await fetch(`${API_URL}/api/orders/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId: orderContext.tableId }),
+        body: JSON.stringify({ 
+          tableId: orderContext.tableId,
+          orderType: orderContext.orderType
+        }),
       });
       
       const sendData = await sendRes.json();
@@ -393,6 +391,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               message: "Order Sent",
               subtitle: `Kitchen notified. Order #${officialOrderId}`,
             });
+
+            // 3. MANDATORY REFRESH: Get the official SENT statuses from DB
+            await fetchCartFromDBGlobal(orderContext.tableId!);
           }
         }
 

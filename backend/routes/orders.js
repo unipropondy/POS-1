@@ -130,13 +130,13 @@ async function syncTableStatus(req, tableId) {
 
     // 1. Recalculate and Update in one transaction
     const result = await pool.request()
-      .input("tableId", sql.NVarChar(128), cleanId)
+      .input("tableId", sql.UniqueIdentifier, cleanId)
       .query(`
         DECLARE @itemCount INT = 0;
         DECLARE @total DECIMAL(18,2) = 0;
         
         SELECT @itemCount = COUNT(*), @total = ISNULL(SUM(Cost * Quantity), 0) 
-        FROM CartItems WHERE CartId = @tableId;
+        FROM CartItems WHERE CartId = CAST(@tableId AS NVARCHAR(128));
 
         UPDATE TableMaster
         SET 
@@ -151,9 +151,9 @@ async function syncTableStatus(req, tableId) {
           END,
           TotalAmount = @total,
           ModifiedOn = GETDATE()
-        WHERE CAST(TableId AS NVARCHAR(128)) = @tableId;
+        WHERE TableId = @tableId;
 
-        SELECT Status, TotalAmount, StartTime, CurrentOrderId FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId;
+        SELECT Status, TotalAmount, StartTime, CurrentOrderId FROM TableMaster WHERE TableId = @tableId;
       `);
 
     const updated = result.recordset[0];
@@ -191,9 +191,9 @@ router.post("/send", async (req, res) => {
 
       if (cleanId) {
         await pool.request()
-          .input("tableId", sql.NVarChar(128), cleanId)
+          .input("tableId", sql.UniqueIdentifier, cleanId)
           .input("orderId", sql.NVarChar(50), currentOrderId)
-          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
+          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE TableId = @tableId");
       
       // Also update all NEW cart items with this Order ID and set status to SENT
       await pool.request()
