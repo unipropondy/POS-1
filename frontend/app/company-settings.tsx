@@ -188,6 +188,7 @@ export default function CompanySettingsScreen() {
                 value={settings.name}
                 onChangeText={(val) => updateSettings({ name: val })}
                 placeholder="Enter shop name"
+                placeholderTextColor={Theme.textMuted}
               />
             </View>
 
@@ -198,6 +199,7 @@ export default function CompanySettingsScreen() {
                 value={settings.address}
                 onChangeText={(val) => updateSettings({ address: val })}
                 placeholder="Enter shop address"
+                placeholderTextColor={Theme.textMuted}
                 multiline
                 numberOfLines={3}
               />
@@ -211,6 +213,7 @@ export default function CompanySettingsScreen() {
                   value={settings.phone}
                   onChangeText={(val) => updateSettings({ phone: val })}
                   placeholder="+65 ..."
+                  placeholderTextColor={Theme.textMuted}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -221,6 +224,7 @@ export default function CompanySettingsScreen() {
                   value={settings.email}
                   onChangeText={(val) => updateSettings({ email: val })}
                   placeholder="shop@example.com"
+                  placeholderTextColor={Theme.textMuted}
                   keyboardType="email-address"
                 />
               </View>
@@ -239,6 +243,7 @@ export default function CompanySettingsScreen() {
                   value={settings.gstNo}
                   onChangeText={(val) => updateSettings({ gstNo: val })}
                   placeholder="Registration No"
+                  placeholderTextColor={Theme.textMuted}
                 />
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -248,6 +253,7 @@ export default function CompanySettingsScreen() {
                   value={settings.gstPercentage.toString()}
                   onChangeText={(val) => updateSettings({ gstPercentage: parseFloat(val) || 0 })}
                   placeholder="9.0"
+                  placeholderTextColor={Theme.textMuted}
                   keyboardType="numeric"
                 />
               </View>
@@ -261,6 +267,7 @@ export default function CompanySettingsScreen() {
                   value={settings.currency}
                   onChangeText={(val) => updateSettings({ currency: val })}
                   placeholder="SGD"
+                  placeholderTextColor={Theme.textMuted}
                 />
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -270,6 +277,7 @@ export default function CompanySettingsScreen() {
                   value={settings.currencySymbol}
                   onChangeText={(val) => updateSettings({ currencySymbol: val })}
                   placeholder="$"
+                  placeholderTextColor={Theme.textMuted}
                 />
               </View>
             </View>
@@ -285,6 +293,7 @@ export default function CompanySettingsScreen() {
                 value={settings.printerIp}
                 onChangeText={(val) => updateSettings({ printerIp: val })}
                 placeholder="e.g. 192.168.1.100"
+                placeholderTextColor={Theme.textMuted}
                 keyboardType="numeric"
               />
               <Text style={[styles.note, { textAlign: 'left', marginTop: 5 }]}>
