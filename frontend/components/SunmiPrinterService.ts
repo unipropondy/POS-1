@@ -1,16 +1,17 @@
 // components/SunmiPrinterService.ts - PERFECT DESIGN MATCHING YOUR PREVIEW ✅
 
-import { 
-  initPrinter, 
-  printText, 
-  printTextWithSize,
-  printImageBase64,
-  printQRCode,
-  lineWrap, 
-  cutPaper
-} from 'sunmi-printer-expo';
 import { Platform } from 'react-native';
 import { API_URL } from '../constants/Config';
+
+// ✅ Guarded imports for native module
+let SunmiModule: any = null;
+if (Platform.OS === 'android') {
+  try {
+    SunmiModule = require('sunmi-printer-expo');
+  } catch (e) {
+    console.log('Sunmi module load failed:', e);
+  }
+}
 
 class SunmiPrinterService {
   
@@ -21,7 +22,8 @@ class SunmiPrinterService {
     }
     
     try {
-      await initPrinter();
+      if (!SunmiModule) return false;
+      await SunmiModule.initPrinter();
       console.log('✅ Sunmi printer initialized');
       return true;
     } catch (error) {
@@ -63,8 +65,8 @@ class SunmiPrinterService {
           logoUrl = `${API_URL}${logoUrl}`;
         }
         const base64Image = await this.urlToBase64(logoUrl);
-        await printImageBase64(base64Image);
-        await lineWrap(1);
+        await SunmiModule.printImageBase64(base64Image);
+        await SunmiModule.lineWrap(1);
         console.log('✅ Company logo printed');
       } catch (e) {
         console.log('❌ Company logo failed:', e);
@@ -79,8 +81,8 @@ class SunmiPrinterService {
           halalUrl = `${API_URL}${halalUrl}`;
         }
         const base64Image = await this.urlToBase64(halalUrl);
-        await printImageBase64(base64Image);
-        await lineWrap(1);
+        await SunmiModule.printImageBase64(base64Image);
+        await SunmiModule.lineWrap(1);
         console.log('✅ Halal logo printed');
       } catch (e) {
         console.log('❌ Halal logo failed:', e);
@@ -97,22 +99,22 @@ class SunmiPrinterService {
     }
     const padding = Math.max(0, Math.floor((maxWidth - displayText.length) / 2));
     const centeredText = ' '.repeat(padding) + displayText;
-    await printText(centeredText);
+    await SunmiModule.printText(centeredText);
   }
   
   // Left aligned
   private static async left(text: string): Promise<void> {
-    await printText(text);
+    await SunmiModule.printText(text);
   }
   
   // Divider line (full width 32 chars)
   private static async divider(char: string = '-'): Promise<void> {
-    await printText(char.repeat(32));
+    await SunmiModule.printText(char.repeat(32));
   }
   
   // Double divider
   private static async doubleDivider(char: string = '='): Promise<void> {
-    await printText(char.repeat(32));
+    await SunmiModule.printText(char.repeat(32));
   }
   
   // Two columns (for totals)
@@ -120,7 +122,7 @@ class SunmiPrinterService {
     const leftWidth = 20;
     let line = left.substring(0, leftWidth).padEnd(leftWidth, ' ');
     line += right.substring(0, 12).padStart(12, ' ');
-    await printText(line);
+    await SunmiModule.printText(line);
   }
   
   // Four columns for items (ITEM, QTY, PRICE, TOTAL)
@@ -134,7 +136,7 @@ class SunmiPrinterService {
     line += qty.substring(0, qtyWidth).padStart(qtyWidth, ' ');
     line += price.substring(0, priceWidth).padStart(priceWidth, ' ');
     line += total.substring(0, totalWidth).padStart(totalWidth, ' ');
-    await printText(line);
+    await SunmiModule.printText(line);
   }
   
   // Item header
@@ -143,7 +145,7 @@ class SunmiPrinterService {
     line += 'QTY'.padStart(4, ' ');
     line += 'PRICE'.padStart(6, ' ');
     line += 'TOTAL'.padStart(8, ' ');
-    await printText(line);
+    await SunmiModule.printText(line);
   }
   
   static async printReceipt(saleData: any, companySettings: any): Promise<boolean> {
@@ -265,19 +267,19 @@ class SunmiPrinterService {
         }
       }
       
-      await lineWrap(1);
+      await SunmiModule.lineWrap(1);
       
       // ============ FOOTER ============
       await this.center('THANK YOU! COME AGAIN!');
-      await lineWrap(1);
+      await SunmiModule.lineWrap(1);
       await this.center('SMARTHAWKER BY UNIPROSG');
       
       if (companySettings.gstPercentage > 0) {
         await this.center(`* Prices include ${companySettings.gstPercentage}% GST`);
       }
       
-      await lineWrap(3);
-      await cutPaper();
+      await SunmiModule.lineWrap(3);
+      await SunmiModule.cutPaper();
       
       return true;
       
