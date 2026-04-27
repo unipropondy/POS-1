@@ -113,7 +113,7 @@ router.post("/lock-persistent", async (req, res) => {
     await request.query(`
       UPDATE TableMaster 
       SET Status = 5, LockedByName = @lockedByName, TotalAmount = 0, StartTime = NULL 
-      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
+      WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
     `);
 
     // ✅ Clear CartItems for this table when locked
@@ -145,7 +145,7 @@ router.post("/unlock-persistent", async (req, res) => {
       .query(`
         UPDATE TableMaster 
         SET Status = 0, LockedByName = NULL, TotalAmount = 0, StartTime = NULL 
-        WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
+        WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
       `);
 
     // ✅ Clear any items in CartItems for this table when unlocked
@@ -192,7 +192,7 @@ router.put("/status", async (req, res) => {
             ELSE TotalAmount 
           END,
           ModifiedOn = GETDATE()
-      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
+      WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
     `);
 
     // ✅ Clear CartItems if status is 0 (Available) or 5 (Locked)
@@ -205,7 +205,7 @@ router.put("/status", async (req, res) => {
     // ✅ Get current total to include in socket
     const tableRes = await pool.request()
       .input("tableId", sql.VarChar(50), cleanTableId)
-      .query("SELECT TotalAmount FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+      .query("SELECT TotalAmount FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
     
     const currentTotal = tableRes.recordset[0]?.TotalAmount || 0;
 
@@ -255,7 +255,7 @@ router.put("/:tableId/status", async (req, res) => {
             WHEN @status = 0 OR @status = 5 THEN 0 
             ELSE TotalAmount 
           END
-      WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)
+      WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
     `);
 
     // ✅ If status is 0 or 5, clear any lingering items in CartItems for this table
@@ -270,7 +270,7 @@ router.put("/:tableId/status", async (req, res) => {
     // ✅ Get current total to include in socket
     const tableRes = await pool.request()
       .input("tableId", sql.VarChar(50), cleanTableId)
-      .query("SELECT TotalAmount FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId)");
+      .query("SELECT TotalAmount FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
     
     const currentTotal = tableRes.recordset[0]?.TotalAmount || 0;
 

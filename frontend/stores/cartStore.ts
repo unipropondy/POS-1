@@ -139,6 +139,7 @@ export const useCartStore = create<CartState>()(
         
         if (!tableId) return "";
 
+        const isTakeawayDefault = orderContext?.orderType === "TAKEAWAY";
         const targetLineItemId = uuidv4();
 
         try {
@@ -147,7 +148,11 @@ export const useCartStore = create<CartState>()(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tableId,
-              item: { ...item, qty: 1 }
+              item: { 
+                ...item, 
+                qty: 1,
+                isTakeaway: item.isTakeaway !== undefined ? item.isTakeaway : isTakeawayDefault
+              }
             })
           });
           
@@ -175,7 +180,6 @@ export const useCartStore = create<CartState>()(
         // ✅ If item was already SENT to kitchen, it MUST be voided, not deleted
         if (item.status === "SENT" || item.status === "READY" || item.status === "SERVED") {
           console.log("⚠️ Item already sent. Triggering VOID instead of DELETE.");
-          // We call the void endpoint (which we will ensure exists in orders.js)
           try {
             await fetch(`${API_URL}/api/orders/update-item-status`, {
               method: "POST",
@@ -219,7 +223,6 @@ export const useCartStore = create<CartState>()(
         if (!tableId || !currentContextId) return;
 
         try {
-          // ✅ PROFESSIONAL FLOW: Clear ONLY items that have NOT been sent to kitchen
           const currentCart = carts[currentContextId] || [];
           const sentItems = currentCart.filter(i => i.status === "SENT" || i.status === "READY" || i.status === "SERVED" || i.status === "VOIDED");
           
@@ -228,7 +231,7 @@ export const useCartStore = create<CartState>()(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tableId,
-              items: sentItems // Keep only sent items
+              items: sentItems
             })
           });
 
@@ -405,70 +408,57 @@ export const useCartStore = create<CartState>()(
         const { carts } = get();
         const items = carts[contextId] || [];
         const orderContext = useOrderContextStore.getState().currentOrder;
-        const tableId =
-          orderContext?.orderType === "DINE_IN"
-            ? orderContext.tableId
-            : orderContext?.takeawayNo;
+        const tableId = orderContext?.tableId;
 
-        if (!tableId) {
-          return;
-        }
+        if (!tableId) return;
 
-        try {
-          const latestResponse = await fetch(`${API_URL}/api/orders/cart/${tableId}`);
-          const data = await latestResponse.json();
-          const latestItems = data.items || data; // Handle both old and new response structure
-          const mergedItems = new Map<string, any>();
-
-          if (Array.isArray(latestItems)) {
-            latestItems.forEach((item) => {
-              mergedItems.set(String(item.lineItemId || item.ItemId || ""), item);
+        // ✅ PROFESSIONAL DEBOUNCE: Prevents flooding the server
+        if ((get() as any)._syncTimeout) clearTimeout((get() as any)._syncTimeout);
+        const timeout = setTimeout(async () => {
+          try {
+            await fetch(`${API_URL}/api/orders/save-cart`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                tableId,
+                items: items.map(item => ({
+                  ...item,
+                  status: item.status || "NEW"
+                }))
+              })
             });
+          } catch (err) {
+            console.error("❌ [CartStore] Debounced Save failed:", err);
           }
-
-          items.forEach((item) => {
-            mergedItems.set(String(item.lineItemId), item);
-          });
-
-          await fetch(`${API_URL}/api/orders/save-cart`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tableId,
-              items: Array.from(mergedItems.values()).map(item => ({
-                id: item.id,
-                name: item.name,
-                categoryName: item.categoryName,
-                qty: item.qty,
-                price: item.price,
-                note: item.note,
-                isTakeaway: item.isTakeaway,
-                isVoided: item.isVoided,
-                modifiers: item.modifiers,
-                status: item.status || "NEW",
-                spicy: item.spicy,
-                salt: item.salt,
-                oil: item.oil,
-                sugar: item.sugar
-              }))
-            })
-          });
-        } catch (err) {
-          console.error("❌ [CartStore] Sync failed:", err);
-        }
+        }, 600); // 600ms debounce
+        set({ _syncTimeout: timeout } as any);
       },
+
       fetchCartFromDB: async (tableId) => {
         try {
           const response = await fetch(`${API_URL}/api/orders/cart/${tableId}`);
           const data = await response.json();
           
-          const items = Array.isArray(data) ? data : (data.items || []);
+          const rawItems = Array.isArray(data) ? data : (data.items || []);
           const orderId = data.currentOrderId || null;
+
+          const mappedItems = rawItems.map((item: any) => ({
+            lineItemId: item.ItemId || item.lineItemId,
+            id: item.ProductId || item.id,
+            name: item.name || item.ProductName || item.DishName,
+            qty: item.Quantity || item.qty,
+            price: item.Cost || item.price,
+            note: item.Note || item.note,
+            isTakeaway: !!(item.IsTakeaway !== undefined ? item.IsTakeaway : item.isTakeaway),
+            isVoided: !!(item.IsVoided !== undefined ? item.IsVoided : item.isVoided),
+            modifiers: typeof item.ModifiersJSON === 'string' ? JSON.parse(item.ModifiersJSON) : (item.modifiers || []),
+            status: item.Status || item.status || "NEW",
+          }));
 
           const contextId = get().currentContextId;
           if (contextId) {
             set((state) => ({
-              carts: { ...state.carts, [contextId]: items },
+              carts: { ...state.carts, [contextId]: mappedItems },
               tableOrderIds: { ...state.tableOrderIds, [tableId]: orderId }
             }));
           }

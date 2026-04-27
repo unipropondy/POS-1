@@ -132,26 +132,28 @@ async function syncTableStatus(req, tableId) {
     const result = await pool.request()
       .input("tableId", sql.NVarChar(128), cleanId)
       .query(`
+        DECLARE @itemCount INT = 0;
         DECLARE @total DECIMAL(18,2) = 0;
-        SELECT @total = ISNULL(SUM(Cost * Quantity), 0) FROM CartItems WHERE CartId = @tableId;
+        
+        SELECT @itemCount = COUNT(*), @total = ISNULL(SUM(Cost * Quantity), 0) 
+        FROM CartItems WHERE CartId = @tableId;
 
         UPDATE TableMaster
         SET 
           Status = CASE 
-            WHEN EXISTS (SELECT 1 FROM CartItems WHERE CartId = @tableId) 
-              THEN (CASE WHEN Status = 0 THEN 1 ELSE Status END)
+            WHEN @itemCount > 0 THEN (CASE WHEN Status = 0 THEN 1 ELSE Status END)
             ELSE (CASE WHEN Status IN (1, 2, 3, 4) THEN 0 ELSE Status END)
           END,
           StartTime = CASE 
-            WHEN EXISTS (SELECT 1 FROM CartItems WHERE CartId = @tableId) AND StartTime IS NULL THEN GETDATE()
-            WHEN NOT EXISTS (SELECT 1 FROM CartItems WHERE CartId = @tableId) THEN NULL
+            WHEN @itemCount > 0 AND StartTime IS NULL THEN GETDATE()
+            WHEN @itemCount = 0 THEN NULL
             ELSE StartTime
           END,
           TotalAmount = @total,
           ModifiedOn = GETDATE()
-        WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
+        WHERE CAST(TableId AS NVARCHAR(128)) = @tableId;
 
-        SELECT Status, TotalAmount, StartTime, CurrentOrderId FROM TableMaster WHERE UPPER(CAST(TableId AS VARCHAR(50))) = UPPER(@tableId);
+        SELECT Status, TotalAmount, StartTime, CurrentOrderId FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId;
       `);
 
     const updated = result.recordset[0];
@@ -187,11 +189,11 @@ router.post("/send", async (req, res) => {
     // Generate Order ID (Logic handles null tableId for Takeaway)
     const currentOrderId = await getOrGenerateOrderId(req, cleanId);
 
-    if (cleanId) {
-      await pool.request()
-        .input("tableId", sql.NVarChar(128), cleanId)
-        .input("orderId", sql.NVarChar(50), currentOrderId)
-        .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
+      if (cleanId) {
+        await pool.request()
+          .input("tableId", sql.NVarChar(128), cleanId)
+          .input("orderId", sql.NVarChar(50), currentOrderId)
+          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
       
       // Also update all NEW cart items with this Order ID and set status to SENT
       await pool.request()

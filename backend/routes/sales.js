@@ -565,7 +565,7 @@ router.post("/save", async (req, res) => {
           
         await transaction.request()
           .input("tid", sql.NVarChar(128), cleanTableId)
-          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tid)");
+          .query("UPDATE [dbo].[TableMaster] SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE CAST(TableId AS NVARCHAR(128)) = @tid");
 
         const io = req.app.get("io");
         if (io) {
