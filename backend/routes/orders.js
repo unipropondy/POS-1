@@ -434,38 +434,73 @@ router.post("/add-item", async (req, res) => {
   }
 });
 
-// ✅ Remove Item and Sync
+// ✅ Remove/Void Item (Supports Partial Voiding)
 router.post("/remove-item", async (req, res) => {
   try {
-    const { tableId, productId, itemId } = req.body;
+    const { tableId, productId, itemId, qtyToVoid } = req.body;
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
-    const request = pool.request().input("cartId", sql.NVarChar(128), cleanTableId);
+    if (!itemId) {
+       // Original behavior for NEW items by ProductId
+       await pool.request()
+        .input("cartId", sql.NVarChar(128), cleanTableId)
+        .input("prodId", sql.NVarChar(128), productId)
+        .query("DELETE FROM CartItems WHERE CartId = @cartId AND ProductId = @prodId AND Status = 'NEW'");
+       return res.json({ success: true });
+    }
+
+    // 1. Fetch current item details
+    const itemResult = await pool.request()
+      .input("itemId", sql.NVarChar(128), itemId)
+      .query("SELECT * FROM CartItems WHERE ItemId = @itemId");
     
-    if (itemId) {
-      request.input("itemId", sql.NVarChar(128), itemId);
-      // Mark as VOIDED instead of deleting for professional audit trail
-      await request.query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1 WHERE CartId = @cartId AND ItemId = @itemId");
-    } else if (productId) {
-      request.input("prodId", sql.NVarChar(128), productId);
-      await request.query("DELETE FROM CartItems WHERE CartId = @cartId AND ProductId = @prodId AND Status = 'NEW'");
-    } else {
-      return res.status(400).json({ error: "Missing itemId or productId" });
+    const item = itemResult.recordset[0];
+    if (!item) return res.status(404).json({ error: "Item not found" });
+
+    const currentQty = item.Quantity;
+    const voidQty = qtyToVoid || currentQty; // Default to all
+
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      if (voidQty < currentQty) {
+        // PROFESSIONAL PARTIAL VOID: Split the line item
+        // a) Create the VOIDED portion
+        await transaction.request()
+          .input("parentItemId", sql.NVarChar(128), itemId)
+          .input("voidQty", sql.Int, voidQty)
+          .query(`
+            INSERT INTO [dbo].[CartItems] 
+            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
+             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status, DiscountAmount, DiscountType)
+            SELECT 
+              NEWID(), CartId, ProductId, @voidQty, Cost, OrderNo, @voidQty, GETDATE(), 
+              IsTakeaway, 1, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, 'VOIDED', DiscountAmount, DiscountType
+            FROM CartItems WHERE ItemId = @parentItemId
+          `);
+
+        // b) Update original item with reduced quantity
+        await transaction.request()
+          .input("itemId", sql.NVarChar(128), itemId)
+          .input("newQty", sql.Int, currentQty - voidQty)
+          .query("UPDATE CartItems SET Quantity = @newQty, OrderConfirmQty = @newQty WHERE ItemId = @itemId");
+
+      } else {
+        // FULL VOID: Just update status
+        await transaction.request()
+          .input("itemId", sql.NVarChar(128), itemId)
+          .query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1 WHERE ItemId = @itemId");
+      }
+
+      await transaction.commit();
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
     }
 
     const updated = await syncTableStatus(req, cleanTableId);
-
-    // Broadcast removal/void to KDS
-    const io = req.app.get("io");
-    if (io) {
-      io.emit("item_status_updated", { 
-        orderId: updated.currentOrderId, 
-        lineItemId: itemId, 
-        status: "VOIDED" 
-      });
-    }
-
     res.json({ success: true, ...updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
