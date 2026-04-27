@@ -389,18 +389,19 @@ private static escapeHtml(str: string): string {
           }
           
           .shop-name { 
-            font-size: 18px; /* ✅ Matches reference proportion */
-            font-weight: 900; 
+            font-size: 15px; /* ✅ Smaller, matching reference proportion */
+            font-weight: 800; 
             text-transform: uppercase; 
-            letter-spacing: 3px; /* ✅ The "Premium" spaced look */
+            letter-spacing: 4px; /* ✅ Wide spacing like MC DONALDS ref */
             line-height: 1.2; 
-            margin-bottom: 1.5mm;
+            margin-bottom: 1mm;
             display: block;
+            font-family: monospace;
           }
           
           .shop-address { 
-            font-size: 9px; 
-            font-weight: 700; 
+            font-size: 8.5px; /* ✅ Slightly smaller for better contrast */
+            font-weight: 600; 
             line-height: 1.3; 
             font-family: monospace; 
             white-space: pre-line; 
