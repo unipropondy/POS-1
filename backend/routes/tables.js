@@ -293,6 +293,40 @@ router.put("/:tableId/status", async (req, res) => {
   }
 });
 
+// ✅ GET Single Table by ID
+router.get("/:tableId", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { tableId } = req.params;
+    const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
+
+    const result = await pool.request()
+      .input("tableId", sql.VarChar(50), cleanTableId)
+      .query(`
+        SELECT 
+          TableId AS id, 
+          TableNumber AS label,
+          DiningSection, 
+          Status, 
+          StartTime, 
+          ISNULL(TotalAmount, 0) as totalAmount, 
+          CurrentOrderId as currentOrderId,
+          LockedByName as lockedByName
+        FROM TableMaster
+        WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: "Table not found" });
+    }
+
+    res.json({ success: true, table: result.recordset[0] });
+  } catch (err) {
+    console.error("GET TABLE ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/diagnostic", async (req, res) => {
     try {
       const pool = await poolPromise;
