@@ -288,16 +288,36 @@ private static async printThermalReceipt(
 
   // ==================== PDF FALLBACK WITH DISCOUNT ====================
   static async offerPDFFallback(saleData: any, userId?: string | number, t?: any, discountInfo?: DiscountInfo): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      // ✅ WEB: Directly open browser print preview for best experience
+      try {
+        const html = await BillPDFGenerator.generateHTML(saleData, userId, discountInfo);
+        await Print.printAsync({ html });
+        return true;
+      } catch (err) {
+        console.error('Web print error:', err);
+        return false;
+      }
+    }
+
     return new Promise((resolve) => {
       Alert.alert(t?.printerNotFound || '🖨️ No Printer Available', t?.wantPDF || 'Save as PDF?', [
         { text: t?.no || 'No', onPress: () => resolve(false), style: 'cancel' },
         { text: t?.yes || 'Yes', onPress: async () => {
             try {
               const html = await BillPDFGenerator.generateHTML(saleData, userId, discountInfo);
-              const { uri } = await Print.printToFileAsync({ html, width: 226 });
-              if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri);
+              
+              if (Platform.OS === 'ios') {
+                await Print.printAsync({ html });
+              } else {
+                const { uri } = await Print.printToFileAsync({ html, width: 226 });
+                if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri);
+              }
               resolve(true);
-            } catch { resolve(false); }
+            } catch (error) {
+              console.error('PDF Fallback Error:', error);
+              resolve(false); 
+            }
           }
         }
       ]);
