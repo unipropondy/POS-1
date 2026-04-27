@@ -56,7 +56,7 @@ export default function CompanySettingsScreen() {
       const storedId = await AsyncStorage.getItem('userId') || '1';
       setUserId(storedId);
       const data = await BillPDFGenerator.loadSettings(storedId);
-      setSettings(data);
+      setSettings(data as any);
     } catch (error) {
       showToast({ type: 'error', message: 'Failed to load settings' });
     } finally {
@@ -89,7 +89,7 @@ export default function CompanySettingsScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
