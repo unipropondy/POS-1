@@ -445,10 +445,11 @@ router.post("/remove-item", async (req, res) => {
     
     if (itemId) {
       request.input("itemId", sql.NVarChar(128), itemId);
-      await request.query("DELETE FROM CartItems WHERE CartId = @cartId AND ItemId = @itemId");
+      // Mark as VOIDED instead of deleting for professional audit trail
+      await request.query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1 WHERE CartId = @cartId AND ItemId = @itemId");
     } else if (productId) {
       request.input("prodId", sql.NVarChar(128), productId);
-      await request.query("DELETE FROM CartItems WHERE CartId = @cartId AND ProductId = @prodId");
+      await request.query("DELETE FROM CartItems WHERE CartId = @cartId AND ProductId = @prodId AND Status = 'NEW'");
     } else {
       return res.status(400).json({ error: "Missing itemId or productId" });
     }

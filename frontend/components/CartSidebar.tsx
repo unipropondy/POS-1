@@ -109,8 +109,13 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     );
   }, [tables, orderContext]);
 
+
   const unsentCount = useMemo(() => {
     return cart.filter((i: any) => !i.status || i.status === "NEW").length;
+  }, [cart]);
+
+  const displayItems = useMemo(() => {
+    return cart; // Show all items, including voided ones with strike-through
   }, [cart]);
 
   const currentTableStatus = useMemo(() => {
@@ -188,11 +193,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     };
   }, [orderContext?.tableId]);
 
-  const displayItems = useMemo(() => {
-    // The 'cart' from useCartStore now contains both NEW and SENT items from the DB.
-    // This prevents duplication with activeOrder.items.
-    return cart;
-  }, [cart]);
 
   useEffect(() => {
     // 🔥 If the cart is completely empty (no unsent items AND no active order items),
@@ -393,7 +393,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             });
 
             // 3. MANDATORY REFRESH: Get the official SENT statuses from DB
-            await fetchCartFromDBGlobal(orderContext.tableId!);
+            await useCartStore.getState().fetchCartFromDB(orderContext.tableId!);
           }
         }
 
@@ -401,9 +401,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       console.error("Cart Save/Send Error:", err);
     }
 
-    if (currentContextId) {
-      useCartStore.getState().setCartItems(currentContextId, updatedCart, true);
-    }
 
     router.replace(`/(tabs)/category?section=${orderContext.section}`);
   };
@@ -483,7 +480,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
             <View style={[styles.inlineControls, isPhone && { marginTop: 8 }]}>
               {isSent || isVoided ? (
-                <View style={styles.sentLabel}><Text style={styles.sentQtyText}>QTY: {item.qty}</Text></View>
+                <View style={styles.sentLabel}><Text style={[styles.sentQtyText, isVoided && styles.strikeThrough]}>QTY: {item.qty}</Text></View>
               ) : (
                 <View style={[styles.qtyControlSmall, isPhone && { backgroundColor: Theme.bgCard, borderWidth: 1, borderColor: Theme.border }]}>
                   <TouchableOpacity style={[styles.qtyBtnSmall, isPhone && { width: 32, height: 32 }]} onPress={(e) => { e.stopPropagation(); updateCartItemQty(item.lineItemId, Math.max(0, item.qty - 1)); }}>

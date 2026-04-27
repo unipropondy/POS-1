@@ -337,6 +337,176 @@ export default function MenuScreen() {
     (mainWidth - (isPhone ? 32 : 40) - gap * (columns - 1)) / columns,
   );
 
+  const renderTopBar = () => (
+    <View
+      style={[
+        styles.topBar,
+        isPhone && isLandscape && { marginBottom: 6, height: 40 },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={() => router.replace("/(tabs)/category")}
+        style={[
+          styles.backBtn,
+          isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },
+        ]}
+      >
+        <Ionicons
+          name="arrow-back"
+          size={isPhone && isLandscape ? 20 : 24}
+          color={Theme.textPrimary}
+        />
+      </TouchableOpacity>
+      <View
+        style={[
+          styles.searchWrap,
+          isPhone && isLandscape && { height: 36, flex: 0.8 },
+        ]}
+      >
+        <Ionicons
+          name="search"
+          size={isPhone && isLandscape ? 16 : 20}
+          color={Theme.textMuted}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[
+            styles.searchInput,
+            isPhone && isLandscape && { fontSize: 13 },
+          ]}
+          placeholder="Search products....."
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+        {searchText.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchText("")}>
+            <Ionicons name="close-circle" size={16} color={Theme.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={[
+          styles.headerCartBtn,
+          isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },
+        ]}
+        onPress={() => router.push("/cart")}
+      >
+        <Ionicons
+          name="cart-outline"
+          size={isPhone && isLandscape ? 20 : 24}
+          color={Theme.primary}
+        />
+        {cartItemsCount > 0 && (
+          <View
+            style={[
+              styles.cartBadge,
+              isPhone &&
+                isLandscape && { top: -4, right: -4, minWidth: 16, height: 16 },
+            ]}
+          >
+            <Text
+              style={[
+                styles.cartBadgeText,
+                isPhone && isLandscape && { fontSize: 9 },
+              ]}
+            >
+              {cartItemsCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      <View style={styles.topActions}>
+        {!isLarge && (
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: Theme.success }]}
+            onPress={() => router.push("/cart")}
+          >
+            <Ionicons name="cart" size={18} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderCategoryNav = () => (
+    <View
+      style={[
+        styles.categoryNavigation,
+        isPhone && isLandscape && { marginBottom: 6 },
+      ]}
+    >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.catScroll}
+      >
+        {kitchens.map((k: any) => (
+          <TouchableOpacity
+            key={k.CategoryId}
+            style={[
+              styles.catPill,
+              selectedKitchenId === k.CategoryId && styles.catPillActive,
+              isPhone && isLandscape && { height: 36, paddingHorizontal: 16 },
+            ]}
+            onPress={() => loadGroups(k.CategoryId)}
+          >
+            <Text
+              style={[
+                styles.catText,
+                selectedKitchenId === k.CategoryId && styles.catTextActive,
+                isPhone && isLandscape && { fontSize: 13 },
+              ]}
+            >
+              {k.KitchenTypeName}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View
+        style={isPhone && isLandscape ? { marginTop: 12 } : { marginTop: 15 }}
+      >
+        {isInitialLoading ? (
+          <GroupSkeleton />
+        ) : groups.length === 0 ? (
+          <View style={styles.emptyNavState}>
+            <Text style={styles.emptyNavText}>No Dishgroup added</Text>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.groupScroll}
+          >
+            {groups.map((g: any) => (
+              <TouchableOpacity
+                key={g.DishGroupId}
+                style={[
+                  styles.groupPill,
+                  selectedGroup === g.DishGroupId && styles.groupPillActive,
+                  isPhone &&
+                    isLandscape && { height: 36, paddingHorizontal: 14 },
+                ]}
+                onPress={() => loadDishes(g.DishGroupId)}
+              >
+                <Text
+                  style={[
+                    styles.groupText,
+                    selectedGroup === g.DishGroupId && styles.groupTextActive,
+                    isPhone && isLandscape && { fontSize: 12 },
+                  ]}
+                >
+                  {g.DishGroupName}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  );
+
   const dismissKeyboard = () => Keyboard.dismiss();
 
   useEffect(() => {
@@ -442,7 +612,7 @@ export default function MenuScreen() {
           setShowModifier(false);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Cart Save/Send Error:", err);
         const currentKitchenName =
           kitchens.find((k) => k.CategoryId === selectedKitchenId)
             ?.KitchenTypeName || "Kitchen";
@@ -551,195 +721,15 @@ export default function MenuScreen() {
         price: finalPrice,
         modifiers: modsToAdd as any,
         basePrice: selectedDish.Price || 0,
-        categoryName: currentKitchenName, // 🔥 Now grouping by Kitchen Name
+        categoryName: currentKitchenName, // Grouping by Kitchen Name
       });
 
-      // 🔥 FIXED ROUTE: /api/menu/order/add
-      fetch(`${API_URL}/api/menu/order/add`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          dishId: selectedDish.DishId,
-          name: selectedDish.Name,
-          price: finalPrice,
-          qty: 1,
-        }),
-      });
+      // addToCartGlobal handles both local state and database sync
     }
     setShowModifier(false);
   };
 
-  const renderTopBar = () => (
-    <View
-      style={[
-        styles.topBar,
-        isPhone && isLandscape && { marginBottom: 6, height: 40 },
-      ]}
-    >
-      <TouchableOpacity
-        onPress={() => router.replace("/(tabs)/category")}
-        style={[
-          styles.backBtn,
-          isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },
-        ]}
-      >
-        <Ionicons
-          name="arrow-back"
-          size={isPhone && isLandscape ? 20 : 24}
-          color={Theme.textPrimary}
-        />
-      </TouchableOpacity>
-      <View
-        style={[
-          styles.searchWrap,
-          isPhone && isLandscape && { height: 36, flex: 0.8 },
-        ]}
-      >
-        <Ionicons
-          name="search"
-          size={isPhone && isLandscape ? 16 : 20}
-          color={Theme.textMuted}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={[
-            styles.searchInput,
-            isPhone && isLandscape && { fontSize: 13 },
-          ]}
-          placeholder="Search products....."
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchText("")}>
-            <Ionicons name="close-circle" size={16} color={Theme.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
 
-      <TouchableOpacity
-        style={[
-          styles.headerCartBtn,
-          isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },
-        ]}
-        onPress={() => router.push("/cart")}
-      >
-        <Ionicons
-          name="cart-outline"
-          size={isPhone && isLandscape ? 20 : 24}
-          color={Theme.primary}
-        />
-        {cartItemsCount > 0 && (
-          <View
-            style={[
-              styles.cartBadge,
-              isPhone &&
-                isLandscape && { top: -4, right: -4, minWidth: 16, height: 16 },
-            ]}
-          >
-            <Text
-              style={[
-                styles.cartBadgeText,
-                isPhone && isLandscape && { fontSize: 9 },
-              ]}
-            >
-              {cartItemsCount}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-      <View style={styles.topActions}>
-        {!isLarge && (
-          <TouchableOpacity
-            style={[styles.iconBtn, { backgroundColor: Theme.success }]}
-            onPress={() => router.push("/cart")}
-          >
-            <Ionicons name="cart" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-
-  const renderCategoryNav = () => (
-    <View
-      style={[
-        styles.categoryNavigation,
-        isPhone && isLandscape && { marginBottom: 6 },
-      ]}
-    >
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.catScroll}
-      >
-        {kitchens.map((k) => (
-          <TouchableOpacity
-            key={k.CategoryId}
-            style={[
-              styles.catPill,
-              selectedKitchenId === k.CategoryId && styles.catPillActive,
-              isPhone && isLandscape && { height: 36, paddingHorizontal: 16 },
-            ]}
-            onPress={() => loadGroups(k.CategoryId)}
-          >
-            <Text
-              style={[
-                styles.catText,
-                selectedKitchenId === k.CategoryId && styles.catTextActive,
-                isPhone && isLandscape && { fontSize: 13 },
-              ]}
-            >
-              {k.KitchenTypeName}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <View
-        style={isPhone && isLandscape ? { marginTop: 12 } : { marginTop: 15 }}
-      >
-        {isInitialLoading ? (
-          <GroupSkeleton />
-        ) : groups.length === 0 ? (
-          <View style={styles.emptyNavState}>
-            <Text style={styles.emptyNavText}>No Dishgroup added</Text>
-          </View>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.groupScroll}
-          >
-            {groups.map((g) => (
-              <TouchableOpacity
-                key={g.DishGroupId}
-                style={[
-                  styles.groupPill,
-                  selectedGroup === g.DishGroupId && styles.groupPillActive,
-                  isPhone &&
-                    isLandscape && { height: 36, paddingHorizontal: 14 },
-                ]}
-                onPress={() => loadDishes(g.DishGroupId)}
-              >
-                <Text
-                  style={[
-                    styles.groupText,
-                    selectedGroup === g.DishGroupId && styles.groupTextActive,
-                    isPhone && isLandscape && { fontSize: 12 },
-                  ]}
-                >
-                  {g.DishGroupName}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </View>
-    </View>
-  );
 
   if (!orderContext)
     return (
