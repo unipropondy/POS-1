@@ -25,44 +25,20 @@ import { useToast } from '../components/Toast';
 import { API_URL } from '@/constants/Config';
 
 export default function CompanySettingsScreen() {
+  const { settings, loading, fetchSettings, updateSettings } = useCompanySettingsStore();
+  const [userId, setUserId] = useState('1');
+  const [saving, setSaving] = useState(false);
   const router = useRouter();
   const { showToast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const [settings, setSettings] = useState({
-    name: '',
-    address: '',
-    gstNo: '',
-    gstPercentage: 9,
-    phone: '',
-    email: '',
-    cashierName: '',
-    currency: 'SGD',
-    currencySymbol: '$',
-    companyLogo: '',
-    halalLogo: '',
-    showCompanyLogo: true,
-    showHalalLogo: true,
-  });
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
-    try {
+    const load = async () => {
       const storedId = await AsyncStorage.getItem('userId') || '1';
       setUserId(storedId);
-      const data = await BillPDFGenerator.loadSettings(storedId);
-      setSettings(data as any);
-    } catch (error) {
-      showToast({ type: 'error', message: 'Failed to load settings' });
-    } finally {
-      setLoading(false);
-    }
-  };
+      await fetchSettings(storedId);
+    };
+    load();
+  }, []);
 
   const handleSave = async () => {
     if (!userId) return;
@@ -84,7 +60,7 @@ export default function CompanySettingsScreen() {
   const pickImage = async (type: 'company' | 'halal') => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'We need access to your photos to upload a logo.');
+      showToast({ type: 'error', message: 'Permission needed to access images' });
       return;
     }
 
@@ -99,10 +75,9 @@ export default function CompanySettingsScreen() {
       setSaving(true);
       const imageUrl = await BillPDFGenerator.uploadImage(result.assets[0].uri);
       if (imageUrl) {
-        setSettings(prev => ({
-          ...prev,
-          [type === 'company' ? 'companyLogo' : 'halalLogo']: imageUrl // ✅ Store relative path only
-        }));
+        updateSettings({
+          [type === 'company' ? 'companyLogo' : 'halalLogo']: imageUrl
+        });
         showToast({ type: 'success', message: 'Logo uploaded successfully' });
       } else {
         showToast({ type: 'error', message: 'Failed to upload image' });
@@ -171,7 +146,7 @@ export default function CompanySettingsScreen() {
                   <Text style={styles.toggleText}>Show on bill</Text>
                   <Switch 
                     value={settings.showCompanyLogo} 
-                    onValueChange={(val) => setSettings({...settings, showCompanyLogo: val})}
+                    onValueChange={(val) => updateSettings({ showCompanyLogo: val })}
                     trackColor={{ false: '#ddd', true: Theme.primary }}
                   />
                 </View>
@@ -193,7 +168,7 @@ export default function CompanySettingsScreen() {
                   <Text style={styles.toggleText}>Show on bill</Text>
                   <Switch 
                     value={settings.showHalalLogo} 
-                    onValueChange={(val) => setSettings({...settings, showHalalLogo: val})}
+                    onValueChange={(val) => updateSettings({ showHalalLogo: val })}
                     trackColor={{ false: '#ddd', true: Theme.primary }}
                   />
                 </View>
@@ -210,7 +185,7 @@ export default function CompanySettingsScreen() {
               <TextInput 
                 style={styles.input}
                 value={settings.name}
-                onChangeText={(val) => setSettings({...settings, name: val})}
+                onChangeText={(val) => updateSettings({ name: val })}
                 placeholder="Enter shop name"
               />
             </View>
@@ -220,7 +195,7 @@ export default function CompanySettingsScreen() {
               <TextInput 
                 style={[styles.input, styles.textArea]}
                 value={settings.address}
-                onChangeText={(val) => setSettings({...settings, address: val})}
+                onChangeText={(val) => updateSettings({ address: val })}
                 placeholder="Enter shop address"
                 multiline
                 numberOfLines={3}
@@ -233,7 +208,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.phone}
-                  onChangeText={(val) => setSettings({...settings, phone: val})}
+                  onChangeText={(val) => updateSettings({ phone: val })}
                   placeholder="+65 ..."
                   keyboardType="phone-pad"
                 />
@@ -243,7 +218,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.email}
-                  onChangeText={(val) => setSettings({...settings, email: val})}
+                  onChangeText={(val) => updateSettings({ email: val })}
                   placeholder="shop@example.com"
                   keyboardType="email-address"
                 />
@@ -261,7 +236,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.gstNo}
-                  onChangeText={(val) => setSettings({...settings, gstNo: val})}
+                  onChangeText={(val) => updateSettings({ gstNo: val })}
                   placeholder="Registration No"
                 />
               </View>
@@ -270,7 +245,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.gstPercentage.toString()}
-                  onChangeText={(val) => setSettings({...settings, gstPercentage: parseFloat(val) || 0})}
+                  onChangeText={(val) => updateSettings({ gstPercentage: parseFloat(val) || 0 })}
                   placeholder="9.0"
                   keyboardType="numeric"
                 />
@@ -283,7 +258,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.currency}
-                  onChangeText={(val) => setSettings({...settings, currency: val})}
+                  onChangeText={(val) => updateSettings({ currency: val })}
                   placeholder="SGD"
                 />
               </View>
@@ -292,7 +267,7 @@ export default function CompanySettingsScreen() {
                 <TextInput 
                   style={styles.input}
                   value={settings.currencySymbol}
-                  onChangeText={(val) => setSettings({...settings, currencySymbol: val})}
+                  onChangeText={(val) => updateSettings({ currencySymbol: val })}
                   placeholder="$"
                 />
               </View>
