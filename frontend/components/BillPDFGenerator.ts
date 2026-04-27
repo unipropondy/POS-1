@@ -367,8 +367,8 @@ private static escapeHtml(str: string): string {
           .logo-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start; /* ✅ Lift logos to top */
-            margin-bottom: 4mm;
+            align-items: flex-start;
+            margin-bottom: 2mm; /* ✅ Tighter gap */
             border-bottom: 2px solid #000;
             padding-bottom: 2mm;
           }
@@ -376,57 +376,54 @@ private static escapeHtml(str: string): string {
           .company-logo { width: 45px; height: 45px; object-fit: contain; margin-top: 1mm; }
           .halal-logo { width: 40px; height: 40px; object-fit: contain; margin-top: 1mm; }
           
-          .shop-info { text-align: center; flex: 1; font-family: monospace; padding: 0 2mm; }
-          .shop-name { font-size: 20px; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px; line-height: 1.2; }
-          .shop-address { font-size: 10px; font-weight: 700; line-height: 1.3;font-family: monospace;white-space: pre-line; }
-          .gst-no { font-size: 10px; font-weight: 700; background: #f0f0f0;font-family: monospace; padding: 1mm; margin: 2mm 0; }
-          .contact { font-size: 9px; font-weight: 700;font-family: monospace; }
+          .shop-info { text-align: center; flex: 1; font-family: monospace; padding: 0 1mm; }
+          .shop-name { font-size: 20px; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px; line-height: 1.1; margin-bottom: 1mm; }
+          .shop-address { font-size: 9px; font-weight: 700; line-height: 1.2; font-family: monospace; white-space: pre-line; }
+          .gst-no { font-size: 9px; font-weight: 700; background: #eee; font-family: monospace; padding: 0.5mm; margin: 1mm 0; display: inline-block; }
+          .contact { font-size: 9px; font-weight: 700; font-family: monospace; margin-top: 1mm; }
           
           /* Reprint Indicator */
           .reprint-indicator {
             text-align: center;
-            margin: 2mm 0;
-            padding: 1mm;
-            background: #f0f0f0;
+            margin: 1mm 0;
+            padding: 0.5mm;
+            background: #eee;
             border: 1px dashed #000;
           }
           .reprint-text {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
           }
           
           /* Bill Details */
           .bill-details {
-            margin-bottom: 4mm;
+            margin-bottom: 3mm;
             font-size: 11px;
             font-weight: 700;
-            
           }
           
           .bill-box {
             border: 1px solid #000;
-            padding: 2mm;
+            padding: 1.5mm; /* ✅ Slimmer box */
             margin-bottom: 2mm;
             background: #f9f9f9;
-            
           }
           
           .detail-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
             font-weight: 700;
-            
           }
           
-          .detail-label { font-weight: 800; font-family: monospace; letter-spacing: 0.5px; }
-          .detail-value { font-weight: 800; font-family: monospace; letter-spacing: 0.5px; }
+          .detail-label { font-weight: 800; font-family: monospace; font-size: 10px; }
+          .detail-value { font-weight: 800; font-family: monospace; font-size: 10px; }
           
           /* Items Table */
           .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 4mm;
+            margin-bottom: 3mm;
             font-size: 11px;
             font-family: monospace;
             font-weight: 800;
@@ -436,9 +433,9 @@ private static escapeHtml(str: string): string {
             font-weight: 800;
             font-family: monospace;
             text-align: center;
-            padding: 2mm 1mm;
-            border-bottom: 2px solid #000;
-            border-top: 2px solid #000;
+            padding: 1.5mm 0.5mm;
+            border-bottom: 1.5px solid #000;
+            border-top: 1.5px solid #000;
             text-transform: uppercase;
           }
           
@@ -446,39 +443,38 @@ private static escapeHtml(str: string): string {
           .items-table th:last-child { text-align: right; }
           
           .items-table td {
-            padding: 1.5mm 1mm;
-            border-bottom: 1px dashed #ccc;
+            padding: 1mm 0.5mm;
+            border-bottom: 1px dashed #ddd;
             font-weight: 800;
             font-family: monospace;
           }
           
-          .item-name { text-align: left; font-weight: 900; max-width: 35mm; }
-          .item-modifiers { font-size: 9px; font-weight: normal; color: #444; margin-top: 1mm; padding-left: 2mm; }
-          .item-qty { text-align: center; font-weight: 900;font-family: monospace; }
-          .item-price { text-align: right; font-weight: 900;font-family: monospace; }
-          .item-total { text-align: right; font-weight: 900;font-family: monospace; }
+          .item-name { text-align: left; font-weight: 900; max-width: 38mm; }
+          .item-modifiers { font-size: 8px; font-weight: normal; color: #444; margin-top: 0.5mm; padding-left: 1mm; }
+          .item-qty { text-align: center; font-weight: 900; }
+          .item-price { text-align: right; font-weight: 900; }
+          .item-total { text-align: right; font-weight: 900; }
           
           /* Discount Section */
           .discount-section {
-            margin-bottom: 4mm;
-            padding: 2mm;
+            margin-bottom: 3mm;
+            padding: 1.5mm;
             border: 1px solid #000;
             background: #f9f9f9;
             font-family: monospace;
           }
           
-          .discount-title { font-size: 11px; font-weight: 800;font-family: monospace; text-align: center; margin-bottom: 2mm; }
+          .discount-title { font-size: 10px; font-weight: 800; text-align: center; margin-bottom: 1mm; }
           .discount-row, .original-row {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
-            font-family: monospace;
           }
           
           /* Totals */
           .totals {
-            margin-bottom: 4mm;
+            margin-bottom: 3mm;
             font-weight: 900;
             font-family: monospace;
           }
@@ -486,26 +482,24 @@ private static escapeHtml(str: string): string {
           .total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 2px;
+            margin-bottom: 1.5px;
             font-size: 11px;
             font-weight: 900;
-            font-family: monospace;
           }
           
           .grand-total {
             display: flex;
             justify-content: space-between;
-            margin-top: 2mm;
-            padding-top: 2mm;
-            border-top: 2px solid #000;
-            font-weight: 800;
-            font-size: 14px;
-            font-family: monospace;
+            margin-top: 1.5mm;
+            padding-top: 1.5mm;
+            border-top: 1.5px solid #000;
+            font-weight: 900;
+            font-size: 13px;
           }
           
           /* Payment Info */
           .payment-info {
-            margin-bottom: 4mm;
+            margin-bottom: 3mm;
             font-weight: 700;
             font-family: monospace;
           }
@@ -513,25 +507,24 @@ private static escapeHtml(str: string): string {
           .payment-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 2px;
-            font-size: 11px;
+            margin-bottom: 1px;
+            font-size: 10px;
             font-weight: 700;
-            font-family: monospace;
           }
           
-          .payment-label { font-weight: 700; font-family: monospace; letter-spacing: 0.5px; }
-          .payment-value { font-weight: 700; font-family: monospace; letter-spacing: 0.5px; }
+          .payment-label { font-weight: 700; }
+          .payment-value { font-weight: 700; }
           
           /* Footer */
           .footer {
             text-align: center;
-            padding-top: 3mm;
-            border-top: 2px solid #000;
+            padding-top: 2mm;
+            border-top: 1.5px solid #000;
             font-family: monospace;
           }
           
-          .thankyou { font-size: 14px; font-weight: 800;font-family: monospace; margin-bottom: 2mm; }
-          .copyright { font-size: 12px; font-weight: 900;font-family: monospace; color: #000; }
+          .thankyou { font-size: 13px; font-weight: 800; margin-bottom: 1mm; }
+          .copyright { font-size: 11px; font-weight: 900; color: #000; }
         </style>
       </head>
       <body>
@@ -547,7 +540,10 @@ private static escapeHtml(str: string): string {
               <div class="shop-name">${company.name || 'POS SYSTEM'}</div>
               <div class="shop-address">${this.escapeHtml(company.address).replace(/\n/g, '<br/>')}</div>
               ${company.gstNo ? `<div class="gst-no">GST: ${company.gstNo}</div>` : ''}
-              <div class="contact">${company.phone ? `📞 ${company.phone}` : ''} ${company.email ? `📧 ${company.email}` : ''}</div>
+              <div class="contact">
+                ${company.phone ? `Ph: ${company.phone}` : ''} 
+                ${company.email ? `&nbsp;Email: ${company.email}` : ''}
+              </div>
             </div>
             ${showHalalLogo && halalLogoUrl ? 
               `<img src="${halalLogoUrl}" class="halal-logo" crossOrigin="anonymous" />` : 
