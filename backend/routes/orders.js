@@ -580,7 +580,8 @@ router.get("/active-kitchen", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT 
-        c.*, 
+        c.ItemId, c.CartId, c.ProductId, c.Quantity, c.Status, c.Cost, c.OrderNo, c.ModifiersJSON, c.IsTakeaway, c.IsVoided, c.Note,
+        CONVERT(VARCHAR, c.DateCreated, 126) as DateCreated,
         d.Name as name, 
         d.CurrentCost as price,
         t.TableNumber as tableNo,
@@ -661,7 +662,9 @@ router.get("/cart/:tableId", async (req, res) => {
     const result = await pool.request()
       .input("cartId", sql.NVarChar(sql.MAX), cleanId)
       .query(`
-        SELECT c.*, d.Name as name, d.CurrentCost as price
+        SELECT c.ItemId, c.CartId, c.ProductId, c.Quantity, c.Status, c.Cost, c.OrderNo, c.ModifiersJSON, c.IsTakeaway, c.IsVoided, c.Note,
+        CONVERT(VARCHAR, c.DateCreated, 126) as DateCreated,
+        d.Name as name, d.CurrentCost as price
         FROM [dbo].[CartItems] c
         LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
         WHERE c.CartId = @cartId
