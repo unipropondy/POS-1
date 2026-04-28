@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "@/constants/Config";
 import { useOrderContextStore } from "./orderContextStore";
+import { useAuthStore } from "./authStore";
 
 /* ================= TYPES ================= */
 
