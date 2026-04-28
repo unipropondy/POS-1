@@ -136,7 +136,7 @@ export const useCartStore = create<CartState>()(
       /* ================= ADD ================= */
 
       addToCartGlobal: async (item) => {
-        const { fetchCartFromDB } = get();
+        const { fetchCartFromDB, carts, currentContextId } = get();
         const orderContext = useOrderContextStore.getState().currentOrder;
         const tableId = orderContext?.tableId;
         
@@ -144,33 +144,61 @@ export const useCartStore = create<CartState>()(
 
         const isTakeawayDefault = orderContext?.orderType === "TAKEAWAY";
         const targetLineItemId = Crypto.randomUUID();
+        const isTakeaway = item.isTakeaway !== undefined ? item.isTakeaway : isTakeawayDefault;
+
+        // 🚀 OPTIMISTIC UPDATE: Update local state immediately
+        if (currentContextId) {
+          const currentCart = carts[currentContextId] || [];
+          const existingIndex = currentCart.findIndex(p => 
+            p.id === item.id && 
+            p.status === "NEW" && 
+            p.isTakeaway === isTakeaway &&
+            JSON.stringify(p.modifiers || []) === JSON.stringify(item.modifiers || []) &&
+            (p.note || "") === (item.note || "")
+          );
+
+          let updatedCart;
+          if (existingIndex > -1) {
+            updatedCart = [...currentCart];
+            updatedCart[existingIndex] = { 
+              ...updatedCart[existingIndex], 
+              qty: (updatedCart[existingIndex].qty || 0) + 1 
+            };
+          } else {
+            const newItem = {
+              ...item,
+              lineItemId: targetLineItemId,
+              qty: 1,
+              status: "NEW",
+              isTakeaway
+            };
+            updatedCart = [...currentCart, newItem];
+          }
+
+          set({ carts: { ...carts, [currentContextId]: updatedCart } });
+        }
+
+        // 🔄 BACKGROUND SYNC: Send to server without blocking UI
         try {
           const orderId = get().tableOrderIds[tableId];
           const payload = {
             tableId,
             orderId,
             userId: useAuthStore.getState().user?.userId,
-            item: { 
-              ...item, 
-              qty: 1,
-              isTakeaway: item.isTakeaway !== undefined ? item.isTakeaway : isTakeawayDefault
-            }
+            item: { ...item, qty: 1, isTakeaway }
           };
 
-          const res = await fetch(`${API_URL}/api/orders/add-item`, {
+          fetch(`${API_URL}/api/orders/add-item`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
+          }).then(res => {
+             if (!res.ok) console.error("❌ [CartStore] Background sync failed");
+             // Refresh from DB in background to ensure total sync
+             fetchCartFromDB(tableId);
           });
-          
-          if (!res.ok) {
-            console.error("❌ [CartStore] Add failed");
-          } else {
-            // Re-fetch from DB to ensure sync
-            await fetchCartFromDB(tableId);
-          }
         } catch (err) {
-          console.error("❌ [CartStore] Add failed (Network Error):", err);
+          console.error("❌ [CartStore] Add background task failed:", err);
         }
         
         return targetLineItemId;
