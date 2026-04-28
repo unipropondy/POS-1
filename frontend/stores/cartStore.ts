@@ -157,7 +157,7 @@ export const useCartStore = create<CartState>()(
             (p.note || "") === (item.note || "")
           );
 
-          let updatedCart;
+          let updatedCart: CartItem[];
           if (existingIndex > -1) {
             updatedCart = [...currentCart];
             updatedCart[existingIndex] = { 
@@ -165,11 +165,11 @@ export const useCartStore = create<CartState>()(
               qty: (updatedCart[existingIndex].qty || 0) + 1 
             };
           } else {
-            const newItem = {
+            const newItem: CartItem = {
               ...item,
               lineItemId: targetLineItemId,
               qty: 1,
-              status: "NEW",
+              status: "NEW" as const,
               isTakeaway
             };
             updatedCart = [...currentCart, newItem];
