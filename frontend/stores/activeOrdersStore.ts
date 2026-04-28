@@ -12,6 +12,7 @@ export type OrderItem = CartItem & {
   status: "NEW" | "SENT" | "VOIDED" | "READY" | "SERVED";
   sentAt?: number;
   readyAt?: number;
+  dishGroupName?: string; // 🔥 Added
 };
 
 

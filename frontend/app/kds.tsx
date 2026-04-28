@@ -47,19 +47,35 @@ const URGENCY_UI: Record<UrgencyLevel, { primary: string; label: string; icon: k
 };
 
 // Per-card component so each card can track its own scroll state
-const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
+const OrderCard = React.memo(function OrderCard({ item, cardHeight, pulseAnim, groups }: any) {
+  const [now, setNow] = useState(Date.now());
   const [hasMore, setHasMore] = useState(false);
   const contentH = useRef(0);
   const viewH = useRef(0);
-  const timerOpacity = ui.urgency === "critical" ? pulseAnim : 1;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getTs = (val: any) => {
+    if (!val) return 0;
+    const ts = typeof val === 'number' ? val : new Date(val).getTime();
+    return isNaN(ts) ? 0 : ts;
+  };
+
+  const latestSent = Math.max(...item.items.map((i: any) => getTs(i.sentAt || item.createdAt)));
+  const elapsed = Math.max(0, now - latestSent);
+  const safeElapsed = isNaN(elapsed) ? 0 : elapsed;
+  const minutes = Math.floor(safeElapsed / 60000);
+  const seconds = Math.floor((safeElapsed % 60000) / 1000);
+  const urgency = getUrgency(minutes);
+  const ui = URGENCY_UI[urgency];
+  const timerOpacity = urgency === "critical" ? pulseAnim : 1;
 
   const checkMore = () => {
     setHasMore(contentH.current > viewH.current + 5);
   };
-
-  const urgency = ui.urgency;
-  const minutes = ui.minutes;
-  const seconds = ui.seconds;
 
   return (
     <Pressable
@@ -107,7 +123,7 @@ const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pu
                   key={i.lineItemId}
                   style={[
                     styles.itemRow,
-                    (time - (i.sentAt || item.createdAt) < 15000) && styles.itemFlash,
+                    (now - (i.sentAt || item.createdAt) < 15000) && styles.itemFlash,
                     i.status === "READY" && styles.itemReadyFlash
                   ]}
                 >
@@ -126,7 +142,7 @@ const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pu
                           </View>
                         )}
                       </View>
-                      {(i.status === "VOIDED" || i.status === "READY" || time - (i.sentAt || item.createdAt) < 150000) && (
+                      {(i.status === "VOIDED" || i.status === "READY" || now - (i.sentAt || item.createdAt) < 150000) && (
                         <View style={[
                           styles.itemStatusBadge,
                           { backgroundColor: i.status === "READY" ? Theme.success : Theme.danger }
@@ -155,7 +171,6 @@ const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pu
           ))}
         </ScrollView>
 
-        {/* MORE BELOW FLOATING INDICATOR */}
         {hasMore && (
           <View style={styles.floatingMore} pointerEvents="none">
             <Ionicons name="chevron-down" size={16} color={Theme.primary} />
@@ -167,9 +182,7 @@ const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pu
 }, (prev, next) => {
   return (
     prev.item.orderId === next.item.orderId &&
-    prev.ui.minutes === next.ui.minutes &&
-    prev.ui.seconds === next.ui.seconds &&
-    prev.time === next.time &&
+    JSON.stringify(prev.item.items) === JSON.stringify(next.item.items) &&
     prev.groups === next.groups
   );
 });
@@ -259,36 +272,20 @@ export default function KDSScreen() {
   };
 
   const renderOrder = ({ item }: any) => {
-    const getTs = (val: any) => {
-      if (!val) return 0;
-      const ts = typeof val === 'number' ? val : new Date(val).getTime();
-      return isNaN(ts) ? 0 : ts;
-    };
-    
-    const latestSent = Math.max(...item.items.map((i: any) => getTs(i.sentAt || item.createdAt)));
-    const elapsed = Math.max(0, time - latestSent);
-    
-    // Safety check for NaN
-    const safeElapsed = isNaN(elapsed) ? 0 : elapsed;
-    const minutes = Math.floor(safeElapsed / 60000);
-    const seconds = Math.floor((safeElapsed % 60000) / 1000);
-    const urgency = getUrgency(minutes);
-    const ui = URGENCY_UI[urgency];
-
     const groups: Record<string, OrderItem[]> = {};
     item.items.forEach((i: OrderItem) => {
-      // ✅ Use categoryName from the item (populated by our new API join)
-      const cat = (i.categoryName || "KITCHEN").toUpperCase();
+      // ✅ Prioritize Specific Kitchen Name (Dish Group -> Category -> Fallback)
+      const cat = (i.dishGroupName || i.categoryName || "KITCHEN").toUpperCase();
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(i);
     });
+
+    const cardHeight = numColumns === 1 ? undefined : (height - 180) / Math.ceil(kitchenOrders.length / numColumns);
 
     return (
       <OrderCard
         item={{ ...item, onPress: (o: any) => setSelectedOrderId(o.orderId) }}
         cardHeight={cardHeight}
-        ui={{ ...ui, urgency, minutes, seconds }}
-        time={time}
         pulseAnim={pulseAnim}
         groups={groups}
       />
