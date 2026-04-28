@@ -211,7 +211,8 @@ async function syncTableStatus(req, tableId) {
 // 1. Send Order (KOT/KDS) -> Dining
 router.post("/send", async (req, res) => {
   try {
-    const { tableId, orderType, userId } = req.body;
+    const { tableId, orderType } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     const isTakeaway = orderType === "TAKEAWAY" || (!tableId || tableId === "undefined" || tableId === "null");
 
     const pool = await poolPromise;
@@ -249,7 +250,8 @@ router.post("/send", async (req, res) => {
 // 2. Hold Order
 router.post("/hold", async (req, res) => {
   try {
-    const { tableId, userId } = req.body;
+    const { tableId } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
     // Use syncTableStatus which updates both Status (to 3) and TotalAmount
@@ -271,7 +273,8 @@ router.post("/hold", async (req, res) => {
 // 3. Checkout (Bill Requested)
 router.post("/checkout", async (req, res) => {
   try {
-    const { tableId, userId } = req.body;
+    const { tableId } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
     const pool = await poolPromise;
@@ -291,7 +294,8 @@ router.post("/checkout", async (req, res) => {
 // 4. Complete / Payment -> Available
 router.post("/complete", async (req, res) => {
   try {
-    const { tableId, userId } = req.body;
+    const { tableId } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
     const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
@@ -319,7 +323,8 @@ router.post("/complete", async (req, res) => {
 // ✅ Save Cart Items Persistent
 router.post("/save-cart", async (req, res) => {
   try {
-    const { tableId, orderId, items, userId } = req.body;
+    const { tableId, orderId, items } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     console.log(`📥 [CartSave] Table: ${tableId} | Items: ${items?.length}`);
     
     const pool = await poolPromise;
@@ -411,11 +416,11 @@ router.post("/save-cart", async (req, res) => {
 // ✅ Add Single Item and Sync
 router.post("/add-item", async (req, res) => {
   try {
-    const { tableId, orderId, item, userId } = req.body;
+    const { tableId, item } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
     const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
-    const cleanOrderNo = String(orderId || "PENDING").replace(/^\{|\}$/g, "").trim();
     const newItemId = require("crypto").randomUUID();
 
     await pool.request()
@@ -427,6 +432,7 @@ router.post("/add-item", async (req, res) => {
       .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
       .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
       .input("status", sql.NVarChar(20), "NEW")
+      .input("userId", sql.UniqueIdentifier, userId || null)
       .query(`
         BEGIN TRANSACTION;
         BEGIN TRY
