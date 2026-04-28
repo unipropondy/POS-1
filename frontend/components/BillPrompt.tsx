@@ -26,7 +26,9 @@ const BillPrompt: React.FC<BillPromptProps> = (props) => {
   // ✅ Include formatPrice in destructuring
   const { visible, onClose, onPrintBill, onSkip, theme, t, total, formatPrice } = props;
 
-  const displayTotal = formatPrice ? formatPrice(parseFloat(total)) : `$${parseFloat(total).toFixed(2)}`;
+  const displayTotal = formatPrice 
+    ? formatPrice(parseFloat(total) || 0) 
+    : `$${(parseFloat(total) || 0).toFixed(2)}`;
 
   return (
     <Modal

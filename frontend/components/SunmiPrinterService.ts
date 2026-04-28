@@ -234,8 +234,9 @@ class SunmiPrinterService {
       for (const item of saleData.items || []) {
         const itemName = (item.name || '').substring(0, 12);
         const qty = (item.qty || item.quantity || 1).toString();
-        const price = `${symbol}${item.price.toFixed(2)}`;
-        const total = `${symbol}${(item.price * (item.qty || item.quantity || 1)).toFixed(2)}`;
+        const itemPrice = parseFloat(String(item.price || 0)) || 0;
+        const price = `${symbol}${itemPrice.toFixed(2)}`;
+        const total = `${symbol}${(itemPrice * (item.qty || item.quantity || 1)).toFixed(2)}`;
         
         await this.itemRow(itemName, qty, price, total);
         

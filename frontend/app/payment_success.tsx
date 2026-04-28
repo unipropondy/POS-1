@@ -58,10 +58,10 @@ export default function PaymentSuccess() {
       
       const saleData = {
         invoiceNumber: orderId,
-        total: parseFloat(total),
+        total: parseFloat(total) || 0,
         paymentMethod: method,
-        cashPaid: parseFloat(paid),
-        change: parseFloat(change),
+        cashPaid: parseFloat(paid) || 0,
+        change: parseFloat(change) || 0,
         items: items,
         date: new Date().toISOString(),
       };

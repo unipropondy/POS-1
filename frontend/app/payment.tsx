@@ -296,7 +296,7 @@ export default function PaymentScreen() {
       cart.reduce((sum: number, item: any) => {
         const isVoided = "status" in item && (item as any).status === "VOIDED";
         if (isVoided) return sum;
-        return sum + (item.price || 0) * item.qty;
+        return sum + (item.price || 0) * (item.qty || 0);
       }, 0),
     [cart],
   );
@@ -332,12 +332,12 @@ export default function PaymentScreen() {
 
       if (!resolvedOrderId) {
         showToast({ type: "error", message: "Invalid Order Context", subtitle: "Order reference is missing" });
-        return false;
+        return { success: false };
       }
 
       if (!user?.userId) {
         showToast({ type: "error", message: "User Missing", subtitle: "Logged in user ID not found" });
-        return false;
+        return { success: false };
       }
       
       const saleData = {
@@ -382,12 +382,12 @@ export default function PaymentScreen() {
       
       if (response.status === 409) {
         showToast({ type: "error", message: "Duplicate Order ID", subtitle: "This order ID already exists. Please try again." });
-        return false;
+        return { success: false };
       }
 
       if (response.status === 400) {
         showToast({ type: "error", message: "Invalid Order", subtitle: result.error || "Order validation failed" });
-        return false;
+        return { success: false };
       }
 
       if (result.success) {
@@ -395,7 +395,7 @@ export default function PaymentScreen() {
         return { success: true, orderId: result.orderId || resolvedOrderId };
       } else {
         showToast({ type: "error", message: "Payment Failed", subtitle: result.error || "Unable to process payment" });
-        return false;
+        return { success: false };
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {

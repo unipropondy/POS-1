@@ -310,7 +310,13 @@ private static async printThermalReceipt(
   private static async printNetwork(saleData: any, userId?: string | number, printer?: PrinterInfo, discountInfo?: DiscountInfo): Promise<boolean> {
     try {
       // Use thermal printer IP printing
-      const ThermalPrinter = require('react-native-thermal-printer');
+      let ThermalPrinter;
+      try {
+        ThermalPrinter = require('react-native-thermal-printer');
+      } catch (e) {
+        console.log('Thermal printer module not found:', e);
+        return false;
+      }
       const company = await BillPDFGenerator.loadSettings(userId);
       const text = this.formatThermalTextWithDiscount(saleData, company, discountInfo);
       
