@@ -643,7 +643,10 @@ router.get("/active-kitchen", async (req, res) => {
       });
     });
 
-    res.json(Array.from(ordersMap.values()));
+    res.json({
+      serverTime: new Date().getTime(),
+      orders: Array.from(ordersMap.values())
+    });
   } catch (err) {
     console.error("❌ [ActiveKitchen] ERROR:", err.message);
     res.status(500).json({ error: err.message });

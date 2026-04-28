@@ -297,16 +297,36 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
       const { API_URL } = require("../constants/Config");
       const res = await fetch(`${API_URL}/api/orders/active-kitchen`);
       if (!res.ok) throw new Error("Failed to fetch active kitchen orders");
-      const data = await res.json();
+      const result = await res.json();
+      
+      let adjustedOrders = [];
+      if (Array.isArray(result)) {
+        // Old format: just an array
+        adjustedOrders = result;
+      } else if (result.orders && Array.isArray(result.orders)) {
+        // New format: { serverTime, orders }
+        const serverTime = result.serverTime;
+        const rawOrders = result.orders;
+        const localTime = Date.now();
+        const offset = serverTime - localTime;
+
+        adjustedOrders = rawOrders.map((order: any) => ({
+          ...order,
+          createdAt: order.createdAt - offset,
+          items: order.items.map((item: any) => ({
+            ...item,
+            sentAt: item.sentAt ? item.sentAt - offset : undefined,
+            readyAt: item.readyAt ? item.readyAt - offset : undefined,
+          }))
+        }));
+      }
       
       // Merge with existing orders (avoid duplicates)
       const currentOrders = get().activeOrders;
-      const merged = [...data];
+      const merged = [...adjustedOrders];
       
-      // If we have local NEW (unsent) orders, we keep them
       currentOrders.forEach(local => {
         if (!merged.find(m => m.orderId === local.orderId)) {
-          // If it's not in the DB kitchen list, it might be a local NEW order
           if (local.items.some(i => i.status === "NEW")) {
             merged.push(local);
           }
