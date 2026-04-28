@@ -22,6 +22,11 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter, useSegments, Slot } from "expo-router";
+import * as SystemUI from "expo-system-ui";
+import { Theme } from "@/constants/theme";
+
+// Set root background immediately to match theme
+SystemUI.setBackgroundColorAsync(Theme.bgMain);
 
 // Keep the splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();

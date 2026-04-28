@@ -8,7 +8,8 @@
     "scheme": "restaurantapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "backgroundColor": "#F8FAFC"
     },
     "android": {
       "adaptiveIcon": {

@@ -153,7 +153,7 @@ router.get("/transactions", async (req, res) => {
         CONVERT(VARCHAR(8), sh.LastSettlementDate, 112) + '-' + RIGHT('0000' + CAST(sh.OrderId AS VARCHAR(10)), 4) AS OrderId
         FROM SettlementHeader sh
         LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
-        WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+        WHERE CAST(sh.LastSettlementDate AS DATE) BETWEEN CAST(@Start AS DATE) AND CAST(@End AS DATE)
         AND ISNULL(sh.IsCancelled, 0) = 0
         ORDER BY sh.LastSettlementDate DESC
       `);
@@ -175,7 +175,7 @@ router.get("/range", async (req, res) => {
         COUNT(sh.SettlementID) AS TransactionCount
         FROM SettlementHeader sh
         INNER JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
-        WHERE sh.LastSettlementDate BETWEEN @Start AND @End
+        WHERE CAST(sh.LastSettlementDate AS DATE) BETWEEN CAST(@Start AS DATE) AND CAST(@End AS DATE)
         AND ISNULL(sh.IsCancelled, 0) = 0
       `);
     res.json(result.recordset[0]);
@@ -416,7 +416,8 @@ router.post("/save", async (req, res) => {
     const now = new Date();
     if (!displayOrderId) {
         // Fallback: Generate a new one if none exists (e.g., takeaway or direct pay)
-        const todayStr = now.toISOString().split('T')[0];
+        // Use local date string (YYYY-MM-DD) to ensure reset at local midnight
+        const todayStr = new Date().toLocaleDateString('en-CA'); 
         
         let seqResult = await transaction.request()
             .input("RestId", sql.UniqueIdentifier, businessUnitId)
@@ -604,6 +605,17 @@ router.post("/orders/validate-cancel", async (req, res) => {
     try {
       const { settlementId } = req.body;
       const pool = await poolPromise;
+      
+      // Get the next Order ID, resetting to 1 at midnight
+      const lastOrder = await pool.request()
+        .query(`
+          SELECT TOP 1 OrderId 
+          FROM SettlementHeader 
+          WHERE CAST(LastSettlementDate AS DATE) = CAST(GETDATE() AS DATE)
+          ORDER BY SettlementID DESC
+        `);
+      const nextOrderId = (parseInt(lastOrder.recordset[0]?.OrderId) || 0) + 1;
+      
       const result = await pool.request()
         .input("Id", settlementId)
         .query("SELECT IsCancelled FROM SettlementHeader WHERE SettlementID = @Id");
@@ -611,7 +623,7 @@ router.post("/orders/validate-cancel", async (req, res) => {
       if (result.recordset.length === 0) return res.status(404).json({ valid: false, message: "Order not found" });
       if (result.recordset[0].IsCancelled) return res.status(400).json({ valid: false, message: "Order is already cancelled" });
       
-      res.json({ valid: true });
+      res.json({ valid: true, nextOrderId });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

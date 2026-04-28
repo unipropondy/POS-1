@@ -30,7 +30,7 @@ export default function SalesReport() {
   const { width: SCREEN_W } = useWindowDimensions();
   const [sales, setSales] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
-  const todayDate = new Date().toISOString().split("T")[0];
+  const todayDate = new Date().toLocaleDateString('en-CA');
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("DAILY");
   const [, setLoading] = useState(true);
@@ -230,8 +230,8 @@ export default function SalesReport() {
         end.setMonth(11, 31);
       }
 
-      const startStr = start.toISOString().split("T")[0];
-      const endStr = end.toISOString().split("T")[0];
+      const startStr = start.toLocaleDateString('en-CA');
+      const endStr = end.toLocaleDateString('en-CA');
       const url = `${API_URL}/api/sales/range?startDate=${startStr}&endDate=${endStr}`;
       const response = await fetch(url);
       const data = await response.json();
