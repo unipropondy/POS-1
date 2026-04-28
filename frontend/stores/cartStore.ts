@@ -1,6 +1,6 @@
 import * as Crypto from "expo-crypto";
 import { create } from "zustand";
-import { Platform } from "react-native";
+import { Alert, Platform } from "react-native";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "@/constants/Config";
@@ -144,28 +144,40 @@ export const useCartStore = create<CartState>()(
 
         const isTakeawayDefault = orderContext?.orderType === "TAKEAWAY";
         const targetLineItemId = Crypto.randomUUID();
+        console.log("🛒 [CartStore] addToCartGlobal - Generated lineItemId:", targetLineItemId);
 
         try {
           const orderId = get().tableOrderIds[tableId];
-          await fetch(`${API_URL}/api/orders/add-item`, {
+          const payload = {
+            tableId,
+            orderId,
+            userId: useAuthStore.getState().user?.userId,
+            item: { 
+              ...item, 
+              qty: 1,
+              isTakeaway: item.isTakeaway !== undefined ? item.isTakeaway : isTakeawayDefault
+            }
+          };
+          console.log("🛒 [CartStore] Sending add-item payload:", JSON.stringify(payload, null, 2));
+
+          const res = await fetch(`${API_URL}/api/orders/add-item`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tableId,
-              orderId,
-              userId: useAuthStore.getState().user?.userId,
-              item: { 
-                ...item, 
-                qty: 1,
-                isTakeaway: item.isTakeaway !== undefined ? item.isTakeaway : isTakeawayDefault
-              }
-            })
+            body: JSON.stringify(payload)
           });
           
-          // Re-fetch from DB to ensure sync
-          await fetchCartFromDB(tableId);
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error("❌ [CartStore] Add failed (Server Error):", errorText);
+            Alert.alert("Error", "Failed to add item to server.");
+          } else {
+            console.log("✅ [CartStore] Add success");
+            // Re-fetch from DB to ensure sync
+            await fetchCartFromDB(tableId);
+          }
         } catch (err) {
-          console.error("❌ [CartStore] Add failed:", err);
+          console.error("❌ [CartStore] Add failed (Network Error):", err);
+          Alert.alert("Error", "Connection problem.");
         }
         
         return targetLineItemId;

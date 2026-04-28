@@ -416,8 +416,12 @@ router.post("/save-cart", async (req, res) => {
 // ✅ Add Single Item and Sync
 router.post("/add-item", async (req, res) => {
   try {
+    console.log("📥 POST /api/orders/add-item | Body:", JSON.stringify(req.body, null, 2));
     const { tableId, orderId, item } = req.body;
     const userId = req.body.userId || req.body.UserId || req.body.USERID;
+    
+    console.log("🛠️ Processing AddItem:", { tableId, orderId, itemId: item?.id, userId });
+
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
     const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
@@ -485,8 +489,10 @@ router.post("/add-item", async (req, res) => {
       `);
 
     const updated = await syncTableStatus(req, cleanTableId);
+    console.log(`✅ [AddItem] Success: Table ${cleanTableId}, Item ${cleanProdId}`);
     res.json({ success: true, itemId: newItemId, ...updated });
   } catch (err) {
+    console.error("❌ [AddItem] ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
