@@ -34,6 +34,7 @@ export type CartItem = {
   isVoided?: boolean;
   categoryName?: string; 
   status?: "NEW" | "SENT" | "VOIDED" | "READY" | "SERVED";
+  DateCreated?: string | number;
 };
 
 export type DiscountInfo = {
@@ -461,6 +462,7 @@ export const useCartStore = create<CartState>()(
             isVoided: !!(item.IsVoided !== undefined ? item.IsVoided : item.isVoided),
             modifiers: typeof item.ModifiersJSON === 'string' ? JSON.parse(item.ModifiersJSON) : (item.modifiers || []),
             status: item.Status || item.status || "NEW",
+            DateCreated: item.DateCreated,
           }));
 
           const contextId = get().currentContextId;
