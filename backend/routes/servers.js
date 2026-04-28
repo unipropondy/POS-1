@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const sql = require("mssql");
-const { poolPromise } = require("../config/db");
+const { poolPromise, sql } = require("../config/db");
 
 // 🔹 GET
 router.get("/", async (req, res) => {
@@ -15,6 +14,7 @@ router.get("/", async (req, res) => {
     `);
     res.json(result.recordset);
   } catch (err) {
+    console.error("GET SERVERS ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -23,16 +23,18 @@ router.get("/", async (req, res) => {
 router.post("/add", async (req, res) => {
   try {
     const { SER_NAME, userId } = req.body;
+    console.log("➕ Adding server:", { SER_NAME, userId });
 
     if (!userId) {
+      console.warn("⚠️ UserId missing in add waiter request");
       return res.status(400).json({ error: "UserId missing" });
     }
 
     const pool = await poolPromise;
 
     await pool.request()
-      .input("SER_NAME", sql.VarChar, SER_NAME)
-      .input("CreatedBy", sql.UniqueIdentifier, userId)
+      .input("SER_NAME", sql.NVarChar, SER_NAME)
+      .input("CreatedBy", userId) // Let mssql infer uniqueidentifier from string
       .query(`
         INSERT INTO server (SER_NAME, CreatedBy, CreatedDate)
         VALUES (@SER_NAME, @CreatedBy, GETDATE())
@@ -40,6 +42,7 @@ router.post("/add", async (req, res) => {
 
     res.json({ success: true, message: "Created successfully" });
   } catch (err) {
+    console.error("ADD SERVER ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -48,13 +51,14 @@ router.post("/add", async (req, res) => {
 router.post("/update", async (req, res) => {
   try {
     const { SER_ID, SER_NAME, userId } = req.body;
+    console.log("📝 Updating server:", { SER_ID, SER_NAME, userId });
 
     const pool = await poolPromise;
 
     await pool.request()
       .input("SER_ID", sql.Int, SER_ID)
-      .input("SER_NAME", sql.VarChar, SER_NAME)
-      .input("ModifiedBy", sql.UniqueIdentifier, userId)
+      .input("SER_NAME", sql.NVarChar, SER_NAME)
+      .input("ModifiedBy", userId) // Let mssql infer uniqueidentifier
       .query(`
         UPDATE server
         SET 
@@ -66,6 +70,7 @@ router.post("/update", async (req, res) => {
 
     res.json({ success: true, message: "Updated successfully" });
   } catch (err) {
+    console.error("UPDATE SERVER ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
