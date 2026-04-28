@@ -8,7 +8,10 @@ router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT * FROM server ORDER BY CreatedDate DESC
+      SELECT s.*, u.FullName AS CreatorName 
+      FROM server s
+      LEFT JOIN [dbo].[UserMaster] u ON s.CreatedBy = u.UserId
+      ORDER BY s.CreatedDate DESC
     `);
     res.json(result.recordset);
   } catch (err) {

@@ -26,6 +26,7 @@ type WaiterType = {
   SER_ID: number;
   SER_NAME: string;
   CreatedBy?: string;
+  CreatorName?: string;
   CreatedDate?: string;
 };
 
@@ -132,10 +133,10 @@ export default function WaitersScreen() {
             <Text style={styles.waiterName}>{item.SER_NAME}</Text>
             <View style={styles.idRow}>
               <Text style={styles.waiterId}>ID: {item.SER_ID}</Text>
-              {item.CreatedBy && (
+              {item.CreatorName && (
                 <>
                   <Text style={styles.dot}>•</Text>
-                  <Text style={styles.waiterId}>By: {item.CreatedBy.substring(0, 8)}...</Text>
+                  <Text style={styles.waiterId}>By: {item.CreatorName}</Text>
                 </>
               )}
             </View>
