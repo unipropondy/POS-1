@@ -376,10 +376,11 @@ router.post("/save", async (req, res) => {
     const pool = await poolPromise;
     const {
       totalAmount, paymentMethod, items, subTotal, taxAmount,
-      discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId, tableId
+      discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId, tableId,
+      serverId, serverName
     } = req.body;
 
-    console.log(`[SAVE SALE] Starting transaction. Items: ${items?.length}, Total: ${totalAmount}, Method: ${paymentMethod}`);
+    console.log(`[SAVE SALE] Starting transaction. Waiter: [${serverName} (${serverId})], Items: ${items?.length}, Total: ${totalAmount}, Method: ${paymentMethod}`);
 
     const validationError = validateSalePayload({ totalAmount, paymentMethod, items });
     if (validationError) {
@@ -580,12 +581,12 @@ router.post("/save", async (req, res) => {
       }
 
       // 5. Track in servermaster (Waiter History)
-      if (req.body.serverId) {
-        console.log(`[SAVE SALE] Recording waiter [${req.body.serverName}] in servermaster...`);
+      if (serverId) {
+        console.log(`[SAVE SALE] Recording waiter [${serverName}] in servermaster...`);
         try {
           await transaction.request()
-            .input("SER_ID", sql.Int, req.body.serverId)
-            .input("SER_NAME", sql.NVarChar(255), req.body.serverName)
+            .input("SER_ID", sql.Int, serverId)
+            .input("SER_NAME", sql.NVarChar(255), serverName)
             .input("TableNo", sql.NVarChar(50), tableNo || null)
             .input("OrderId", sql.NVarChar(50), displayOrderId)
             .input("Section", sql.NVarChar(100), section || null)
@@ -601,14 +602,16 @@ router.post("/save", async (req, res) => {
               IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'Section')
               ALTER TABLE servermaster ADD Section NVARCHAR(100);
 
-              -- Insert record
-              INSERT INTO servermaster (SER_ID, SER_NAME, TableNo, OrderId, Section, CreatedBy, CreatedDate)
-              VALUES (@SER_ID, @SER_NAME, @TableNo, @OrderId, @Section, @CreatedBy, GETDATE())
+              -- Insert record with all columns
+              INSERT INTO servermaster (SER_ID, SER_NAME, TableNo, OrderId, Section, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)
+              VALUES (@SER_ID, @SER_NAME, @TableNo, @OrderId, @Section, @CreatedBy, GETDATE(), @CreatedBy, GETDATE())
             `);
+          console.log(`[SAVE SALE] servermaster insert SUCCESS for order ${displayOrderId}`);
         } catch (serverErr) {
           console.error("⚠️ [SAVE SALE] servermaster insert failed (non-critical):", serverErr.message);
-          // We don't fail the whole sale if just history recording fails, but we log it.
         }
+      } else {
+        console.log(`[SAVE SALE] No serverId provided. Skipping servermaster tracking.`);
       }
 
       await transaction.commit();
