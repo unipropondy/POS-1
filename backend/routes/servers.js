@@ -25,16 +25,11 @@ router.post("/add", async (req, res) => {
     const { SER_NAME, userId } = req.body;
     console.log("➕ Adding server:", { SER_NAME, userId });
 
-    if (!userId) {
-      console.warn("⚠️ UserId missing in add waiter request");
-      return res.status(400).json({ error: "UserId missing" });
-    }
-
     const pool = await poolPromise;
 
     await pool.request()
       .input("SER_NAME", sql.NVarChar, SER_NAME)
-      .input("CreatedBy", userId) // Let mssql infer uniqueidentifier from string
+      .input("CreatedBy", sql.UniqueIdentifier, userId || null)
       .query(`
         INSERT INTO server (SER_NAME, CreatedBy, CreatedDate)
         VALUES (@SER_NAME, @CreatedBy, GETDATE())
@@ -58,7 +53,7 @@ router.post("/update", async (req, res) => {
     await pool.request()
       .input("SER_ID", sql.Int, SER_ID)
       .input("SER_NAME", sql.NVarChar, SER_NAME)
-      .input("ModifiedBy", userId) // Let mssql infer uniqueidentifier
+      .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
       .query(`
         UPDATE server
         SET 
