@@ -33,7 +33,8 @@ async function getOrGenerateOrderId(req, tableId) {
 
   // 3. Atomic Sequence Generation
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  // Use local date string (YYYY-MM-DD) to ensure reset at local midnight
+  const todayStr = now.toLocaleDateString('en-CA'); 
   
   let dailySequence;
   const transaction = new sql.Transaction(pool);

@@ -123,7 +123,7 @@ router.get("/all", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, 
-      CONVERT(VARCHAR(8), sh.LastSettlementDate, 112) + '-' + RIGHT('0000' + CAST(sh.OrderId AS VARCHAR(10)), 4) AS OrderId, 
+      sh.BillNo AS OrderId, 
       sh.OrderType,
       sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, 
       ${normalizeReportPayModeSql("sts.PayMode")} as PayMode,
@@ -466,9 +466,10 @@ router.post("/save", async (req, res) => {
       .input("ManualAmount", sql.Money, totalAmount || 0)
       .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
       .input("CreatedOn", sql.DateTime, now)
+      .input("OrderId", sql.Int, dailySequence)
       .query(`
-        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn)
-        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
+        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderId, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn)
+        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderId, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
       `);
 
     // 3. Insert SettlementTotalSales
@@ -606,16 +607,6 @@ router.post("/orders/validate-cancel", async (req, res) => {
       const { settlementId } = req.body;
       const pool = await poolPromise;
       
-      // Get the next Order ID, resetting to 1 at midnight
-      const lastOrder = await pool.request()
-        .query(`
-          SELECT TOP 1 OrderId 
-          FROM SettlementHeader 
-          WHERE CAST(LastSettlementDate AS DATE) = CAST(GETDATE() AS DATE)
-          ORDER BY SettlementID DESC
-        `);
-      const nextOrderId = (parseInt(lastOrder.recordset[0]?.OrderId) || 0) + 1;
-      
       const result = await pool.request()
         .input("Id", settlementId)
         .query("SELECT IsCancelled FROM SettlementHeader WHERE SettlementID = @Id");
@@ -623,7 +614,7 @@ router.post("/orders/validate-cancel", async (req, res) => {
       if (result.recordset.length === 0) return res.status(404).json({ valid: false, message: "Order not found" });
       if (result.recordset[0].IsCancelled) return res.status(400).json({ valid: false, message: "Order is already cancelled" });
       
-      res.json({ valid: true, nextOrderId });
+      res.json({ valid: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
