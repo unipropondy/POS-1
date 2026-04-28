@@ -106,7 +106,8 @@ router.get("/locked", async (req, res) => {
 router.post("/lock-persistent", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { tableId, lockedByName, userId } = req.body;
+    const { tableId, lockedByName } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
@@ -147,7 +148,8 @@ router.post("/lock-persistent", async (req, res) => {
 router.post("/unlock-persistent", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { tableId, userId } = req.body;
+    const { tableId } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
@@ -184,7 +186,8 @@ router.post("/unlock-persistent", async (req, res) => {
 
 // ✅ New route to match user's snippet: PUT /api/tables/status
 router.put("/status", async (req, res) => {
-  const { tableId, status, userId } = req.body;
+  const { tableId, status } = req.body;
+  const userId = req.body.userId || req.body.UserId || req.body.USERID;
 
   try {
     const pool = await poolPromise;
@@ -256,7 +259,8 @@ router.put("/:tableId/status", async (req, res) => {
   try {
     const pool = await poolPromise;
     const { tableId } = req.params;
-    const { status, lockedByName, userId } = req.body;
+    const { status, lockedByName } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
 
     if (status === undefined) return res.status(400).json({ error: "status is required" });
 

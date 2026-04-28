@@ -25,8 +25,13 @@ router.get("/discounts", async (req, res) => {
 router.post("/orders/cancel", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { settlementId, cancellationReason, cancelledBy } = req.body;
-    await pool.request().input("id", settlementId).input("reason", cancellationReason).input("by", cancelledBy).query("UPDATE SettlementHeader SET IsCancelled = 1, CancellationReason = @reason, CancelledBy = @by, CancelledDate = GETDATE() WHERE SettlementID = @id");
+    const { settlementId, cancellationReason } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID || req.body.cancelledBy;
+    await pool.request()
+      .input("id", settlementId)
+      .input("reason", cancellationReason)
+      .input("by", userId)
+      .query("UPDATE SettlementHeader SET IsCancelled = 1, CancellationReason = @reason, CancelledBy = @by, CancelledDate = GETDATE() WHERE SettlementID = @id");
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
