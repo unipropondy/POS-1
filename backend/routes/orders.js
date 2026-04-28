@@ -495,6 +495,7 @@ router.post("/add-item", async (req, res) => {
 router.post("/remove-item", async (req, res) => {
   try {
     const { tableId, productId, itemId, qtyToVoid } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
 
@@ -528,13 +529,14 @@ router.post("/remove-item", async (req, res) => {
         await transaction.request()
           .input("parentItemId", sql.NVarChar(128), itemId)
           .input("voidQty", sql.Int, voidQty)
+          .input("userId", sql.UniqueIdentifier, userId || null)
           .query(`
             INSERT INTO [dbo].[CartItems] 
             (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
-             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status, DiscountAmount, DiscountType)
+             IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status, DiscountAmount, DiscountType, CreatedBy)
             SELECT 
               NEWID(), CartId, ProductId, @voidQty, Cost, OrderNo, @voidQty, GETDATE(), 
-              IsTakeaway, 1, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, 'VOIDED', DiscountAmount, DiscountType
+              IsTakeaway, 1, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, 'VOIDED', DiscountAmount, DiscountType, @userId
             FROM CartItems WHERE ItemId = @parentItemId
           `);
 
@@ -548,7 +550,8 @@ router.post("/remove-item", async (req, res) => {
         // FULL VOID: Just update status
         await transaction.request()
           .input("itemId", sql.NVarChar(128), itemId)
-          .query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1 WHERE ItemId = @itemId");
+          .input("userId", sql.UniqueIdentifier, userId || null)
+          .query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1, ModifiedBy = @userId WHERE ItemId = @itemId");
       }
 
       await transaction.commit();
@@ -568,13 +571,15 @@ router.post("/remove-item", async (req, res) => {
 router.post("/update-item-status", async (req, res) => {
   try {
     const { orderId, lineItemId, status } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
     if (!lineItemId || !status) return res.status(400).json({ error: "Missing parameters" });
 
     const pool = await poolPromise;
     await pool.request()
       .input("itemId", sql.NVarChar(128), lineItemId)
       .input("status", sql.NVarChar(20), status)
-      .query("UPDATE CartItems SET Status = @status WHERE ItemId = @itemId");
+      .input("userId", sql.UniqueIdentifier, userId || null)
+      .query("UPDATE CartItems SET Status = @status, ModifiedBy = @userId WHERE ItemId = @itemId");
 
     // Broadcast update via socket
     const io = req.app.get("io");
