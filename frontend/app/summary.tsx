@@ -281,7 +281,7 @@ export default function SummaryScreen() {
         {/* HEADER */}
         <View style={[styles.headerBar, isPhone && isLandscape && { height: 50, marginBottom: 5 }]}>
           <View style={styles.headerLeft}>
-            <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+            <Pressable style={styles.iconBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
               <Ionicons name="arrow-back" size={24} color={Theme.textPrimary} />
             </Pressable>
 

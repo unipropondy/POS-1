@@ -398,7 +398,7 @@ export default function KDSScreen() {
         <View style={styles.topBar}>
           <View style={styles.headerLeftSection}>
             {!isKDSUser && (
-              <Pressable onPress={() => router.back()} style={styles.backBtn}>
+              <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
                 <Ionicons name="arrow-back" size={22} color={Theme.textPrimary} />
               </Pressable>
             )}

@@ -155,7 +155,7 @@ export default function KitchenStatusScreen() {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={Theme.textPrimary} />
         </Pressable>
         <View style={styles.titleContainer}>

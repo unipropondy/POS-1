@@ -517,7 +517,7 @@ export default function PaymentScreen() {
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={20} color={Theme.textPrimary} />
           </TouchableOpacity>
 
