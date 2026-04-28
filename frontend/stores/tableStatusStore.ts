@@ -43,6 +43,11 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
 
   updateTableStatus: (tableId, section, tableNo, orderId, status, startTime, lockedByName, totalAmount) => {
     set((state) => {
+      // 🟢 Robustly handle ISO strings or timestamps
+      const parsedStartTime = typeof startTime === 'string' 
+        ? new Date(startTime).getTime() 
+        : startTime;
+
       const existingIndex = state.tables.findIndex(
         (t) => t.section === section && t.tableNo === tableNo
       );
@@ -62,14 +67,12 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
           tableId,
           orderId,
           status,
-          startTime: startTime || updatedTables[existingIndex].startTime || Date.now(),
+          startTime: parsedStartTime || updatedTables[existingIndex].startTime || Date.now(),
           lockedByName,
           totalAmount: totalAmount !== undefined ? totalAmount : updatedTables[existingIndex].totalAmount,
         };
         return { ...newState, tables: updatedTables };
       } else {
-        // If it's a new entry (e.g. app load), only default to Date.now() if it's actually active
-        // and we weren't given a time from the backend.
         const defaultStartTime = (status !== 'EMPTY' && status !== 'LOCKED') ? Date.now() : 0;
 
         return {
@@ -81,7 +84,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
               section,
               tableNo,
               orderId,
-              startTime: startTime || defaultStartTime,
+              startTime: parsedStartTime || defaultStartTime,
               status,
               lockedByName,
               totalAmount,

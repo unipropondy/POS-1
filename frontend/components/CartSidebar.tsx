@@ -285,43 +285,24 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   const handleCheckout = async () => {
     if (!orderContext) return;
     if (orderContext.orderType === "DINE_IN") {
+      const checkRes = await fetch(`${API_URL}/api/orders/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableId: orderContext.tableId }),
+      });
+      const checkData = await checkRes.json();
+      const serverStartTime = checkData.StartTime || checkData.startTime;
+
       updateTableStatus(
         orderContext.tableId || "",
         orderContext.section!,
         orderContext.tableNo!,
         activeOrder?.orderId || "PAYMENT",
         "BILL_REQUESTED",
-        undefined,
+        serverStartTime,
         undefined,
         payableAmount,
       );
-      
-      if (cart.length > 0) {
-        let targetOrderId = activeOrder?.orderId;
-        // If we don't have an ID yet, we must wait for the server to provide one during checkout/send
-
-        appendOrder(targetOrderId || "NEW", orderContext, cart);
-        markItemsSent(targetOrderId || "NEW");
-        try {
-          await fetch(`${API_URL}/api/orders/save-cart`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              tableId: orderContext.tableId, 
-              orderId: targetOrderId, 
-              items: cart 
-            }),
-          });
-        } catch (err) {
-          console.error("Cart Save Error on Checkout:", err);
-        }
-      }
-
-      await fetch(`${API_URL}/api/orders/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId: orderContext.tableId }),
-      }).catch(err => console.error("Checkout Sync Error:", err));
 
       socket.emit("order_status_update", {
         orderId: activeOrder?.orderId || "PAYMENT",
@@ -375,13 +356,14 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
             useCartStore.getState().setTableOrderId(orderContext.tableId!, officialOrderId);
             useActiveOrdersStore.getState().updateOrderId(targetOrderId || "NEW", officialOrderId);
             
+            const serverStartTime = sendData.StartTime || sendData.startTime;
             updateTableStatus(
               orderContext.tableId || "",
               orderContext.section || "TAKEAWAY",
               orderContext.orderType === "DINE_IN" ? orderContext.tableNo! : orderContext.takeawayNo!,
               officialOrderId,
               "SENT",
-              undefined,
+              serverStartTime,
               undefined,
               payableAmount,
             );
@@ -664,22 +646,28 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                           }),
                         });
 
-                        await fetch(`${API_URL}/api/orders/hold`, {
+                        const holdRes = await fetch(`${API_URL}/api/orders/hold`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ tableId: orderContext.tableId }),
                         });
+                        const holdData = await holdRes.json();
+                        const serverStartTime = holdData.StartTime || holdData.startTime;
+
+                        updateTableStatus(
+                          orderContext.tableId || "",
+                          orderContext.section!,
+                          orderContext.tableNo!,
+                          targetOrderId || "HOLD",
+                          "HOLD",
+                          serverStartTime,
+                          undefined,
+                          payableAmount
+                        );
                       } catch (err) {
                         console.error("Hold sync error:", err);
                       }
                     }
-                    updateTableStatus(
-                      orderContext.tableId || "",
-                      orderContext.section!,
-                      orderContext.tableNo!,
-                      targetOrderId || "HOLD",
-                      "HOLD",
-                    );
                     holdOrder(targetOrderId || "HOLD", cart, orderContext);
                     router.replace(
                       `/(tabs)?section=${orderContext.section}`,
@@ -731,9 +719,9 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                 <Text style={styles.btnText}>Proceed to Pay</Text>
               </TouchableOpacity>
             ) : null}
-          </View>
-        </>
-      </View>
+            </View>
+          </>
+        </View>
       )}
 
       {/* CANCEL PASSWORD MODAL */}

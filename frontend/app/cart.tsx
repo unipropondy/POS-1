@@ -535,15 +535,17 @@ export default function CartScreen() {
 
         if (sendData.success && sendData.currentOrderId) {
           const officialId = sendData.currentOrderId;
+          const serverStartTime = sendData.StartTime || sendData.startTime;
           
           appendOrder(officialId, context, cart);
           markItemsSent(officialId);
-          updateTableStatus("", "TAKEAWAY", context.takeawayNo!, officialId, 'SENT', undefined, undefined, payableAmount);
+          updateTableStatus("", "TAKEAWAY", context.takeawayNo!, officialId, 'SENT', serverStartTime, undefined, payableAmount);
           
           socket.emit("new_order", {
             orderId: officialId,
             context,
-            items: cart
+            items: cart,
+            createdAt: Date.now(),
           });
 
           showToast({
@@ -680,6 +682,10 @@ export default function CartScreen() {
                           const serverStartTime = holdData.StartTime || holdData.startTime;
 
                           updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', serverStartTime, undefined, payableAmount);
+                        } catch (err) {
+                          console.error("Failed to update status on server:", err);
+                        }
+                      }
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
                       router.replace(`/(tabs)?section=${orderContext.section}`);
