@@ -194,7 +194,7 @@ async function syncTableStatus(req, tableId) {
           tableId: cleanId, 
           status: updated.Status,
           totalAmount: updated.TotalAmount,
-          startTime: updated.StartTime,
+          StartTime: updated.StartTime,
           currentOrderId: updated.CurrentOrderId,
           isOvertime: updated.isOvertime || 0
         });

@@ -232,7 +232,7 @@ router.put("/status", async (req, res) => {
         tableId: cleanTableId, 
         status: Number(status),
         totalAmount: currentTotal,
-        startTime: currentStartTime,
+        StartTime: currentStartTime,
         isOvertime: currentIsOvertime
       });
     }

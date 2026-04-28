@@ -333,9 +333,10 @@ export default function Category() {
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    socket.on("table_status_updated", ({ tableId, status, totalAmount, startTime, currentOrderId, isOvertime }) => {
+    socket.on("table_status_updated", ({ tableId, status, totalAmount, StartTime, startTime, currentOrderId, isOvertime }) => {
+      const finalStartTime = StartTime || startTime;
       console.log(
-        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Order ${currentOrderId}, Total ${totalAmount}`,
+        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Time ${finalStartTime}`,
       );
       setAllTables((prev) =>
         prev.map((t) =>
@@ -344,7 +345,7 @@ export default function Category() {
                 ...t,
                 Status: Number(status),
                 totalAmount: Number(totalAmount || 0),
-                StartTime: startTime,
+                StartTime: finalStartTime || t.StartTime,
                 currentOrderId: currentOrderId,
                 isOvertime: Number(isOvertime) || 0,
               }
@@ -371,7 +372,7 @@ export default function Category() {
                   : status === 3
                     ? "HOLD"
                     : "EMPTY",
-            startTime ? new Date(startTime).getTime() : undefined,
+            finalStartTime,
             undefined,
             totalAmount,
           );
@@ -480,10 +481,10 @@ export default function Category() {
         // Sync to global store for components to use
         const store = useTableStatusStore.getState();
         convertedData.forEach(t => {
-          let ts = undefined;
+          let finalStartTime = undefined;
           if (t.StartTime) {
             const parsed = new Date(t.StartTime).getTime();
-            if (!isNaN(parsed)) ts = parsed;
+            if (!isNaN(parsed)) finalStartTime = parsed;
           }
 
           store.updateTableStatus(
@@ -495,8 +496,8 @@ export default function Category() {
             t.Status === 1 ? "SENT" : 
             t.Status === 2 ? "BILL_REQUESTED" : 
             t.Status === 3 ? "HOLD" : "EMPTY",
-            ts,
-            t.lockedByName,
+            finalStartTime,
+            "",
             t.totalAmount
           );
         });
