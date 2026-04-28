@@ -1334,33 +1334,33 @@ export default function SalesReport() {
                   )}
                 </ScrollView>
                 <View style={styles.modalDivider} />
-                <View style={[styles.totalRow, { backgroundColor: Theme.primary + '05', padding: 16, borderRadius: 16, marginBottom: 24 }]}>
+                <View style={[styles.totalRow, { backgroundColor: Theme.primary + '05', padding: 12, borderRadius: 12, marginBottom: 16 }]}>
                   <View>
-                    <Text style={[styles.totalLabel, { fontSize: 12, color: Theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }]}>Total Amount</Text>
-                    <Text style={[styles.totalValue, { fontSize: 28 }]}>
+                    <Text style={[styles.totalLabel, { fontSize: 10, color: Theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }]}>Total Amount</Text>
+                    <Text style={[styles.totalValue, { fontSize: 22 }]}>
                       {formatCurrency(selectedOrder?.SysAmount)}
                     </Text>
                   </View>
-                  <View style={styles.paidBadgeSmall}>
-                    <Ionicons name="checkmark-circle" size={16} color={Theme.success} />
-                    <Text style={{ color: Theme.success, fontFamily: Fonts.black, fontSize: 12, marginLeft: 4 }}>PAID</Text>
+                  <View style={[styles.paidBadgeSmall, { paddingHorizontal: 6, paddingVertical: 2 }]}>
+                    <Ionicons name="checkmark-circle" size={14} color={Theme.success} />
+                    <Text style={{ color: Theme.success, fontFamily: Fonts.black, fontSize: 10, marginLeft: 4 }}>PAID</Text>
                   </View>
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity
-                    onPress={() => setShowPrintPrompt(true)}
-                    style={[styles.premiumSecondaryBtn, { flex: 1 }]}
+                    onPress={() => setSelectedOrder(null)}
+                    style={[styles.premiumPrimaryBtn, { flex: 1, paddingVertical: 12 }]}
                   >
-                    <Ionicons name="print" size={18} color={Theme.primary} />
-                    <Text style={styles.premiumSecondaryBtnText}>REPRINT</Text>
+                    <Text style={[styles.premiumPrimaryBtnText, { fontSize: 14 }]}>CLOSE</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={() => setSelectedOrder(null)}
-                    style={[styles.premiumPrimaryBtn, { flex: 1.5 }]}
+                    onPress={() => setShowPrintPrompt(true)}
+                    style={[styles.premiumSecondaryBtn, { flex: 1.2, paddingVertical: 12 }]}
                   >
-                    <Text style={styles.premiumPrimaryBtnText}>CLOSE</Text>
+                    <Ionicons name="print" size={16} color={Theme.primary} />
+                    <Text style={[styles.premiumSecondaryBtnText, { fontSize: 14 }]}>REPRINT</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2017,11 +2017,11 @@ const styles = StyleSheet.create({
   },
   modalDismiss: { ...StyleSheet.absoluteFillObject },
   modalContent: {
-    width: "90%",
-    maxWidth: 480,
+    width: "80%",
+    maxWidth: 400,
     backgroundColor: Theme.bgCard,
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20,
+    padding: 20,
     ...Theme.shadowLg,
     borderWidth: 1,
     borderColor: Theme.border,
@@ -2030,60 +2030,60 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   modalTitle: {
     color: Theme.textPrimary,
     fontFamily: Fonts.black,
-    fontSize: 18,
+    fontSize: 16,
   },
   modalSub: {
     color: Theme.textSecondary,
     fontFamily: Fonts.medium,
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
   },
   modalDivider: {
     height: 1,
     backgroundColor: Theme.border,
-    marginVertical: 16,
+    marginVertical: 12,
   },
-  itemsList: { maxHeight: 250 },
+  itemsList: { maxHeight: 220 },
   orderItemRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: 10,
+    gap: 8,
   },
   orderItemQty: {
     color: Theme.primary,
     fontFamily: Fonts.black,
-    fontSize: 14,
-    width: 30,
+    fontSize: 13,
+    width: 25,
   },
   orderItemName: {
     flex: 1,
     color: Theme.textPrimary,
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: 13,
   },
   orderItemPrice: {
     color: Theme.textPrimary,
     fontFamily: Fonts.black,
-    fontSize: 14,
+    fontSize: 13,
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 15,
   },
   totalLabel: {
     color: Theme.textPrimary,
     fontFamily: Fonts.black,
-    fontSize: 18,
+    fontSize: 16,
   },
-  totalValue: { color: Theme.primary, fontFamily: Fonts.black, fontSize: 24 },
+  totalValue: { color: Theme.primary, fontFamily: Fonts.black, fontSize: 22 },
   doneBtn: {
     backgroundColor: Theme.primary,
     paddingVertical: 14,
@@ -2102,8 +2102,8 @@ const styles = StyleSheet.create({
   },
   premiumPrimaryBtn: {
     backgroundColor: Theme.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: 'center',
     ...Theme.shadowMd,
@@ -2111,24 +2111,24 @@ const styles = StyleSheet.create({
   premiumPrimaryBtnText: {
     color: "#fff",
     fontFamily: Fonts.black,
-    fontSize: 16,
+    fontSize: 14,
     letterSpacing: 0.5,
   },
   premiumSecondaryBtn: {
     backgroundColor: Theme.primary + '10',
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     borderWidth: 1.5,
     borderColor: Theme.primary + '20',
   },
   premiumSecondaryBtnText: {
     color: Theme.primary,
     fontFamily: Fonts.black,
-    fontSize: 15,
+    fontSize: 13,
   },
   sidebarOverlay: {
     flex: 1,
