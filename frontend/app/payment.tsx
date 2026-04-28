@@ -327,7 +327,10 @@ export default function PaymentScreen() {
 
   const saveSaleToDatabase = async () => {
     try {
-      if (!activeOrder?.orderId) {
+      // Use displayOrderId first (synced from DB on load), fall back to activeOrder
+      const resolvedOrderId = displayOrderId || activeOrder?.orderId;
+
+      if (!resolvedOrderId) {
         showToast({ type: "error", message: "Invalid Order Context", subtitle: "Order reference is missing" });
         return false;
       }
@@ -338,7 +341,7 @@ export default function PaymentScreen() {
       }
       
       const saleData = {
-        orderId: activeOrder?.orderId,
+        orderId: resolvedOrderId,
         orderType: context?.orderType === "DINE_IN" ? "DINE-IN" : context?.orderType || "DINE-IN",
         tableNo: context?.orderType === "TAKEAWAY" ? context?.takeawayNo : context?.tableNo,
         section: context?.section,
@@ -389,7 +392,7 @@ export default function PaymentScreen() {
 
       if (result.success) {
         generatedOrderId = result.orderId;
-        return { success: true, orderId: result.orderId };
+        return { success: true, orderId: result.orderId || resolvedOrderId };
       } else {
         showToast({ type: "error", message: "Payment Failed", subtitle: result.error || "Unable to process payment" });
         return false;
@@ -461,7 +464,7 @@ export default function PaymentScreen() {
           paidNum: paidNum.toFixed(2),
           change: change.toFixed(2),
           method,
-          orderId: realOrderId || activeOrder?.orderId || "",
+          orderId: realOrderId || displayOrderId || activeOrder?.orderId || "",
           tableNo: context?.tableNo ?? "",
           section: context?.section ?? "",
           orderType: context?.orderType ?? "",
