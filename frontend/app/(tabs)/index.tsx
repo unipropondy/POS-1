@@ -110,10 +110,11 @@ const TableItemComponent = React.memo(
     const labelColor = Theme.textPrimary;
 
     let timeText = "";
-    let billAmount = tableData?.billAmount || 0;
+    let billAmount = tableData?.totalAmount || 0;
 
-    if (tableData && tableData.startTime && status !== 0 && status !== 5) {
-      const time = new Date(tableData.startTime);
+    const startTime = tableData?.startTime || tableData?.StartTime;
+    if (tableData && startTime && status !== 0 && status !== 5) {
+      const time = new Date(startTime);
       timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
     }
 

@@ -403,20 +403,24 @@ router.post("/save", async (req, res) => {
         let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
         console.log(`[SAVE SALE] BusinessUnitId resolved to: ${businessUnitId}`);
 
-    // 2. Order ID Retrieval (Option B)
-    // First, check if the table already has an assigned Order ID
+    // 2. Order ID Retrieval
+    const now = new Date();
     let displayOrderId = null;
+    let dailySequence = 0;
+
     if (tableId) {
         const tableCheck = await transaction.request()
             .input("tid", sql.UniqueIdentifier, String(tableId).replace(/^\{|\}$/g, "").trim())
             .query("SELECT CurrentOrderId FROM TableMaster WHERE TableId = @tid");
         displayOrderId = tableCheck.recordset[0]?.CurrentOrderId;
+        
+        if (displayOrderId && displayOrderId.includes('-')) {
+            dailySequence = parseInt(displayOrderId.split('-')[1]) || 0;
+        }
     }
 
-    const now = new Date();
     if (!displayOrderId) {
         // Fallback: Generate a new one if none exists (e.g., takeaway or direct pay)
-        // Use local date string (YYYY-MM-DD) to ensure reset at local midnight
         const todayStr = new Date().toLocaleDateString('en-CA'); 
         
         let seqResult = await transaction.request()
@@ -429,7 +433,6 @@ router.post("/save", async (req, res) => {
               WHERE RestaurantId = @RestId AND SequenceDate = @Today
             `);
 
-        let dailySequence;
         if (seqResult.recordset.length > 0) {
             dailySequence = seqResult.recordset[0].LastNumber;
         } else {
@@ -443,9 +446,9 @@ router.post("/save", async (req, res) => {
             dailySequence = 1;
         }
         displayOrderId = `${todayStr.replace(/-/g, '')}-${String(dailySequence).padStart(4, '0')}`;
-        console.log(`[SAVE SALE] Generated NEW ID for direct pay: ${displayOrderId}`);
+        console.log(`[SAVE SALE] Generated NEW ID: ${displayOrderId}`);
     } else {
-        console.log(`[SAVE SALE] Using EXISTING assigned ID: ${displayOrderId}`);
+        console.log(`[SAVE SALE] Using EXISTING ID: ${displayOrderId} (Seq: ${dailySequence})`);
     }
 
     const headerResult = await transaction.request()
