@@ -497,7 +497,8 @@ export default function CartScreen() {
               appendOrder(officialId, context, cart);
               markItemsSent(officialId);
               useCartStore.getState().setTableOrderId(tableId, officialId);
-              updateTableStatus(tableId, context.section!, context.tableNo!, officialId, 'SENT', undefined, undefined, payableAmount);
+              const serverStartTime = sendData.StartTime || sendData.startTime;
+              updateTableStatus(tableId, context.section!, context.tableNo!, officialId, 'SENT', serverStartTime, undefined, payableAmount);
 
               // 4. Notify Kitchen via Socket
               socket.emit("new_order", {
@@ -670,16 +671,15 @@ export default function CartScreen() {
                           });
 
                           // 2. Then set status to Hold
-                          await fetch(`${API_URL}/api/orders/hold`, {
+                          const res = await fetch(`${API_URL}/api/orders/hold`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ tableId }),
                           });
-                        } catch (err) {
-                          console.error("Failed to update status on server:", err);
-                        }
-                      }
-                      updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
+                          const holdData = await res.json();
+                          const serverStartTime = holdData.StartTime || holdData.startTime;
+
+                          updateTableStatus(tableId || "", orderContext.section!, orderContext.tableNo!, targetOrderId, 'HOLD', serverStartTime, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
                       router.replace(`/(tabs)?section=${orderContext.section}`);
@@ -755,6 +755,9 @@ export default function CartScreen() {
                             throw new Error(errorBody.error || `Server returned ${response.status}`);
                           }
 
+                          const data = await response.json();
+                          const serverStartTime = data.StartTime || data.startTime;
+
                           console.log("🛒 [Checkout] API Success, status set to 3");
 
                           // 5. Update local store immediately for local UI feedback
@@ -764,7 +767,7 @@ export default function CartScreen() {
                             orderContext.tableNo!, 
                             activeOrder?.orderId || "SYNC", 
                             'BILL_REQUESTED', 
-                            undefined, 
+                            serverStartTime, 
                             undefined, 
                             payableAmount
                           );

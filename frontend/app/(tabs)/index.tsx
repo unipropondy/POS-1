@@ -112,8 +112,8 @@ const TableItemComponent = React.memo(
     let timeText = "";
     let billAmount = tableData?.billAmount || item.totalAmount || 0;
 
-    // Use item.StartTime directly as it's the most reliable source during renders
-    const startTime = tableData?.startTime || item.StartTime;
+    // Use ONLY valid (non-zero) startTime from any available source
+    const startTime = (tableData?.startTime && tableData.startTime !== 0) ? tableData.startTime : item.StartTime;
     
     if (startTime && status !== 0 && status !== 5) {
       const time = new Date(startTime);

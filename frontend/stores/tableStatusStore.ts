@@ -62,7 +62,7 @@ export const useTableStatusStore = create<TableStatusState>((set, get) => ({
           tableId,
           orderId,
           status,
-          startTime: startTime || updatedTables[existingIndex].startTime,
+          startTime: startTime || updatedTables[existingIndex].startTime || Date.now(),
           lockedByName,
           totalAmount: totalAmount !== undefined ? totalAmount : updatedTables[existingIndex].totalAmount,
         };
