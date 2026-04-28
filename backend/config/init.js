@@ -289,6 +289,10 @@ async function initDB(pool) {
                 );
             END
 
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND name = 'ID')
+            AND NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND is_identity = 1)
+            ALTER TABLE [dbo].[servermaster] ADD ID INT IDENTITY(1,1) PRIMARY KEY;
+
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND name = 'TableNo')
             ALTER TABLE [dbo].[servermaster] ADD TableNo NVARCHAR(50);
             
