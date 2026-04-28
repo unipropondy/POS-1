@@ -20,7 +20,7 @@ import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/Config";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
-import { useAuthStore } from "../stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
 
 type WaiterType = {
   SER_ID: number;
@@ -89,9 +89,12 @@ export default function WaitersScreen() {
       const isEdit = modalMode === "EDIT";
       const url = isEdit ? `${API_URL}/api/servers/update` : `${API_URL}/api/servers/add`;
 
+      // Be resilient: check both userId and UserId (just in case of casing issues)
+      const currentUserId = user?.userId || (user as any)?.UserId;
+
       const body = isEdit 
-        ? { SER_ID: editingWaiter?.SER_ID, SER_NAME: formData.name.trim(), userId: user?.userId }
-        : { SER_NAME: formData.name.trim(), userId: user?.userId };
+        ? { SER_ID: editingWaiter?.SER_ID, SER_NAME: formData.name.trim(), userId: currentUserId }
+        : { SER_NAME: formData.name.trim(), userId: currentUserId };
 
       const res = await fetch(url, {
         method: "POST",
