@@ -739,11 +739,7 @@ export default function MenuScreen() {
 
 
 
-  useEffect(() => {
-    if (!orderContext) {
-      router.replace("/(tabs)");
-    }
-  }, [orderContext]);
+
 
   if (!orderContext) return null;
 

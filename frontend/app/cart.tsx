@@ -374,9 +374,7 @@ export default function CartScreen() {
     };
   }, [orderContext?.tableId, currentTableData?.tableId]);
 
-  React.useEffect(() => {
-    if (!orderContext) router.replace("/(tabs)");
-  }, [orderContext]);
+
 
   if (!orderContext) {
     return (
