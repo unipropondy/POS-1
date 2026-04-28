@@ -86,6 +86,14 @@ export default function SummaryScreen() {
 
   const hasHydrated = useActiveOrdersStore((s: any) => s._hasHydrated);
 
+  const [orderLoadTimeout, setOrderLoadTimeout] = useState(true);
+
+  useEffect(() => {
+    // Only show loading briefly — don't block forever
+    const t = setTimeout(() => setOrderLoadTimeout(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     // 1. Sync official Order ID from DB
     if (context?.tableId) {
@@ -99,7 +107,7 @@ export default function SummaryScreen() {
         .catch(err => console.error("Summary ID sync error:", err));
     }
 
-    // 2. If activeOrder is missing (e.g. fresh reload on summary page), fetch it
+    // 2. If activeOrder is missing, try fetching from kitchen (but don't block on it)
     if (!activeOrder) {
       console.log("🔍 [Summary] Active order missing, fetching from kitchen...");
       useActiveOrdersStore.getState().fetchActiveKitchenOrders();
@@ -257,7 +265,7 @@ export default function SummaryScreen() {
 
   if (!context) return null;
 
-  if (!activeOrder) {
+  if (!activeOrder && orderLoadTimeout) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Theme.bgMain }}>
         <ActivityIndicator color={Theme.primary} />
