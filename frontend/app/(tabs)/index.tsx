@@ -537,7 +537,7 @@ export default function Category() {
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ tableId }),
+                  body: JSON.stringify({ tableId, userId: user?.userId }),
                 },
               );
               const data = await res.json();
@@ -658,7 +658,7 @@ export default function Category() {
       const res = await fetch(`${API_URL}/api/tables/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId, status, lockedByName }),
+        body: JSON.stringify({ tableId, status, lockedByName, userId: user?.userId }),
       });
       if (!res.ok) throw new Error("Failed to update status");
 

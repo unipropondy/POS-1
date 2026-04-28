@@ -3,14 +3,12 @@ const router = express.Router();
 const sql = require("mssql");
 const { poolPromise } = require("../config/db");
 
-const USER_ID = "11111111-1111-1111-1111-111111111111";
-
 // 🔹 GET
 router.get("/", async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT * FROM server ORDER BY SER_ID DESC
+      SELECT * FROM server ORDER BY CreatedDate DESC
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -18,15 +16,20 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 🔹 POST
+// 🔹 POST (ADD)
 router.post("/add", async (req, res) => {
   try {
-    const { SER_NAME } = req.body;
+    const { SER_NAME, userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "UserId missing" });
+    }
+
     const pool = await poolPromise;
 
     await pool.request()
       .input("SER_NAME", sql.VarChar, SER_NAME)
-      .input("CreatedBy", sql.UniqueIdentifier, USER_ID)
+      .input("CreatedBy", sql.UniqueIdentifier, userId)
       .query(`
         INSERT INTO server (SER_NAME, CreatedBy, CreatedDate)
         VALUES (@SER_NAME, @CreatedBy, GETDATE())
@@ -38,16 +41,17 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// 🔹 POST (Update)
+// 🔹 UPDATE
 router.post("/update", async (req, res) => {
   try {
-    const { SER_ID, SER_NAME } = req.body;
+    const { SER_ID, SER_NAME, userId } = req.body;
+
     const pool = await poolPromise;
 
     await pool.request()
       .input("SER_ID", sql.Int, SER_ID)
       .input("SER_NAME", sql.VarChar, SER_NAME)
-      .input("ModifiedBy", sql.UniqueIdentifier, USER_ID)
+      .input("ModifiedBy", sql.UniqueIdentifier, userId)
       .query(`
         UPDATE server
         SET 
@@ -63,7 +67,7 @@ router.post("/update", async (req, res) => {
   }
 });
 
-// 🔹 POST (Delete)
+// 🔹 DELETE
 router.post("/delete", async (req, res) => {
   try {
     const { SER_ID } = req.body;
@@ -71,9 +75,7 @@ router.post("/delete", async (req, res) => {
 
     await pool.request()
       .input("SER_ID", sql.Int, SER_ID)
-      .query(`
-        DELETE FROM server WHERE SER_ID = @SER_ID
-      `);
+      .query(`DELETE FROM server WHERE SER_ID = @SER_ID`);
 
     res.json({ success: true, message: "Deleted successfully" });
   } catch (err) {

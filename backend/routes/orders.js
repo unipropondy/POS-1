@@ -211,7 +211,7 @@ async function syncTableStatus(req, tableId) {
 // 1. Send Order (KOT/KDS) -> Dining
 router.post("/send", async (req, res) => {
   try {
-    const { tableId, orderType } = req.body;
+    const { tableId, orderType, userId } = req.body;
     const isTakeaway = orderType === "TAKEAWAY" || (!tableId || tableId === "undefined" || tableId === "null");
 
     const pool = await poolPromise;
@@ -222,15 +222,17 @@ router.post("/send", async (req, res) => {
 
       if (cleanId) {
         await pool.request()
-          .input("tableId", sql.UniqueIdentifier, cleanId)
+          .input("tableId", sql.VarChar(50), cleanId)
           .input("orderId", sql.NVarChar(50), currentOrderId)
-          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId, StartTime = ISNULL(StartTime, GETDATE()) WHERE TableId = @tableId");
+          .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId, StartTime = ISNULL(StartTime, GETDATE()), ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
       
       // Also update all NEW cart items with this Order ID and set status to SENT
-      await pool.request()
-        .input("cartId", sql.NVarChar(128), cleanId)
-        .input("orderId", sql.NVarChar(50), currentOrderId)
-        .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE(), Status = 'SENT' WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING' OR Status = 'NEW')");
+        await pool.request()
+          .input("cartId", sql.NVarChar(128), cleanId)
+          .input("orderId", sql.NVarChar(50), currentOrderId)
+          .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+          .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE(), Status = 'SENT', ModifiedBy = @ModifiedBy WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING' OR Status = 'NEW')");
 
       const updated = await syncTableStatus(req, tableId);
       return res.json({ success: true, currentOrderId, ...updated });
@@ -247,7 +249,7 @@ router.post("/send", async (req, res) => {
 // 2. Hold Order
 router.post("/hold", async (req, res) => {
   try {
-    const { tableId } = req.body;
+    const { tableId, userId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
     // Use syncTableStatus which updates both Status (to 3) and TotalAmount
@@ -256,7 +258,8 @@ router.post("/hold", async (req, res) => {
     
     await pool.request()
       .input("tableId", sql.NVarChar(128), cleanId)
-      .query("UPDATE TableMaster SET Status = 3 WHERE TableId = @tableId");
+      .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+      .query("UPDATE TableMaster SET Status = 3, ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
@@ -268,14 +271,15 @@ router.post("/hold", async (req, res) => {
 // 3. Checkout (Bill Requested)
 router.post("/checkout", async (req, res) => {
   try {
-    const { tableId } = req.body;
+    const { tableId, userId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
     const pool = await poolPromise;
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
     await pool.request()
       .input("tableId", sql.NVarChar(128), cleanId)
-      .query("UPDATE TableMaster SET Status = 2 WHERE TableId = @tableId");
+      .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+      .query("UPDATE TableMaster SET Status = 2, ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
@@ -287,7 +291,7 @@ router.post("/checkout", async (req, res) => {
 // 4. Complete / Payment -> Available
 router.post("/complete", async (req, res) => {
   try {
-    const { tableId } = req.body;
+    const { tableId, userId } = req.body;
     if (!tableId) return res.status(400).json({ error: "TableId is required" });
 
     const cleanId = tableId.replace(/^\{|\}$/g, "").trim();
@@ -299,7 +303,8 @@ router.post("/complete", async (req, res) => {
 
     await pool.request()
       .input("tid", sql.UniqueIdentifier, cleanId)
-      .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL WHERE TableId = @tid");
+      .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+      .query("UPDATE TableMaster SET Status = 0, TotalAmount = 0, StartTime = NULL, CurrentOrderId = NULL, ModifiedBy = @ModifiedBy WHERE TableId = @tid");
 
     if (io) {
       io.emit("table_status_updated", { tableId: cleanId, status: 0, totalAmount: 0, startTime: null });
@@ -314,7 +319,7 @@ router.post("/complete", async (req, res) => {
 // ✅ Save Cart Items Persistent
 router.post("/save-cart", async (req, res) => {
   try {
-    const { tableId, orderId, items } = req.body;
+    const { tableId, orderId, items, userId } = req.body;
     console.log(`📥 [CartSave] Table: ${tableId} | Items: ${items?.length}`);
     
     const pool = await poolPromise;
@@ -360,20 +365,22 @@ router.post("/save-cart", async (req, res) => {
             .input("oil", sql.NVarChar(50), item.oil || "")
             .input("sugar", sql.NVarChar(50), item.sugar || "")
             .input("status", sql.NVarChar(20), "NEW")
+            .input("userId", sql.UniqueIdentifier, userId || null)
             .query(`
-              INSERT INTO [dbo].[CartItems] 
-              (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
-               IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status, DiscountAmount, DiscountType)
-              VALUES 
-              (@itemId, @cartId, @productId, @qty, @cost, @orderNo, @qty, GETDATE(), 
-               @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status, @discountAmount, @discountType)
-            `);
+               INSERT INTO [dbo].[CartItems] 
+               (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, 
+                IsTakeaway, IsVoided, Note, ModifiersJSON, Spicy, Salt, Oil, Sugar, Status, DiscountAmount, DiscountType, CreatedBy)
+               VALUES 
+               (@itemId, @cartId, @productId, @qty, @cost, @orderNo, @qty, GETDATE(), 
+                @isTakeaway, @isVoided, @note, @modifiersJSON, @spicy, @salt, @oil, @sugar, @status, @discountAmount, @discountType, @userId)
+             `);
         }
 
         // Update table status to 1 (Occupied/Dining)
         await transaction.request()
           .input("tableId", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE TableMaster SET Status = 1, StartTime = ISNULL(StartTime, GETDATE()) WHERE TableId = @tableId");
+          .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+          .query("UPDATE TableMaster SET Status = 1, StartTime = ISNULL(StartTime, GETDATE()), ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
         
         console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
       } else {
@@ -404,7 +411,7 @@ router.post("/save-cart", async (req, res) => {
 // ✅ Add Single Item and Sync
 router.post("/add-item", async (req, res) => {
   try {
-    const { tableId, orderId, item } = req.body;
+    const { tableId, orderId, item, userId } = req.body;
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
     const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
@@ -446,9 +453,9 @@ router.post("/add-item", async (req, res) => {
           ELSE
           BEGIN
             INSERT INTO [dbo].[CartItems] 
-            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway)
+            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway, CreatedBy)
             VALUES 
-            (NEWID(), @cartId, @productId, @qty, @cost, 'PENDING', @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway);
+            (NEWID(), @cartId, @productId, @qty, @cost, 'PENDING', @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway, @userId);
           END
           COMMIT TRANSACTION;
         END TRY

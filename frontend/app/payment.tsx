@@ -40,6 +40,7 @@ import {
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
 import { usePaymentSettingsStore } from "../stores/paymentSettingsStore";
+import { useAuthStore } from "../stores/authStore";
 import UPIPaymentModal from "../components/payment/UPIPaymentModal";
 import PayNowPaymentModal from "../components/payment/PayNowPaymentModal";
 
@@ -96,6 +97,7 @@ const isCashMethod = (payMode: string) =>
 export default function PaymentScreen() {
   const closeActiveOrder = useActiveOrdersStore((s) => s.closeActiveOrder);
   const clearTable = useTableStatusStore((s) => s.clearTable);
+  const user = useAuthStore((s) => s.user);
   const router = useRouter();
   const { showToast } = useToast();
   const { width, height } = useWindowDimensions();
@@ -329,6 +331,11 @@ export default function PaymentScreen() {
         showToast({ type: "error", message: "Invalid Order Context", subtitle: "Order reference is missing" });
         return false;
       }
+
+      if (!user?.userId) {
+        showToast({ type: "error", message: "User Missing", subtitle: "Logged in user ID not found" });
+        return false;
+      }
       
       const saleData = {
         orderId: activeOrder?.orderId,
@@ -349,7 +356,7 @@ export default function PaymentScreen() {
         discountType: discount?.type || "fixed",
         totalAmount: total,
         paymentMethod: method,
-        cashierId: "FFA46DDA-2871-42BB-BE6D-A547AE9C1B88",
+        cashierId: user.userId,
         tableId: context?.tableId
       };
       

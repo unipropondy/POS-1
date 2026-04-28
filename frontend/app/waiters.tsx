@@ -20,15 +20,18 @@ import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/Config";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
+import { useAuthStore } from "../stores/authStore";
 
 type WaiterType = {
   SER_ID: number;
   SER_NAME: string;
+  CreatedBy?: string;
   CreatedDate?: string;
 };
 
 export default function WaitersScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [waiters, setWaiters] = useState<WaiterType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,8 +89,8 @@ export default function WaitersScreen() {
       const url = isEdit ? `${API_URL}/api/servers/update` : `${API_URL}/api/servers/add`;
 
       const body = isEdit 
-        ? { SER_ID: editingWaiter?.SER_ID, SER_NAME: formData.name.trim() }
-        : { SER_NAME: formData.name.trim() };
+        ? { SER_ID: editingWaiter?.SER_ID, SER_NAME: formData.name.trim(), userId: user?.userId }
+        : { SER_NAME: formData.name.trim(), userId: user?.userId };
 
       const res = await fetch(url, {
         method: "POST",
@@ -129,6 +132,12 @@ export default function WaitersScreen() {
             <Text style={styles.waiterName}>{item.SER_NAME}</Text>
             <View style={styles.idRow}>
               <Text style={styles.waiterId}>ID: {item.SER_ID}</Text>
+              {item.CreatedBy && (
+                <>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={styles.waiterId}>By: {item.CreatedBy.substring(0, 8)}...</Text>
+                </>
+              )}
             </View>
           </View>
           <View style={styles.cardActions}>
@@ -308,6 +317,7 @@ const styles = StyleSheet.create({
   waiterName: { color: Theme.textPrimary, fontSize: 18, fontFamily: Fonts.bold },
   idRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   waiterId: { color: Theme.textMuted, fontSize: 12, fontFamily: Fonts.medium },
+  dot: { color: Theme.textMuted, fontSize: 12, marginHorizontal: 4 },
   cardActions: { flexDirection: 'row', gap: 10 },
   actionBtn: { width: 38, height: 38, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 20 },

@@ -106,17 +106,18 @@ router.get("/locked", async (req, res) => {
 router.post("/lock-persistent", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { tableId, lockedByName } = req.body;
+    const { tableId, lockedByName, userId } = req.body;
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
     const request = pool.request(); // ✅ Fixed: request was not defined
     request.input("tableId", sql.VarChar(50), cleanTableId);
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
+    request.input("ModifiedBy", sql.UniqueIdentifier, userId || null);
 
     await request.query(`
       UPDATE TableMaster 
-      SET Status = 5, LockedByName = @lockedByName, TotalAmount = 0, StartTime = NULL 
+      SET Status = 5, LockedByName = @lockedByName, TotalAmount = 0, StartTime = NULL, ModifiedBy = @ModifiedBy
       WHERE TableId = @tableId
     `);
 
@@ -146,15 +147,16 @@ router.post("/lock-persistent", async (req, res) => {
 router.post("/unlock-persistent", async (req, res) => {
   try {
     const pool = await poolPromise;
-    const { tableId } = req.body;
+    const { tableId, userId } = req.body;
     if (!tableId) return res.status(400).json({ error: "tableId is required" });
 
     const cleanTableId = tableId.replace(/^\{|\}$/g, "").trim();
     await pool.request()
       .input("tableId", sql.VarChar(50), cleanTableId)
+      .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
       .query(`
         UPDATE TableMaster 
-        SET Status = 0, LockedByName = NULL, TotalAmount = 0, StartTime = NULL 
+        SET Status = 0, LockedByName = NULL, TotalAmount = 0, StartTime = NULL, ModifiedBy = @ModifiedBy
         WHERE TableId = @tableId
       `);
 
@@ -182,7 +184,7 @@ router.post("/unlock-persistent", async (req, res) => {
 
 // ✅ New route to match user's snippet: PUT /api/tables/status
 router.put("/status", async (req, res) => {
-  const { tableId, status } = req.body;
+  const { tableId, status, userId } = req.body;
 
   try {
     const pool = await poolPromise;
@@ -193,10 +195,12 @@ router.put("/status", async (req, res) => {
     const request = pool.request();
     request.input("tableId", sql.VarChar(50), cleanTableId);
     request.input("status", sql.Int, Number(status));
+    request.input("ModifiedBy", sql.UniqueIdentifier, userId || null);
 
     const updateResult = await request.query(`
       UPDATE TableMaster 
       SET Status = @status,
+          ModifiedBy = @ModifiedBy,
           StartTime = CASE 
             WHEN (@status = 1 OR @status = 2 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
             WHEN @status = 0 OR @status = 5 THEN NULL 
@@ -252,7 +256,7 @@ router.put("/:tableId/status", async (req, res) => {
   try {
     const pool = await poolPromise;
     const { tableId } = req.params;
-    const { status, lockedByName } = req.body;
+    const { status, lockedByName, userId } = req.body;
 
     if (status === undefined) return res.status(400).json({ error: "status is required" });
 
@@ -261,10 +265,12 @@ router.put("/:tableId/status", async (req, res) => {
     request.input("tableId", sql.VarChar(50), cleanTableId);
     request.input("status", sql.Int, Number(status));
     request.input("lockedByName", sql.NVarChar, lockedByName || null);
+    request.input("ModifiedBy", sql.UniqueIdentifier, userId || null);
 
     await request.query(`
       UPDATE TableMaster 
       SET Status = @status, 
+          ModifiedBy = @ModifiedBy,
           LockedByName = CASE WHEN @status = 5 THEN @lockedByName ELSE NULL END,
           StartTime = CASE 
             -- Status 1 (Dining), 2 (Checkout), or 3 (Hold) starts/maintains the timer

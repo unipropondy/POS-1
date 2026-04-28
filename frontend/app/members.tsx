@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/Config";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
+import { useAuthStore } from "@/stores/authStore";
 
 
 type MemberType = {
@@ -36,6 +37,7 @@ type MemberType = {
 
 export default function MembersScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [members, setMembers] = useState<MemberType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -130,6 +132,7 @@ export default function MembersScreen() {
           creditLimit: parseFloat(formData.creditLimit) || 0,
           currentBalance: parseFloat(formData.currentBalance) || 0,
           balance: parseFloat(formData.balance) || 0,
+          userId: user?.userId,
         }),
       });
 

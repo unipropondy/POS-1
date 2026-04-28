@@ -22,6 +22,7 @@ import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { setOrderContext } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
+import { useAuthStore } from "@/stores/authStore";
 
 
 type TableType = {
@@ -65,6 +66,7 @@ const SOLID_LIGHT_AMBER = '#FFFBEB';
 const SOLID_LIGHT_RED   = '#FEF2F2';
 
 export default function LockedTablesScreen() {
+  const { user } = useAuthStore();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -152,7 +154,7 @@ export default function LockedTablesScreen() {
       await fetch(`${API_URL}/api/orders/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId: cleanId }),
+        body: JSON.stringify({ tableId: cleanId, userId: user?.userId }),
       });
 
       // Update store immediately
@@ -199,7 +201,7 @@ export default function LockedTablesScreen() {
   const confirmLockTable = async () => {
     try {
       setLockingLoading(true);
-      const payload = { tableId: lockingTableId, lockedByName: lockModalName.trim() };
+      const payload = { tableId: lockingTableId, lockedByName: lockModalName.trim(), userId: user?.userId };
       const res = await fetch(`${API_URL}/api/tables/lock-persistent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -235,7 +237,7 @@ export default function LockedTablesScreen() {
       const res = await fetch(`${API_URL}/api/tables/unlock-persistent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId: unlockingTableId }),
+        body: JSON.stringify({ tableId: unlockingTableId, userId: user?.userId }),
       });
 
       if (res.ok) {

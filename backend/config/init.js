@@ -81,6 +81,15 @@ async function initDB(pool) {
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedAt')
             AND EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedOn')
             EXEC sp_rename 'MemberMaster.CreatedOn', 'CreatedAt', 'COLUMN';
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'CreatedBy')
+            ALTER TABLE [dbo].[MemberMaster] ADD CreatedBy UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'ModifiedBy')
+            ALTER TABLE [dbo].[MemberMaster] ADD ModifiedBy UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[MemberMaster]') AND name = 'ModifiedDate')
+            ALTER TABLE [dbo].[MemberMaster] ADD ModifiedDate DATETIME NULL;
         `);
 
     // 3. Table: DailyAttendance
@@ -122,6 +131,9 @@ async function initDB(pool) {
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'CurrentOrderId')
             ALTER TABLE [dbo].[TableMaster] ADD CurrentOrderId NVARCHAR(50);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TableMaster]') AND name = 'ModifiedBy')
+            ALTER TABLE [dbo].[TableMaster] ADD ModifiedBy UNIQUEIDENTIFIER NULL;
         `);
 
     // 5. Schema updates for SettlementHeader
@@ -178,6 +190,12 @@ async function initDB(pool) {
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'Status')
             ALTER TABLE [dbo].[CartItems] ADD Status NVARCHAR(20) DEFAULT 'NEW';
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'CreatedBy')
+            ALTER TABLE [dbo].[CartItems] ADD CreatedBy UNIQUEIDENTIFIER NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[CartItems]') AND name = 'ModifiedBy')
+            ALTER TABLE [dbo].[CartItems] ADD ModifiedBy UNIQUEIDENTIFIER NULL;
         `);
 
     // 7. Table: AppSettings (UPI, PayNow, Shop Info)
@@ -231,6 +249,21 @@ async function initDB(pool) {
                     [ShowCompanyLogo] [bit] NULL,
                     [ShowHalalLogo] [bit] NULL,
                     [UpdatedOn] [datetime] DEFAULT GETDATE()
+                );
+            END
+        `);
+    
+    // 10. Table: server (Waiter/Server Management)
+    await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[server]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[server](
+                    [SER_ID] [int] IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    [SER_NAME] [varchar](255) NOT NULL,
+                    [CreatedBy] [uniqueidentifier] NULL,
+                    [CreatedDate] [datetime] DEFAULT GETDATE(),
+                    [ModifiedBy] [uniqueidentifier] NULL,
+                    [ModifiedDate] [datetime] NULL
                 );
             END
         `);

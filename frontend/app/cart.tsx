@@ -28,6 +28,7 @@ import { OrderItem, useActiveOrdersStore, voidOrderItem } from "../stores/active
 import { CartItem, useCartStore } from "../stores/cartStore";
 import { useOrderContextStore } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
+import { useAuthStore } from "@/stores/authStore";
 import { holdOrder } from "../stores/heldOrdersStore";
 import EditDishModal from "../components/EditDishModal";
 import { socket } from "../constants/socket";
@@ -175,6 +176,7 @@ const CartItemCard = React.memo(
 export default function CartScreen() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { user } = useAuthStore();
 
   const [showCancelModal, setShowCancelModal] = React.useState(false);
   const [cancelPassword, setCancelPassword] = React.useState("");
@@ -340,7 +342,8 @@ export default function CartScreen() {
           body: JSON.stringify({ 
             tableId: tableId, 
             orderId: activeOrder?.orderId || "PENDING", 
-            items: cart 
+            items: cart,
+            userId: user?.userId,
           }),
         }).catch(err => console.error("Cart Sync Error:", err));
       }, 1000);
@@ -504,7 +507,7 @@ export default function CartScreen() {
           const sendPromise = fetch(`${API_URL}/api/orders/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tableId }),
+            body: JSON.stringify({ tableId, userId: user?.userId }),
           });
 
           // Navigate immediately
@@ -544,7 +547,7 @@ export default function CartScreen() {
         const sendPromise = fetch(`${API_URL}/api/orders/send`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderType: "TAKEAWAY" }), 
+          body: JSON.stringify({ orderType: "TAKEAWAY", userId: user?.userId }), 
         });
 
         // Navigate immediately
@@ -697,7 +700,8 @@ export default function CartScreen() {
                             body: JSON.stringify({ 
                               tableId: tableId, 
                               orderId: targetOrderId, 
-                              items: cart 
+                              items: cart,
+                              userId: user?.userId,
                             }),
                           });
 
@@ -705,7 +709,7 @@ export default function CartScreen() {
                           const res = await fetch(`${API_URL}/api/orders/hold`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ tableId }),
+                            body: JSON.stringify({ tableId, userId: user?.userId }),
                           });
                           const holdData = await res.json();
                           const serverStartTime = holdData.StartTime || holdData.startTime;
