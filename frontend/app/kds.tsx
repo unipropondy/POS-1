@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: 10,
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     backgroundColor: "#FFF",
     borderRadius: 24,
-    padding: 25,
+    padding: 20,
     ...Theme.shadowLg,
   },
   modalHeader: {
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
   },
   modalItemInfo: {
     flex: 1,
-    marginRight: 15,
+    marginRight: 10,
   },
   modalItemQty: {
     fontSize: 18,
@@ -661,9 +661,10 @@ const styles = StyleSheet.create({
     color: Theme.primary,
   },
   modalItemName: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: Fonts.bold,
     color: Theme.textPrimary,
+    flexShrink: 1,
   },
   modalModifierText: {
     fontSize: 14,
@@ -676,10 +677,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     backgroundColor: Theme.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
-    minWidth: 130,
     justifyContent: "center",
   },
   readyBtnActive: {
