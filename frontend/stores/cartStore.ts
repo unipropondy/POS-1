@@ -144,8 +144,6 @@ export const useCartStore = create<CartState>()(
 
         const isTakeawayDefault = orderContext?.orderType === "TAKEAWAY";
         const targetLineItemId = Crypto.randomUUID();
-        console.log("🛒 [CartStore] addToCartGlobal - Generated lineItemId:", targetLineItemId);
-
         try {
           const orderId = get().tableOrderIds[tableId];
           const payload = {
@@ -158,7 +156,6 @@ export const useCartStore = create<CartState>()(
               isTakeaway: item.isTakeaway !== undefined ? item.isTakeaway : isTakeawayDefault
             }
           };
-          console.log("🛒 [CartStore] Sending add-item payload:", JSON.stringify(payload, null, 2));
 
           const res = await fetch(`${API_URL}/api/orders/add-item`, {
             method: "POST",
@@ -167,17 +164,13 @@ export const useCartStore = create<CartState>()(
           });
           
           if (!res.ok) {
-            const errorText = await res.text();
-            console.error("❌ [CartStore] Add failed (Server Error):", errorText);
-            Alert.alert("Error", "Failed to add item to server.");
+            console.error("❌ [CartStore] Add failed");
           } else {
-            console.log("✅ [CartStore] Add success");
             // Re-fetch from DB to ensure sync
             await fetchCartFromDB(tableId);
           }
         } catch (err) {
           console.error("❌ [CartStore] Add failed (Network Error):", err);
-          Alert.alert("Error", "Connection problem.");
         }
         
         return targetLineItemId;
