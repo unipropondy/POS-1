@@ -33,14 +33,11 @@ import {
   clearCart,
   useCartStore,
 } from "../stores/cartStore";
-import {
-  clearOrderContext,
-  getOrderContext,
-} from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
 import { usePaymentSettingsStore } from "../stores/paymentSettingsStore";
 import { useAuthStore } from "../stores/authStore";
+import { useOrderContextStore } from "../stores/orderContextStore";
 import UPIPaymentModal from "../components/payment/UPIPaymentModal";
 import PayNowPaymentModal from "../components/payment/PayNowPaymentModal";
 
@@ -108,7 +105,7 @@ export default function PaymentScreen() {
   const isTabletPortrait = isTablet && !isLandscape && width < 1024;
   const showOrderPanel = (isTablet && (isLandscape || width >= 1024)) || (isMobile && isLandscape);
 
-  const context = getOrderContext();
+  const context = useOrderContextStore((s) => s.currentOrder);
   const hasHydrated = useActiveOrdersStore((s) => s._hasHydrated);
   const activeOrder = context ? findActiveOrder(context) : undefined;
 
