@@ -145,11 +145,14 @@ export const useCartStore = create<CartState>()(
         const targetLineItemId = Crypto.randomUUID();
 
         try {
+          const orderId = get().tableOrderIds[tableId];
           await fetch(`${API_URL}/api/orders/add-item`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tableId,
+              orderId,
+              userId: useAuthStore.getState().user?.userId,
               item: { 
                 ...item, 
                 qty: 1,

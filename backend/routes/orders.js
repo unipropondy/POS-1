@@ -416,11 +416,12 @@ router.post("/save-cart", async (req, res) => {
 // ✅ Add Single Item and Sync
 router.post("/add-item", async (req, res) => {
   try {
-    const { tableId, item } = req.body;
+    const { tableId, orderId, item } = req.body;
     const userId = req.body.userId || req.body.UserId || req.body.USERID;
     const pool = await poolPromise;
     const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
     const cleanProdId = String(item.id).replace(/^\{|\}$/g, "").trim();
+    const cleanOrderNo = String(orderId || "PENDING").replace(/^\{|\}$/g, "").trim();
     const newItemId = require("crypto").randomUUID();
 
     await pool.request()
@@ -431,6 +432,10 @@ router.post("/add-item", async (req, res) => {
       .input("note", sql.NVarChar(sql.MAX), item.note || "")
       .input("modifiersJSON", sql.NVarChar(sql.MAX), JSON.stringify(item.modifiers || []))
       .input("isTakeaway", sql.Bit, item.isTakeaway ? 1 : 0)
+      .input("spicy", sql.NVarChar(50), item.spicy || "")
+      .input("salt", sql.NVarChar(50), item.salt || "")
+      .input("oil", sql.NVarChar(50), item.oil || "")
+      .input("sugar", sql.NVarChar(50), item.sugar || "")
       .input("status", sql.NVarChar(20), "NEW")
       .input("userId", sql.UniqueIdentifier, userId || null)
       .query(`
@@ -444,6 +449,10 @@ router.post("/add-item", async (req, res) => {
               AND IsTakeaway = @isTakeaway
               AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
               AND (Note = @note OR (Note IS NULL AND @note = ''))
+              AND (Spicy = @spicy OR (Spicy IS NULL AND @spicy = ''))
+              AND (Salt = @salt OR (Salt IS NULL AND @salt = ''))
+              AND (Oil = @oil OR (Oil IS NULL AND @oil = ''))
+              AND (Sugar = @sugar OR (Sugar IS NULL AND @sugar = ''))
           )
           BEGIN
             UPDATE [dbo].[CartItems] 
@@ -454,14 +463,18 @@ router.post("/add-item", async (req, res) => {
               AND Status = @status
               AND IsTakeaway = @isTakeaway
               AND (ModifiersJSON = @modifiersJSON OR (ModifiersJSON IS NULL AND @modifiersJSON = '[]'))
-              AND (Note = @note OR (Note IS NULL AND @note = ''));
+              AND (Note = @note OR (Note IS NULL AND @note = ''))
+              AND (Spicy = @spicy OR (Spicy IS NULL AND @spicy = ''))
+              AND (Salt = @salt OR (Salt IS NULL AND @salt = ''))
+              AND (Oil = @oil OR (Oil IS NULL AND @oil = ''))
+              AND (Sugar = @sugar OR (Sugar IS NULL AND @sugar = ''));
           END
           ELSE
           BEGIN
             INSERT INTO [dbo].[CartItems] 
-            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway, CreatedBy)
+            (ItemId, CartId, ProductId, Quantity, Cost, OrderNo, OrderConfirmQty, DateCreated, Status, Note, ModifiersJSON, IsTakeaway, Spicy, Salt, Oil, Sugar, CreatedBy)
             VALUES 
-            (NEWID(), @cartId, @productId, @qty, @cost, 'PENDING', @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway, @userId);
+            (NEWID(), @cartId, @productId, @qty, @cost, @cleanOrderNo, @qty, GETDATE(), @status, @note, @modifiersJSON, @isTakeaway, @spicy, @salt, @oil, @sugar, @userId);
           END
           COMMIT TRANSACTION;
         END TRY
