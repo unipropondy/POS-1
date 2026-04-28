@@ -24,6 +24,7 @@ export default function KitchenStatusScreen() {
   const markItemServed = useActiveOrdersStore((s) => s.markItemServed);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const numColumns = width > 1000 ? 3 : width > 700 ? 2 : 1;
 
   useKdsSocket();
 
@@ -118,7 +119,7 @@ export default function KitchenStatusScreen() {
     const isDineIn = item.context.orderType === "DINE_IN";
 
     return (
-      <View style={styles.orderCard}>
+      <View style={[styles.orderCard, { width: numColumns === 1 ? '100%' : '48%' }]}>
         <View style={[styles.orderHeader, isDineIn ? styles.headerDineIn : styles.headerTakeaway]}>
           <View style={styles.headerInfo}>
             <View style={styles.iconCircle}>
@@ -168,8 +169,9 @@ export default function KitchenStatusScreen() {
         data={groupedOrders}
         renderItem={renderOrderCard}
         keyExtractor={(item: any) => item?.orderId || Math.random().toString()}
-        numColumns={isLandscape ? 3 : 2}
-        columnWrapperStyle={styles.columnWrapper}
+        numColumns={numColumns}
+        key={numColumns}
+        columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -217,7 +219,6 @@ const styles = StyleSheet.create({
   list: { padding: 16, paddingBottom: 60 },
   columnWrapper: { gap: 16 },
   orderCard: {
-    flex: 1,
     backgroundColor: "#FFF",
     borderRadius: 24,
     marginBottom: 16,
