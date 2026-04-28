@@ -180,16 +180,29 @@ export default function PaymentScreen() {
       const res = await fetch(`${API_URL}/api/sales/payment-methods`);
       if (!res.ok) throw new Error("Failed to load");
       const data: any[] = await res.json();
-      const mapped: PaymentMethod[] = data.map((d) => ({
-        payMode:         d.payMode        || "",
-        description:     d.description    || d.payMode || "",
-        icon:            getPaymodeIcon(d.payMode || ""),
-        commission:      parseFloat(d.Commission)    || 0,
-        serviceCharge:   parseFloat(d.ServiceCharge) || 0,
-        isEntertainment: d.isEntertainment === 1 || d.isEntertainment === true,
-        isVoucher:       d.isVoucher       === 1 || d.isVoucher       === true,
-        position:        d.Position || 0,
-      }));
+      const mapped: PaymentMethod[] = data.map((d) => {
+        const payMode = d.payMode || "";
+        let description = d.description || payMode || "";
+        const upperDesc = description.toUpperCase();
+        
+        // Group all UPI variants under "UPI" label for UI
+        let icon = getPaymodeIcon(payMode);
+        if (upperDesc.includes("UPI") || upperDesc.includes("GPAY") || upperDesc.includes("PHONEPE") || upperDesc.includes("PAYTM")) {
+          description = "UPI";
+          icon = "mobile-alt";
+        }
+
+        return {
+          payMode,
+          description,
+          icon,
+          commission:      parseFloat(d.Commission)    || 0,
+          serviceCharge:   parseFloat(d.ServiceCharge) || 0,
+          isEntertainment: d.isEntertainment === 1 || d.isEntertainment === true,
+          isVoucher:       d.isVoucher       === 1 || d.isVoucher       === true,
+          position:        d.Position || 0,
+        };
+      });
 
       // Frontend deduplication: group all cash variants into one entry
       const seen = new Set<string>();

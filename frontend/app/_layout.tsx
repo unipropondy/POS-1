@@ -1,4 +1,5 @@
 import "react-native-get-random-values";
+import "react-native-reanimated";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import {
   Inter_400Regular,
@@ -15,7 +16,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { useWindowDimensions } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
-import "react-native-reanimated";
 import { ToastProvider } from "../components/Toast";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -26,7 +26,7 @@ import { useRouter, useSegments, Slot } from "expo-router";
 // Keep the splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const segments = useSegments();
@@ -83,4 +83,6 @@ export default function RootLayout() {
       </ToastProvider>
     </ThemeProvider>
   );
-}
+}
+
+export default RootLayout;
