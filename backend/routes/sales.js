@@ -579,6 +579,38 @@ router.post("/save", async (req, res) => {
         }
       }
 
+      // 5. Track in servermaster (Waiter History)
+      if (req.body.serverId) {
+        console.log(`[SAVE SALE] Recording waiter [${req.body.serverName}] in servermaster...`);
+        try {
+          await transaction.request()
+            .input("SER_ID", sql.Int, req.body.serverId)
+            .input("SER_NAME", sql.NVarChar(255), req.body.serverName)
+            .input("TableNo", sql.NVarChar(50), tableNo || null)
+            .input("OrderId", sql.NVarChar(50), displayOrderId)
+            .input("Section", sql.NVarChar(100), section || null)
+            .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
+            .query(`
+              -- Ensure columns exist
+              IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'TableNo')
+              ALTER TABLE servermaster ADD TableNo NVARCHAR(50);
+              
+              IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'OrderId')
+              ALTER TABLE servermaster ADD OrderId NVARCHAR(50);
+              
+              IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'Section')
+              ALTER TABLE servermaster ADD Section NVARCHAR(100);
+
+              -- Insert record
+              INSERT INTO servermaster (SER_ID, SER_NAME, TableNo, OrderId, Section, CreatedBy, CreatedDate)
+              VALUES (@SER_ID, @SER_NAME, @TableNo, @OrderId, @Section, @CreatedBy, GETDATE())
+            `);
+        } catch (serverErr) {
+          console.error("⚠️ [SAVE SALE] servermaster insert failed (non-critical):", serverErr.message);
+          // We don't fail the whole sale if just history recording fails, but we log it.
+        }
+      }
+
       await transaction.commit();
       
       res.json({ success: true, settlementId, billNo: displayOrderId, orderId: displayOrderId });
