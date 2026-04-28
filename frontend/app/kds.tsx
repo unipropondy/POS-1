@@ -89,7 +89,7 @@ function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
       <View style={styles.divider} />
       <View style={{ flex: 1 }}>
         <ScrollView
-          style={styles.itemsScroll}
+          style={[styles.itemsScroll, !cardHeight && { maxHeight: 400 }]}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={(_, h) => { contentH.current = h; checkMore(); }}
           onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; checkMore(); }}
@@ -222,7 +222,8 @@ export default function KDSScreen() {
 
   const isWeb = Platform.OS === "web";
   const numColumns = width > 1200 ? 4 : width > 900 ? 3 : width > 600 ? 2 : 1;
-  const cardHeight = width > 600 ? height * 0.55 : height * 0.65;
+  // Use fixed height only for multi-column grid; let mobile cards be dynamic
+  const cardHeight = numColumns > 1 ? height * 0.55 : undefined;
 
   const stats = useMemo(() => {
     let fresh = 0, warn = 0, critical = 0;
@@ -513,6 +514,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     flex: 1, backgroundColor: Theme.bgCard, borderRadius: 20, overflow: "hidden",
     borderWidth: 1, borderColor: Theme.border, marginBottom: 20, ...Theme.shadowMd,
+    minHeight: 150,
   },
   urgencyBar: { height: 6, width: "100%" },
   cardHeader: { padding: 15, paddingBottom: 10 },
