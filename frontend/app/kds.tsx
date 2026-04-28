@@ -117,8 +117,8 @@ const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pu
 
                   <View style={[styles.itemTextWrap, { marginLeft: 10 }]}>
                     <View style={styles.itemTitleRow}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.itemName, i.status === "VOIDED" && styles.itemVoided]}>{i.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+                        <Text style={[styles.itemName, i.status === "VOIDED" && styles.itemVoided]} numberOfLines={2}>{i.name}</Text>
                         {i.isTakeaway && (
                           <View style={styles.takeawayBadge}>
                             <Ionicons name="bag-handle" size={10} color="#FFF" />
@@ -229,7 +229,7 @@ export default function KDSScreen() {
   }, [kitchenOrders, selectedOrderId]);
 
   const isWeb = Platform.OS === "web";
-  const numColumns = width > 1200 ? 4 : width > 900 ? 3 : width > 600 ? 2 : 1;
+  const numColumns = width > 900 ? 3 : width > 600 ? 2 : 1;
   // Use fixed height only for multi-column grid; let mobile cards be dynamic
   const cardHeight = numColumns > 1 ? height * 0.55 : undefined;
 
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
 
   // Takeaway Styles
   takeawayBadge: {
-    backgroundColor: Theme.warning,
+    backgroundColor: Theme.danger,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
