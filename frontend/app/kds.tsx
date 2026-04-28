@@ -560,8 +560,8 @@ const styles = StyleSheet.create({
   urgencyBar: { height: 6, width: "100%" },
   cardHeader: { padding: 18, paddingBottom: 12 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4, gap: 10 },
-  tableInfo: { fontSize: 18, fontFamily: Fonts.bold, color: Theme.textPrimary, flex: 1, lineHeight: 22 },
-  timer: { fontSize: 18, fontFamily: Fonts.bold },
+  tableInfo: { fontSize: 18, fontFamily: Fonts.extraBold, color: Theme.textPrimary, flex: 1, lineHeight: 22 },
+  timer: { fontSize: 18, fontFamily: Fonts.extraBold },
   orderIdText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted },
   statusBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   itemTitleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   itemStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   itemStatusText: { color: "#FFF", fontSize: 10, fontFamily: Fonts.black },
-  itemName: { fontSize: 17, fontFamily: Fonts.bold, color: Theme.textPrimary, lineHeight: 22 },
+  itemName: { fontSize: 17, fontFamily: Fonts.extraBold, color: Theme.textPrimary, lineHeight: 22 },
   itemVoided: { color: Theme.danger, textDecorationLine: "line-through", opacity: 0.6 },
   modifierText: { fontSize: 14, fontFamily: Fonts.medium, color: Theme.textSecondary, marginTop: 2, marginLeft: 4 },
 
