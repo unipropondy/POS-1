@@ -739,12 +739,13 @@ export default function MenuScreen() {
 
 
 
-  if (!orderContext)
-    return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.title}>Select Table First</Text>
-      </SafeAreaView>
-    );
+  useEffect(() => {
+    if (!orderContext) {
+      router.replace("/(tabs)");
+    }
+  }, [orderContext]);
+
+  if (!orderContext) return null;
 
   return (
     <SafeAreaView style={styles.safe}>
