@@ -847,6 +847,15 @@ export default function MenuScreen() {
                         columns === 1 && { gap: gap },
                         filteredItems.length === 0 && { flex: 1, justifyContent: 'center' }
                       ]}
+                      getItemLayout={(data, index) => ({
+                        length: 150, // Fixed height estimate
+                        offset: 150 * Math.floor(index / columns),
+                        index,
+                      })}
+                      removeClippedSubviews={Platform.OS !== 'web'}
+                      initialNumToRender={columns * 5}
+                      maxToRenderPerBatch={columns * 3}
+                      windowSize={5}
                       showsVerticalScrollIndicator={false}
                       ListEmptyComponent={
                         !isLoadingDishes && !isInitialLoading ? (

@@ -653,6 +653,10 @@ export default function CartScreen() {
           }
           renderItem={renderCartItem}
           style={{ flex: 1 }}
+          removeClippedSubviews={Platform.OS !== "web"}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
         />
 
         <View style={styles.bottomBlock}>

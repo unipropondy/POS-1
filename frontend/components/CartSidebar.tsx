@@ -583,6 +583,10 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           displayItems.length === 0 && { flex: 1, justifyContent: "center" },
         ]}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={Platform.OS !== "web"}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={5}
       />
 
       {/* FOOTER AREA */}
