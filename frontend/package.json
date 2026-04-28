@@ -54,6 +54,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0",
+    "react-native-worklets-core": "^1.6.3",
     "socket.io-client": "^4.7.5",
     "sunmi-printer-expo": "^1.0.0",
     "zustand": "^4.5.2"
