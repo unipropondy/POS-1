@@ -60,15 +60,28 @@ const OrderCard = React.memo(function OrderCard({ item, cardHeight, pulseAnim, g
 
   const getTs = (val: any) => {
     if (!val) return 0;
-    const ts = typeof val === 'number' ? val : new Date(val).getTime();
+    // If it's already a number (from our store adjustment), use it directly
+    if (typeof val === 'number') return val;
+    const d = new Date(val);
+    const ts = d.getTime();
     return isNaN(ts) ? 0 : ts;
   };
 
-  const latestSent = Math.max(...item.items.map((i: any) => getTs(i.sentAt || item.createdAt)));
-  const elapsed = Math.max(0, now - latestSent);
-  const safeElapsed = isNaN(elapsed) ? 0 : elapsed;
-  const minutes = Math.floor(safeElapsed / 60000);
-  const seconds = Math.floor((safeElapsed % 60000) / 1000);
+  const itemTs = getTs(item.createdAt);
+  const itemsMaxTs = (item.items && item.items.length > 0)
+    ? Math.max(...item.items.map((i: any) => getTs(i.sentAt || item.createdAt)))
+    : 0;
+  
+  // Use the items' latest sent time, or the order's creation time as a fallback.
+  // We NO LONGER fallback to 'now' here, as that causes 0:00 stuck timers.
+  const latestSent = itemsMaxTs || itemTs;
+  
+  // If latestSent is 0 or invalid, we show 0:00 but don't reset it to 'now'
+  const isValidTs = latestSent > 1000000; 
+  const elapsed = isValidTs ? Math.max(0, now - latestSent) : 0;
+  
+  const minutes = Math.floor(elapsed / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
   const urgency = getUrgency(minutes);
   const ui = URGENCY_UI[urgency];
   const timerOpacity = urgency === "critical" ? pulseAnim : 1;
@@ -249,7 +262,19 @@ export default function KDSScreen() {
   const stats = useMemo(() => {
     let fresh = 0, warn = 0, critical = 0;
     kitchenOrders.forEach((order: any) => {
-      const latestSent = Math.max(...order.items.map((i: any) => i.sentAt || order.createdAt));
+      const getSafeTs = (v: any) => {
+        if (!v) return 0;
+        const d = new Date(v);
+        const ts = d.getTime();
+        return isNaN(ts) ? 0 : (ts > 1577836800000 ? ts : 0);
+      };
+      
+      const itemTs = getSafeTs(order.createdAt);
+      const itemsMaxTs = order.items && order.items.length > 0 
+        ? Math.max(...order.items.map((i: any) => getSafeTs(i.sentAt || order.createdAt)))
+        : 0;
+      
+      const latestSent = itemsMaxTs || itemTs || time;
       const mins = Math.floor(Math.max(0, time - latestSent) / 60000);
       const u = getUrgency(mins);
       if (u === "fresh") fresh++;

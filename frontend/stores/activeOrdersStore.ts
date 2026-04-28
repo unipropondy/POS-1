@@ -45,6 +45,7 @@ type ActiveOrdersState = {
   markItemReady: (orderId: string, lineItemId: string, skipSync?: boolean) => void;
   markItemServed: (orderId: string, lineItemId: string, skipSync?: boolean) => void;
   fetchActiveKitchenOrders: () => Promise<void>;
+  isFetching: boolean;
   updateOrderId: (oldId: string, newId: string) => void;
 };
 
@@ -56,6 +57,7 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
       _hasHydrated: false,
       setHasHydrated: (state) => set({ _hasHydrated: state }),
       activeOrders: [],
+      isFetching: false,
 
   /* ================= APPEND ORDER ================= */
 
@@ -294,13 +296,17 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
 
   /* ================= FETCH FROM DB ================= */
   fetchActiveKitchenOrders: async () => {
+    const { isFetching } = get();
+    if (isFetching) return;
+    
+    set({ isFetching: true });
     try {
+      console.log("🔄 [ActiveOrdersStore] Starting fetch...");
       const { API_URL } = require("../constants/Config");
       const res = await fetch(`${API_URL}/api/orders/active-kitchen`);
       if (!res.ok) throw new Error("Failed to fetch active kitchen orders");
       const result = await res.json();
-      console.log("📡 [ActiveOrdersStore] Fetch result:", { 
-        hasOrders: !!result.orders, 
+      console.log("📡 [ActiveOrdersStore] Fetch result received", { 
         count: result.orders?.length || result.length,
         serverTime: result.serverTime 
       });
@@ -352,7 +358,9 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
 
       set({ activeOrders: merged });
     } catch (err) {
-      console.error("❌ [ActiveOrdersStore] Fetch failed:", err);
+      console.error("❌ [ActiveOrdersStore] Fetch error:", err);
+    } finally {
+      set({ isFetching: false });
     }
   },
 
