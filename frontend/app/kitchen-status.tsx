@@ -119,7 +119,7 @@ export default function KitchenStatusScreen() {
     const isDineIn = item.context.orderType === "DINE_IN";
 
     return (
-      <View style={[styles.orderCard, { width: numColumns === 1 ? '100%' : '48%' }]}>
+      <View style={[styles.orderCard, { flex: 1 / numColumns }]}>
         <View style={[styles.orderHeader, isDineIn ? styles.headerDineIn : styles.headerTakeaway]}>
           <View style={styles.headerInfo}>
             <View style={styles.iconCircle}>
