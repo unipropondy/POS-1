@@ -271,6 +271,34 @@ async function initDB(pool) {
             END
         `);
 
+    // 11. Table: servermaster (Waiter Transaction History)
+    await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[servermaster](
+                    [ID] [int] IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    [SER_ID] [int] NULL,
+                    [SER_NAME] [nvarchar](255) NULL,
+                    [TableNo] [nvarchar](50) NULL,
+                    [OrderId] [nvarchar](50) NULL,
+                    [Section] [nvarchar](100) NULL,
+                    [CreatedBy] [uniqueidentifier] NULL,
+                    [CreatedDate] [datetime] DEFAULT GETDATE(),
+                    [ModifiedBy] [uniqueidentifier] NULL,
+                    [ModifiedDate] [datetime] NULL
+                );
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND name = 'TableNo')
+            ALTER TABLE [dbo].[servermaster] ADD TableNo NVARCHAR(50);
+            
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND name = 'OrderId')
+            ALTER TABLE [dbo].[servermaster] ADD OrderId NVARCHAR(50);
+            
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[servermaster]') AND name = 'Section')
+            ALTER TABLE [dbo].[servermaster] ADD Section NVARCHAR(100);
+        `);
+
     console.log("✅ Database schema is up to date.");
   } catch (err) {
     console.error("❌ initDB ERROR:", err.message);
