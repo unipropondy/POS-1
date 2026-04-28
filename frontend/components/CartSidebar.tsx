@@ -219,16 +219,25 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     }
   }, [displayItems.length, orderContext?.tableId]);
 
-  const subtotal = useMemo(() => {
-    return displayItems.reduce((sum, item) => {
-      const isVoided = "status" in item && item.status === "VOIDED";
-      if (isVoided) return sum;
-      const baseTotal = (item.price || 0) * item.qty;
-      const discountVal = (item.discount || 0) / 100;
-      return sum + baseTotal * (1 - discountVal);
-    }, 0);
+  const { grossTotal, totalDiscount } = useMemo(() => {
+    return displayItems.reduce(
+      (acc, item) => {
+        const isVoided = "status" in item && item.status === "VOIDED";
+        if (isVoided) return acc;
+        const baseTotal = (item.price || 0) * item.qty;
+        const discountVal = (item.discount || 0) / 100;
+        const itemDiscount = baseTotal * discountVal;
+
+        return {
+          grossTotal: acc.grossTotal + baseTotal,
+          totalDiscount: acc.totalDiscount + itemDiscount,
+        };
+      },
+      { grossTotal: 0, totalDiscount: 0 },
+    );
   }, [displayItems]);
 
+  const subtotal = grossTotal - totalDiscount;
   const taxAmount = subtotal * gstRate;
   const payableAmount = subtotal + taxAmount;
 
@@ -585,11 +594,19 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
               ]}
             >
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryLabel}>Gross Total</Text>
                 <Text style={styles.summaryValue}>
-                  {currencySymbol}{subtotal.toFixed(2)}
+                  {currencySymbol}{grossTotal.toFixed(2)}
                 </Text>
               </View>
+              {totalDiscount > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: Theme.danger }]}>Discount</Text>
+                  <Text style={[styles.summaryValue, { color: Theme.danger }]}>
+                    -{currencySymbol}{totalDiscount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
               {taxAmount > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>GST ({settings.gstPercentage}%)</Text>
@@ -598,6 +615,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                   </Text>
                 </View>
               )}
+              <View style={styles.summaryDivider} />
               <View style={styles.summaryRow}>
                 <Text
                   style={[
@@ -1081,6 +1099,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.black,
     color: Theme.textPrimary,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: Theme.border,
+    marginVertical: 10,
+    opacity: 0.5,
   },
   payableLabel: {
     fontSize: 15,
