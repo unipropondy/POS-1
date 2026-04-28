@@ -1311,16 +1311,21 @@ export default function SalesReport() {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.modalDivider} />
-                <ScrollView style={styles.itemsList}>
+                <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
                   {loadingDetails ? (
-                    <ActivityIndicator color={Theme.primary} />
+                    <View style={{ paddingVertical: 20 }}>
+                      <ActivityIndicator color={Theme.primary} />
+                    </View>
                   ) : (
                     orderDetails.map((item, idx) => (
-                      <View key={idx} style={styles.orderItemRow}>
-                        <Text style={styles.orderItemQty}>{item.Qty}x</Text>
-                        <Text style={styles.orderItemName}>
-                          {item.DishName}
-                        </Text>
+                      <View key={idx} style={[styles.orderItemRow, idx !== orderDetails.length - 1 && { borderBottomWidth: 1, borderBottomColor: Theme.border + '50', paddingBottom: 12 }]}>
+                        <View style={[styles.qtyBadgeSmall, { backgroundColor: Theme.primary + '10' }]}>
+                          <Text style={[styles.orderItemQty, { width: 'auto' }]}>{item.Qty}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.orderItemName}>{item.DishName}</Text>
+                          <Text style={{ color: Theme.textMuted, fontSize: 10, fontFamily: Fonts.bold }}>UNIT: ${(item.Price || 0).toFixed(2)}</Text>
+                        </View>
                         <Text style={styles.orderItemPrice}>
                           ${(item.Price * item.Qty).toFixed(2)}
                         </Text>
@@ -1329,27 +1334,33 @@ export default function SalesReport() {
                   )}
                 </ScrollView>
                 <View style={styles.modalDivider} />
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Grand Total</Text>
-                  <Text style={styles.totalValue}>
-                    {formatCurrency(selectedOrder?.SysAmount)}
-                  </Text>
+                <View style={[styles.totalRow, { backgroundColor: Theme.primary + '05', padding: 16, borderRadius: 16, marginBottom: 24 }]}>
+                  <View>
+                    <Text style={[styles.totalLabel, { fontSize: 12, color: Theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }]}>Total Amount</Text>
+                    <Text style={[styles.totalValue, { fontSize: 28 }]}>
+                      {formatCurrency(selectedOrder?.SysAmount)}
+                    </Text>
+                  </View>
+                  <View style={styles.paidBadgeSmall}>
+                    <Ionicons name="checkmark-circle" size={16} color={Theme.success} />
+                    <Text style={{ color: Theme.success, fontFamily: Fonts.black, fontSize: 12, marginLeft: 4 }}>PAID</Text>
+                  </View>
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity
                     onPress={() => setShowPrintPrompt(true)}
-                    style={[styles.doneBtn, { flex: 1, backgroundColor: Theme.primaryLight, borderWidth: 1, borderColor: Theme.primary }]}
+                    style={[styles.premiumSecondaryBtn, { flex: 1 }]}
                   >
-                    <Ionicons name="print-outline" size={18} color={Theme.primary} style={{ marginRight: 8 }} />
-                    <Text style={[styles.doneBtnText, { color: Theme.primary }]}>REPRINT</Text>
+                    <Ionicons name="print" size={18} color={Theme.primary} />
+                    <Text style={styles.premiumSecondaryBtnText}>REPRINT</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     onPress={() => setSelectedOrder(null)}
-                    style={[styles.doneBtn, { flex: 1 }]}
+                    style={[styles.premiumPrimaryBtn, { flex: 1.5 }]}
                   >
-                    <Text style={styles.doneBtnText}>CLOSE</Text>
+                    <Text style={styles.premiumPrimaryBtnText}>CLOSE</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2081,6 +2092,44 @@ const styles = StyleSheet.create({
     ...Theme.shadowMd,
   },
   doneBtnText: { color: "#fff", fontFamily: Fonts.black, fontSize: 14 },
+  qtyBadgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 32,
+  },
+  premiumPrimaryBtn: {
+    backgroundColor: Theme.primary,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: 'center',
+    ...Theme.shadowMd,
+  },
+  premiumPrimaryBtnText: {
+    color: "#fff",
+    fontFamily: Fonts.black,
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  premiumSecondaryBtn: {
+    backgroundColor: Theme.primary + '10',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: Theme.primary + '20',
+  },
+  premiumSecondaryBtnText: {
+    color: Theme.primary,
+    fontFamily: Fonts.black,
+    fontSize: 15,
+  },
   sidebarOverlay: {
     flex: 1,
     flexDirection: "row-reverse",
