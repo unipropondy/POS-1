@@ -384,7 +384,7 @@ export default function SummaryScreen() {
                 <View style={[styles.receiptHeader, isLandscape && !isTablet && { marginBottom: 10 }]}>
                   <View style={{ backgroundColor: Theme.primaryLight, padding: 5, borderRadius: 8 }}>
                     <Image 
-                      source={require("../assets/images/logo.png")} 
+                      source={require("../assets/images/logo_pos.png")} 
                       style={{ width: 24, height: 24, borderRadius: 4 }}
                       resizeMode="contain"
                     />

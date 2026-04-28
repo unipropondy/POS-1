@@ -183,7 +183,7 @@ export default function LoginScreen() {
                 <View style={[styles.logoWrap, isLandscape && { marginBottom: 15, flexDirection: 'row', gap: 15 }]}>
                   <View style={[styles.logoBadge, isLandscape && { width: 50, height: 50, borderRadius: 15, marginBottom: 0 }]}>
                     <Image 
-                      source={require("../assets/images/logo.png")} 
+                      source={require("../assets/images/logo_pos.png")} 
                       style={{ width: isLandscape ? 40 : 70, height: isLandscape ? 40 : 70, borderRadius: isLandscape ? 12 : 20 }}
                       resizeMode="contain"
                     />
