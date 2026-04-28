@@ -123,7 +123,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   }, [cart]);
 
   const displayItems = useMemo(() => {
-    return cart; // Show all items, including voided ones with strike-through
+    return [...cart].sort((a, b) => {
+      const timeA = new Date(a.DateCreated || 0).getTime();
+      const timeB = new Date(b.DateCreated || 0).getTime();
+      return timeA - timeB;
+    });
   }, [cart]);
 
   const currentTableStatus = useMemo(() => {

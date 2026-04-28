@@ -674,6 +674,7 @@ router.get("/cart/:tableId", async (req, res) => {
         FROM [dbo].[CartItems] c
         LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
         WHERE c.CartId = @cartId
+        ORDER BY c.DateCreated ASC
       `);
 
     // Parse JSON and flags for frontend

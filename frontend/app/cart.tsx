@@ -226,8 +226,25 @@ export default function CartScreen() {
   }, [activeOrders, orderContext]);
 
   const displayItems = useMemo(() => {
-    const sentItems: (OrderItem | CartItem)[] = activeOrder?.items || [];
-    return [...sentItems, ...cart].filter(Boolean); // Filter out any null values
+    const sentItems = activeOrder?.items || [];
+    // Combine and deduplicate by lineItemId
+    const combined = [...sentItems, ...cart];
+    const uniqueMap = new Map();
+    
+    combined.forEach(item => {
+      if (!item) return;
+      const id = item.lineItemId;
+      // If duplicate, prioritize the one from 'cart' (has latest DB state)
+      if (!uniqueMap.has(id)) {
+        uniqueMap.set(id, item);
+      }
+    });
+
+    return Array.from(uniqueMap.values()).sort((a: any, b: any) => {
+      const timeA = new Date(a.DateCreated || a.sentAt || 0).getTime();
+      const timeB = new Date(b.DateCreated || b.sentAt || 0).getTime();
+      return timeA - timeB;
+    });
   }, [activeOrder, cart]);
 
   const unsentCount = useMemo(() => {
