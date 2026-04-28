@@ -42,6 +42,21 @@ export default function PaymentSuccess() {
 
   const [promptVisible, setPromptVisible] = React.useState(true);
 
+  React.useEffect(() => {
+    // Clear cart and context on success screen mount
+    const cleanup = async () => {
+      try {
+        const { clearCart } = await import("../stores/cartStore");
+        const { clearOrderContext } = await import("../stores/orderContextStore");
+        clearCart();
+        clearOrderContext();
+      } catch (err) {
+        console.error("Cleanup error in PaymentSuccess:", err);
+      }
+    };
+    cleanup();
+  }, []);
+
   const handleDone = () => {
     router.replace({
       pathname: "/(tabs)",

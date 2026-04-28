@@ -457,8 +457,8 @@ export default function PaymentScreen() {
 
 
     setTimeout(() => {
-      router.replace({
-        pathname: "/payment_success",
+      router.push({
+        pathname: "/payment_success" as any,
         params: {
           total: total.toFixed(2),
           paidNum: paidNum.toFixed(2),
@@ -487,10 +487,8 @@ export default function PaymentScreen() {
           clearTable("TAKEAWAY", context.takeawayNo);
         }
       }
-      clearCart();
-      clearOrderContext();
       setProcessing(false);
-    }, 800);
+    }, 100);
   };
 
   const renderItem = ({ item }: { item: any }) => {
