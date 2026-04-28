@@ -6,6 +6,8 @@ export type OrderContext = {
   tableId?: string;
   tableNo?: string;
   takeawayNo?: string;
+  serverId?: number;
+  serverName?: string;
 };
 
 type OrderContextState = {

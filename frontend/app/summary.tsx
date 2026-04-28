@@ -32,7 +32,7 @@ import GstSettingsModal from "../components/GstSettingsModal";
 import { findActiveOrder, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { useCartStore } from "../stores/cartStore";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
-import { getOrderContext } from "../stores/orderContextStore";
+import { getOrderContext, setOrderContext } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 
 const formatSection = (sec: string) => {
@@ -60,6 +60,10 @@ export default function SummaryScreen() {
   const [itemToVoid, setItemToVoid] = useState<any | null>(null);
   const [showVoidModal, setShowVoidModal] = useState(false);
   const [voidPassword, setVoidPassword] = useState("");
+
+  const [showServerModal, setShowServerModal] = useState(false);
+  const [servers, setServers] = useState<Array<{ SER_ID: number; SER_NAME: string }>>([]);
+  const [loadingServers, setLoadingServers] = useState(false);
 
   const settings = useCompanySettingsStore((state) => state.settings);
   const currencySymbol = settings.currencySymbol || "$";
@@ -100,7 +104,23 @@ export default function SummaryScreen() {
       console.log("🔍 [Summary] Active order missing, fetching from kitchen...");
       useActiveOrdersStore.getState().fetchActiveKitchenOrders();
     }
+
+    // 3. Fetch servers
+    fetchServers();
   }, [activeOrder]);
+
+  const fetchServers = async () => {
+    try {
+      setLoadingServers(true);
+      const res = await fetch(`${API_URL}/api/servers`);
+      const data = await res.json();
+      setServers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching servers:", err);
+    } finally {
+      setLoadingServers(false);
+    }
+  };
 
   const discountInfo = useCartStore((s: any) => {
     const id = s.currentContextId;
@@ -427,6 +447,33 @@ export default function SummaryScreen() {
                   <View style={[styles.dashLine, { borderColor: Theme.border }]} />
                 </View>
 
+                {/* SERVER SELECTION */}
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={[styles.grandLabel, { fontSize: 11, marginBottom: 8, opacity: 0.7 }]}>Assigned Waiter</Text>
+                  <TouchableOpacity 
+                    style={[
+                      styles.serverSelector,
+                      !context.serverId && { borderColor: Theme.danger, borderStyle: 'dashed' }
+                    ]}
+                    onPress={() => setShowServerModal(true)}
+                  >
+                    <View style={styles.serverInfoRow}>
+                      <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : Theme.dangerBg }]}>
+                        <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : Theme.danger} />
+                      </View>
+                      <Text style={[styles.serverNameText, !context.serverId && { color: Theme.danger }]}>
+                        {context.serverName || "Select Waiter"}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={Theme.textMuted} />
+                  </TouchableOpacity>
+                  {!context.serverId && (
+                    <Text style={{ color: Theme.danger, fontSize: 10, marginTop: 4, fontFamily: Fonts.bold }}>
+                      * Required to proceed
+                    </Text>
+                  )}
+                </View>
+
                 <View style={[styles.grandRow, isLandscape && !isTablet && { marginBottom: 15 }]}>
                   <View>
                     <Text style={[styles.grandLabel, isLandscape && !isTablet && { fontSize: 12 }]}>Total Amount</Text>
@@ -436,8 +483,19 @@ export default function SummaryScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.proceedBtn, isLandscape && !isTablet && { height: 48, borderRadius: 12 }]}
-                  onPress={() => router.push("/payment")}
+                  style={[
+                    styles.proceedBtn, 
+                    isLandscape && !isTablet && { height: 48, borderRadius: 12 },
+                    !context.serverId && { opacity: 0.5, backgroundColor: Theme.textMuted }
+                  ]}
+                  onPress={() => {
+                    if (!context.serverId) {
+                      showToast({ type: "warning", message: "Select Waiter", subtitle: "Please assign a waiter before proceeding" });
+                      setShowServerModal(true);
+                      return;
+                    }
+                    router.push("/payment");
+                  }}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="card-outline" size={22} color="#fff" />
@@ -636,6 +694,60 @@ export default function SummaryScreen() {
         visible={showGstModal} 
         onClose={() => setShowGstModal(false)} 
       />
+
+      {/* SERVER SELECTION MODAL */}
+      <Modal transparent visible={showServerModal} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Waiter</Text>
+              <TouchableOpacity onPress={() => setShowServerModal(false)}>
+                <Ionicons name="close" size={24} color={Theme.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalDesc}>Who is serving this table?</Text>
+
+            {loadingServers ? (
+              <ActivityIndicator color={Theme.primary} style={{ margin: 20 }} />
+            ) : (
+              <FlatList
+                data={servers}
+                keyExtractor={(item) => item.SER_ID.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.serverItem,
+                      context.serverId === item.SER_ID && styles.serverItemSelected
+                    ]}
+                    onPress={() => {
+                      setOrderContext({
+                        ...context,
+                        serverId: item.SER_ID,
+                        serverName: item.SER_NAME
+                      });
+                      setShowServerModal(false);
+                    }}
+                  >
+                    <View style={[styles.serverAvatar, { backgroundColor: context.serverId === item.SER_ID ? Theme.primary : Theme.bgMuted }]}>
+                      <Text style={[styles.serverAvatarText, { color: context.serverId === item.SER_ID ? '#fff' : Theme.textPrimary }]}>
+                        {item.SER_NAME.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={[styles.serverItemName, context.serverId === item.SER_ID && { color: Theme.primary, fontFamily: Fonts.bold }]}>
+                      {item.SER_NAME}
+                    </Text>
+                    {context.serverId === item.SER_ID && (
+                      <Ionicons name="checkmark-circle" size={22} color={Theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1019,5 +1131,70 @@ const styles = StyleSheet.create({
   modalBtnTextConfirm: {
     color: "#fff",
     fontFamily: Fonts.bold,
+  },
+  serverSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Theme.bgMuted,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  serverInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  serverIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  serverNameText: {
+    fontSize: 15,
+    fontFamily: Fonts.bold,
+    color: Theme.textPrimary,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  serverItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: Theme.bgCard,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    gap: 15,
+  },
+  serverItemSelected: {
+    borderColor: Theme.primary,
+    backgroundColor: Theme.primaryLight,
+  },
+  serverAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  serverAvatarText: {
+    fontFamily: Fonts.black,
+    fontSize: 16,
+  },
+  serverItemName: {
+    flex: 1,
+    fontSize: 16,
+    color: Theme.textPrimary,
+    fontFamily: Fonts.medium,
   },
 });

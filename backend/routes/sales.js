@@ -125,7 +125,7 @@ router.get("/all", async (req, res) => {
       SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, 
       sh.BillNo AS OrderId, 
       sh.OrderType,
-      sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, 
+      sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, sh.SER_NAME,
       ${normalizeReportPayModeSql("sts.PayMode")} as PayMode,
       ISNULL(NULLIF(sts.SysAmount, 0), ISNULL(sh.SysAmount, 0)) as SysAmount,
       ISNULL(NULLIF(sts.ManualAmount, 0), ISNULL(sh.ManualAmount, 0)) as ManualAmount,
@@ -469,9 +469,10 @@ router.post("/save", async (req, res) => {
       .input("ManualAmount", sql.Money, totalAmount || 0)
       .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
       .input("CreatedOn", sql.DateTime, now)
+      .input("SER_NAME", sql.NVarChar(255), req.body.serverName || null)
       .query(`
-        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn)
-        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn)
+        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, SER_NAME)
+        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @SER_NAME)
       `);
 
     // 3. Insert SettlementTotalSales

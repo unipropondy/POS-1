@@ -357,7 +357,9 @@ export default function PaymentScreen() {
         totalAmount: total,
         paymentMethod: method,
         cashierId: user.userId,
-        tableId: context?.tableId
+        tableId: context?.tableId,
+        serverId: context?.serverId,
+        serverName: context?.serverName
       };
       
       let generatedOrderId = null;

@@ -146,6 +146,9 @@ async function initDB(pool) {
 
             IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementHeader]') AND name = 'CancellationReason')
             ALTER TABLE [dbo].[SettlementHeader] ADD CancellationReason NVARCHAR(255);
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SettlementHeader]') AND name = 'SER_NAME')
+            ALTER TABLE [dbo].[SettlementHeader] ADD SER_NAME NVARCHAR(255);
         `);
 
     // 6. Table: CartItems (Persistence)

@@ -1178,7 +1178,7 @@ export default function SalesReport() {
                       : `🪑 Table ${item.TableNo || "N/A"}`}
                   </Text>
                   <Text style={styles.txSmall}>
-                    Order #{formatOrderId(item)}
+                    Order #{formatOrderId(item)} {item.SER_NAME ? ` • Waiter: ${item.SER_NAME}` : ""}
                   </Text>
                 </View>
                 <View style={styles.txTimeInfo}>
@@ -1246,6 +1246,14 @@ export default function SalesReport() {
                             : `Table ${selectedOrder?.TableNo || "N/A"}${selectedOrder?.Section ? ` • ${selectedOrder.Section}` : ""}`}
                         </Text>
                       </View>
+                      {selectedOrder?.SER_NAME && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Theme.primaryLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Ionicons name="person" size={10} color={Theme.primary} />
+                          <Text style={{ color: Theme.primary, fontFamily: Fonts.bold, fontSize: 10 }}>
+                            {selectedOrder.SER_NAME}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                   <TouchableOpacity onPress={() => setSelectedOrder(null)}>
