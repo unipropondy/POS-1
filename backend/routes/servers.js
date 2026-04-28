@@ -22,8 +22,12 @@ router.get("/", async (req, res) => {
 // 🔹 POST (ADD)
 router.post("/add", async (req, res) => {
   try {
-    const { SER_NAME, userId } = req.body;
-    console.log("➕ Adding server:", { SER_NAME, userId });
+    console.log("📥 POST /api/servers/add | Body:", JSON.stringify(req.body, null, 2));
+    const { SER_NAME } = req.body;
+    // Extract userId with casing resilience
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
+    
+    console.log("➕ Attempting to add server:", { SER_NAME, userId });
 
     const pool = await poolPromise;
 
@@ -45,8 +49,11 @@ router.post("/add", async (req, res) => {
 // 🔹 UPDATE
 router.post("/update", async (req, res) => {
   try {
-    const { SER_ID, SER_NAME, userId } = req.body;
-    console.log("📝 Updating server:", { SER_ID, SER_NAME, userId });
+    console.log("📥 POST /api/servers/update | Body:", JSON.stringify(req.body, null, 2));
+    const { SER_ID, SER_NAME } = req.body;
+    const userId = req.body.userId || req.body.UserId || req.body.USERID;
+    
+    console.log("📝 Attempting to update server:", { SER_ID, SER_NAME, userId });
 
     const pool = await poolPromise;
 

@@ -107,7 +107,8 @@ export default function WaitersScreen() {
         fetchWaiters();
         Alert.alert("Success", isEdit ? "Waiter updated." : "Waiter added.");
       } else {
-        Alert.alert("Error", "Save failed.");
+        const errorData = await res.json();
+        Alert.alert("Error", errorData.error || "Save failed.");
       }
     } catch (err) {
       Alert.alert("Error", "Connection problem.");

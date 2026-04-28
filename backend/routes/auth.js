@@ -84,17 +84,18 @@ router.post("/login", async (req, res) => {
     }
 
     await pool.request()
-      .input("UserId", user.UserId)
+      .input("UserId", user.UserId || user.userId || user.USERID)
       .query("UPDATE [dbo].[UserMaster] SET LastLogInDate = GETDATE() WHERE UserId = @UserId");
 
-    console.log(`✅ Login: ${user.FullName || user.UserName}`);
+    const finalUserId = user.UserId || user.userId || user.USERID;
+    console.log(`✅ Login Success: ${user.FullName || user.UserName} (ID: ${finalUserId})`);
 
     return res.json({
       success: true,
       user: {
-        userId: user.UserId,
-        userCode: user.UserCode,
-        userName: user.UserName,
+        userId: finalUserId,
+        userCode: user.UserCode || user.userCode,
+        userName: user.UserName || user.userName,
         fullName: user.FullName || user.FirstName || user.UserName,
         role: user.RoleCode || "CASHIER",
         roleName: user.RoleName || "Cashier",
