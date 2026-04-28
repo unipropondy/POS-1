@@ -26,7 +26,7 @@ import { useRouter, useSegments, Slot } from "expo-router";
 // Keep the splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 
-function RootLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const segments = useSegments();
@@ -84,5 +84,3 @@ function RootLayout() {
     </ThemeProvider>
   );
 }
-
-export default RootLayout;
