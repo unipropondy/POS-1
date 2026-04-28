@@ -117,7 +117,7 @@ router.post("/lock-persistent", async (req, res) => {
     await request.query(`
       UPDATE TableMaster 
       SET Status = 5, LockedByName = @lockedByName, TotalAmount = 0, StartTime = NULL 
-      WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+      WHERE TableId = @tableId
     `);
 
     // ✅ Clear CartItems for this table when locked
@@ -149,7 +149,7 @@ router.post("/unlock-persistent", async (req, res) => {
       .query(`
         UPDATE TableMaster 
         SET Status = 0, LockedByName = NULL, TotalAmount = 0, StartTime = NULL 
-        WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+        WHERE TableId = @tableId
       `);
 
     // ✅ Clear any items in CartItems for this table when unlocked
@@ -198,7 +198,7 @@ router.put("/status", async (req, res) => {
             ELSE TotalAmount 
           END,
           ModifiedOn = GETDATE()
-      WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+      WHERE TableId = @tableId
     `);
 
     // ✅ Clear CartItems if status is 0 (Available) or 5 (Locked)
@@ -217,7 +217,7 @@ router.put("/status", async (req, res) => {
           WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
           ELSE 0 
         END AS isOvertime
-        FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+        FROM TableMaster WHERE TableId = @tableId
       `);
     
     const row = tableRes.recordset[0];
@@ -273,7 +273,7 @@ router.put("/:tableId/status", async (req, res) => {
             WHEN @status = 0 OR @status = 5 THEN 0 
             ELSE TotalAmount 
           END
-      WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+      WHERE TableId = @tableId
     `);
 
     // ✅ If status is 0 or 5, clear any lingering items in CartItems for this table
@@ -294,7 +294,7 @@ router.put("/:tableId/status", async (req, res) => {
             WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
             ELSE 0 
           END AS isOvertime
-          FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+          FROM TableMaster WHERE TableId = @tableId
         `);
       
       const row = tableRes.recordset[0];
@@ -334,7 +334,7 @@ router.get("/:tableId", async (req, res) => {
           CurrentOrderId as currentOrderId,
           LockedByName as lockedByName
         FROM TableMaster
-        WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+        WHERE TableId = @tableId
       `);
 
     if (result.recordset.length === 0) {

@@ -16,7 +16,7 @@ async function getOrGenerateOrderId(req, tableId) {
   if (tableId && tableId !== "undefined" && tableId !== "null") {
     const tableCheck = await pool.request()
       .input("tid", sql.NVarChar(128), cleanId)
-      .query("SELECT CurrentOrderId FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tid");
+      .query("SELECT CurrentOrderId FROM TableMaster WHERE TableId = @tid");
 
     if (tableCheck.recordset[0]?.CurrentOrderId) {
       return tableCheck.recordset[0].CurrentOrderId;
@@ -129,7 +129,7 @@ async function updateTableStatus(req, tableId, status) {
             WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
             ELSE 0 
           END AS isOvertime
-          FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+          FROM TableMaster WHERE TableId = @tableId
         `);
       
       const row = tableRes.recordset[0];
@@ -161,7 +161,7 @@ async function syncTableStatus(req, tableId) {
         DECLARE @total DECIMAL(18,2) = 0;
         
         SELECT @itemCount = COUNT(*), @total = ISNULL(SUM((Cost * (1 - ISNULL(DiscountAmount, 0)/100)) * Quantity), 0) 
-        FROM CartItems WHERE CartId = CAST(@tableId AS NVARCHAR(128)) AND (Status <> 'VOIDED' OR Status IS NULL);
+        FROM CartItems WHERE TRY_CAST(CartId AS UniqueIdentifier) = @tableId AND (Status <> 'VOIDED' OR Status IS NULL);
 
         UPDATE TableMaster
         SET 
@@ -256,7 +256,7 @@ router.post("/hold", async (req, res) => {
     
     await pool.request()
       .input("tableId", sql.NVarChar(128), cleanId)
-      .query("UPDATE TableMaster SET Status = 3 WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
+      .query("UPDATE TableMaster SET Status = 3 WHERE TableId = @tableId");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
@@ -275,7 +275,7 @@ router.post("/checkout", async (req, res) => {
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
     await pool.request()
       .input("tableId", sql.NVarChar(128), cleanId)
-      .query("UPDATE TableMaster SET Status = 2 WHERE UPPER(CAST(TableId AS NVARCHAR(128))) = UPPER(@tableId)");
+      .query("UPDATE TableMaster SET Status = 2 WHERE TableId = @tableId");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });
