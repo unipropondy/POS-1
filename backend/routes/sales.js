@@ -380,8 +380,6 @@ router.post("/save", async (req, res) => {
       serverId, serverName
     } = req.body;
 
-    console.log(`[SAVE SALE] Starting transaction. Waiter: [${serverName} (${serverId})], Items: ${items?.length}, Total: ${totalAmount}, Method: ${paymentMethod}`);
-
     const validationError = validateSalePayload({ totalAmount, paymentMethod, items });
     if (validationError) {
       console.warn(`[SAVE SALE] Validation failed: ${validationError}`);
@@ -402,7 +400,6 @@ router.post("/save", async (req, res) => {
           SELECT TOP 1 BusinessUnitId FROM [dbo].[SettlementHeader] WHERE BusinessUnitId IS NOT NULL AND BusinessUnitId <> '00000000-0000-0000-0000-000000000000'
         `);
         let businessUnitId = bizRow.recordset.length > 0 ? bizRow.recordset[0].BusinessUnitId : DEFAULT_GUID;
-        console.log(`[SAVE SALE] BusinessUnitId resolved to: ${businessUnitId}`);
 
     // 2. Order ID Retrieval
     const now = new Date();
@@ -582,7 +579,6 @@ router.post("/save", async (req, res) => {
 
       // 5. Track in servermaster (Waiter History)
       if (serverId) {
-        console.log(`[SAVE SALE] Recording waiter [${serverName}] in servermaster...`);
         try {
           await transaction.request()
             .input("SER_ID", sql.Int, serverId)
@@ -592,16 +588,12 @@ router.post("/save", async (req, res) => {
             .input("Section", sql.NVarChar(100), section || null)
             .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
             .query(`
-              -- Direct Insert (Schema is managed by initDB at startup)
               INSERT INTO servermaster (SER_ID, SER_NAME, TableNo, OrderId, Section, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)
               VALUES (@SER_ID, @SER_NAME, @TableNo, @OrderId, @Section, @CreatedBy, GETDATE(), @CreatedBy, GETDATE())
             `);
-          console.log(`[SAVE SALE] servermaster insert SUCCESS for order ${displayOrderId}`);
         } catch (serverErr) {
-          console.error("⚠️ [SAVE SALE] servermaster insert failed (non-critical):", serverErr.message);
+          console.error("⚠️ [SAVE SALE] servermaster insert failed:", serverErr.message);
         }
-      } else {
-        console.log(`[SAVE SALE] No serverId provided. Skipping servermaster tracking.`);
       }
 
       await transaction.commit();
