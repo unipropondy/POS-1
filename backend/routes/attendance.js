@@ -154,7 +154,11 @@ router.get("/summary/:userId", async (req, res) => {
     // add elapsed time to totalWorkMs for real-time netHours calc
     let activeWorkMs = totalWorkMs;
     if (lastClockIn && !lastClockOutTime) {
-      activeWorkMs += (new Date().getTime() - lastClockIn);
+      // Use DB time if possible, or current time
+      const now = new Date().getTime();
+      if (now > lastClockIn) {
+        activeWorkMs += (now - lastClockIn);
+      }
     }
 
     const totalHoursResult = activeWorkMs / (1000 * 60 * 60);
@@ -242,21 +246,24 @@ router.post("/save", async (req, res) => {
     let lastBreakIn = null;
 
     for (const entry of entries) {
-      if (entry.status === 1) {
+      const s = parseInt(entry.status);
+      if (s == 1) {
         hasClockIn = true;
-      } else if (entry.status === 0) {
+        isOnBreak = false;
+      } else if (s == 0) {
         hasClockOut = true;
-      } else if (entry.status === 3) {
+        isOnBreak = false;
+      } else if (s == 3) {
         isOnBreak = true;
         lastBreakIn = entry.ClockinTime;
-      } else if (entry.status === 4 && isOnBreak) {
+      } else if (s == 4) {
         isOnBreak = false;
         lastBreakIn = null;
       }
     }
 
     // Validation based on action
-    if (status === 1) {
+    if (status == 1) {
       // IN
       if (hasClockIn && !hasClockOut) {
         return res.status(400).json({
@@ -268,7 +275,7 @@ router.post("/save", async (req, res) => {
           .status(400)
           .json({ message: "Already completed your shift today." });
       }
-    } else if (status === 0) {
+    } else if (status == 0) {
       // OUT
       if (!hasClockIn) {
         return res
@@ -283,7 +290,7 @@ router.post("/save", async (req, res) => {
           message: "Cannot clock out while on break. Please end break first.",
         });
       }
-    } else if (status === 3) {
+    } else if (status == 3) {
       // BREAK IN
       if (!hasClockIn || hasClockOut) {
         return res
@@ -295,7 +302,7 @@ router.post("/save", async (req, res) => {
           .status(400)
           .json({ message: "Already on break. Please end break first." });
       }
-    } else if (status === 4) {
+    } else if (status == 4) {
       // BREAK OUT
       if (!isOnBreak) {
         return res
@@ -317,6 +324,53 @@ router.post("/save", async (req, res) => {
         VALUES
         (@UserId, @ClockTime, @Status, @BusinessUnitId, @CreatedBy, GETDATE(), @CreatedBy, GETDATE())
       `);
+
+    // --- SYNC WITH DailyAttendance ---
+    try {
+      if (status == 1) {
+        // IN: Create or Update DailyAttendance
+        await pool.request()
+          .input("UserId", sql.UniqueIdentifier, userId)
+          .input("Now", sql.DateTime, currentTime)
+          .query(`
+            IF NOT EXISTS (SELECT 1 FROM DailyAttendance WHERE DeliveryPersonId = @UserId AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE))
+            BEGIN
+              INSERT INTO DailyAttendance (DeliveryPersonId, StartDateTime, BusinessUnitId, CreatedBy, CreatedOn)
+              VALUES (@UserId, @Now, '00000000-0000-0000-0000-000000000001', @UserId, GETDATE())
+            END
+            ELSE
+            BEGIN
+              UPDATE DailyAttendance SET StartDateTime = @Now, EndDateTime = NULL WHERE DeliveryPersonId = @UserId AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE)
+            END
+          `);
+      } else if (status == 3) {
+        // BREAK IN
+        await pool.request()
+          .input("UserId", sql.UniqueIdentifier, userId)
+          .input("Now", sql.DateTime, currentTime)
+          .query(`UPDATE DailyAttendance SET BreakInTime = @Now WHERE DeliveryPersonId = @UserId AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE)`);
+      } else if (status == 4) {
+        // BREAK OUT
+        await pool.request()
+          .input("UserId", sql.UniqueIdentifier, userId)
+          .input("Now", sql.DateTime, currentTime)
+          .query(`UPDATE DailyAttendance SET BreakOutTime = @Now WHERE DeliveryPersonId = @UserId AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE)`);
+      } else if (status == 0) {
+        // OUT
+        await pool.request()
+          .input("UserId", sql.UniqueIdentifier, userId)
+          .input("Now", sql.DateTime, currentTime)
+          .query(`
+            UPDATE DailyAttendance 
+            SET EndDateTime = @Now,
+                NoofHours = DATEDIFF(SECOND, StartDateTime, @Now) / 3600.0
+            WHERE DeliveryPersonId = @UserId AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE)
+          `);
+      }
+    } catch (syncErr) {
+      console.error("DailyAttendance Sync Error:", syncErr.message);
+      // Don't fail the whole request if sync fails
+    }
 
     const actionNames = { 1: "IN", 0: "OUT", 3: "BREAK IN", 4: "BREAK OUT" };
     const actionName = actionNames[status] || "ACTION";
