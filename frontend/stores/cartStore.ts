@@ -216,33 +216,14 @@ export const useCartStore = create<CartState>()(
         const item = currentCart.find((p: CartItem) => p.lineItemId === lineItemId);
         if (!item) return;
 
-        // ✅ If item was already SENT to kitchen, it MUST be voided, not deleted
-        if (item.status === "SENT" || item.status === "READY" || item.status === "SERVED") {
-          console.log("⚠️ Item already sent. Triggering VOID instead of DELETE.");
-          try {
-            await fetch(`${API_URL}/api/orders/update-item-status`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId: get().tableOrderIds[tableId],
-                lineItemId: lineItemId,
-                status: "VOIDED"
-              })
-            });
-            await fetchCartFromDB(tableId);
-          } catch (err) {
-            console.error("❌ [CartStore] Void failed:", err);
-          }
-          return;
-        }
-
         try {
           await fetch(`${API_URL}/api/orders/remove-item`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tableId,
-              itemId: lineItemId
+              itemId: lineItemId,
+              userId: useAuthStore.getState().user?.userId
             })
           });
 
@@ -250,6 +231,7 @@ export const useCartStore = create<CartState>()(
         } catch (err) {
           console.error("❌ [CartStore] Remove failed:", err);
         }
+
       },
 
       /* ================= CLEAR ================= */

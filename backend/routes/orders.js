@@ -538,11 +538,19 @@ router.post("/remove-item", async (req, res) => {
           .query("UPDATE CartItems SET Quantity = @newQty, OrderConfirmQty = @newQty WHERE ItemId = @itemId");
 
       } else {
-        // FULL VOID: Just update status
-        await transaction.request()
-          .input("itemId", sql.NVarChar(128), itemId)
-          .input("userId", sql.UniqueIdentifier, userId || null)
-          .query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1, ModifiedBy = @userId WHERE ItemId = @itemId");
+        // ✅ NEW logic: If item is NEW, DELETE it. If already SENT/READY, VOID it.
+        if (item.Status === 'NEW' || !item.Status) {
+          await transaction.request()
+            .input("itemId", sql.NVarChar(128), itemId)
+            .query("DELETE FROM CartItems WHERE ItemId = @itemId");
+          console.log(`🗑️ [RemoveItem] Hard deleted NEW item: ${itemId}`);
+        } else {
+          await transaction.request()
+            .input("itemId", sql.NVarChar(128), itemId)
+            .input("userId", sql.UniqueIdentifier, userId || null)
+            .query("UPDATE CartItems SET Status = 'VOIDED', IsVoided = 1, ModifiedBy = @userId WHERE ItemId = @itemId");
+          console.log(`🚫 [RemoveItem] Voided SENT item: ${itemId}`);
+        }
       }
 
       await transaction.commit();
