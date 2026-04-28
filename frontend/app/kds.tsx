@@ -47,7 +47,7 @@ const URGENCY_UI: Record<UrgencyLevel, { primary: string; label: string; icon: k
 };
 
 // Per-card component so each card can track its own scroll state
-function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
+const OrderCard = React.memo(function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
   const [hasMore, setHasMore] = useState(false);
   const contentH = useRef(0);
   const viewH = useRef(0);
@@ -164,7 +164,15 @@ function OrderCard({ item, cardHeight, ui, time, pulseAnim, groups }: any) {
       </View>
     </Pressable>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.item.orderId === next.item.orderId &&
+    prev.ui.minutes === next.ui.minutes &&
+    prev.ui.seconds === next.ui.seconds &&
+    prev.time === next.time &&
+    prev.groups === next.groups
+  );
+});
 
 export default function KDSScreen() {
   const { width, height } = useWindowDimensions();

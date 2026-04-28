@@ -183,13 +183,11 @@ router.put("/status", async (req, res) => {
     request.input("tableId", sql.VarChar(50), cleanTableId);
     request.input("status", sql.Int, Number(status));
 
-    await request.query(`
+    const updateResult = await request.query(`
       UPDATE TableMaster 
       SET Status = @status,
           StartTime = CASE 
-            -- Status 1 (Dining), 2 (Checkout), 3 (Hold) starts/maintains the timer
             WHEN (@status = 1 OR @status = 2 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
-            -- Status 0 (Available) or 5 (Locked) resets the timer
             WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
           END,
@@ -198,8 +196,17 @@ router.put("/status", async (req, res) => {
             ELSE TotalAmount 
           END,
           ModifiedOn = GETDATE()
+      OUTPUT 
+        INSERTED.TotalAmount, 
+        CONVERT(VARCHAR, INSERTED.StartTime, 126) AS StartTime,
+        CASE 
+          WHEN INSERTED.Status = 1 AND INSERTED.StartTime IS NOT NULL AND DATEDIFF(MINUTE, INSERTED.StartTime, GETDATE()) >= 60 THEN 1 
+          ELSE 0 
+        END AS isOvertime
       WHERE TableId = @tableId
     `);
+    
+    const row = updateResult.recordset[0];
 
     // ✅ Clear CartItems if status is 0 (Available) or 5 (Locked)
     if (Number(status) === 0 || Number(status) === 5) {
@@ -207,20 +214,6 @@ router.put("/status", async (req, res) => {
         .input("tableId", sql.VarChar(50), cleanTableId)
         .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
     }
-
-    // ✅ Get current total, startTime and isOvertime to include in socket
-    const tableRes = await pool.request()
-      .input("tableId", sql.VarChar(50), cleanTableId)
-      .query(`
-        SELECT TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime,
-        CASE 
-          WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
-          ELSE 0 
-        END AS isOvertime
-        FROM TableMaster WHERE TableId = @tableId
-      `);
-    
-    const row = tableRes.recordset[0];
     const currentTotal = row?.TotalAmount || 0;
     const currentStartTime = row?.StartTime || null;
     const currentIsOvertime = row?.isOvertime || 0;

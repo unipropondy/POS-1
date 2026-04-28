@@ -323,23 +323,14 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     // No more getNextOrderId() - we wait for the database
 
     
+    // 🟢 OPTIMISTIC UI: Update status and notify kitchen immediately
     appendOrder(targetOrderId || "NEW", orderContext, unsentItems);
     markItemsSent(targetOrderId || "NEW");
-
+    
+    // We don't wait for save-cart as the store already syncs in background
     try {
-      // 1. Save current cart state (as NEW) to ensure DB has latest
-      await fetch(`${API_URL}/api/orders/save-cart`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          tableId: orderContext.tableId, 
-          orderId: targetOrderId, 
-          items: cart 
-        }),
-      });
-
-      // 2. Trigger SEND to kitchen (marks items as SENT in DB)
-      const sendRes = await fetch(`${API_URL}/api/orders/send`, {
+      // 1. Trigger SEND to kitchen (marks items as SENT in DB)
+      const sendPromise = fetch(`${API_URL}/api/orders/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -347,7 +338,11 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           orderType: orderContext.orderType
         }),
       });
-      
+
+      // Navigate immediately while request processes in background
+      router.replace(`/(tabs)?section=${orderContext.section}`);
+
+      const sendRes = await sendPromise;
       const sendData = await sendRes.json();
         if (sendData.success) {
           const officialOrderId = sendData.currentOrderId || sendData.CurrentOrderId || targetOrderId;
@@ -389,9 +384,6 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
     } catch (err) {
       console.error("Cart Save/Send Error:", err);
     }
-
-
-    router.replace(`/(tabs)?section=${orderContext.section}`);
   };
 
   const renderEmptyState = () => (

@@ -95,7 +95,11 @@ const TableItemComponent = React.memo(
     smallFont: number;
     isTabletPortrait?: boolean;
   }) => {
-    const status = Number(item.Status);
+    // 🟢 Prioritize Store Status over API Status for instant feedback
+    const status = (tableData && tableData.status !== 'EMPTY') 
+      ? (tableData.status === 'SENT' ? 1 : tableData.status === 'BILL_REQUESTED' ? 2 : tableData.status === 'HOLD' ? 3 : 1)
+      : Number(item.Status);
+    
     let ui = getStatusUI(status);
 
     // Dynamic Overtime: If Dining and backend flagged as overtime, override UI
@@ -110,7 +114,7 @@ const TableItemComponent = React.memo(
     const labelColor = Theme.textPrimary;
 
     let timeText = "";
-    let billAmount = tableData?.billAmount || item.totalAmount || 0;
+    let billAmount = tableData?.totalAmount || item.totalAmount || 0;
 
     // Use ONLY valid (non-zero) startTime from any available source
     const startTime = (tableData?.startTime && tableData.startTime !== 0) ? tableData.startTime : item.StartTime;
@@ -411,7 +415,7 @@ export default function Category() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTables();
-    }, 15000); 
+    }, 60000); 
     return () => clearInterval(interval);
   }, [allTables.length]); 
 
@@ -1352,6 +1356,15 @@ export default function Category() {
         keyExtractor={(item: TableItem) => item.id}
         renderItem={renderItem}
         columnWrapperStyle={{ gap: GAP }}
+        getItemLayout={(data, index) => ({
+          length: itemSize + GAP,
+          offset: (itemSize + GAP) * Math.floor(index / columns),
+          index,
+        })}
+        removeClippedSubviews={Platform.OS === 'android'}
+        maxToRenderPerBatch={columns * 3}
+        windowSize={5}
+        initialNumToRender={columns * 4}
         contentContainerStyle={{
           gap: GAP,
           paddingHorizontal: PADDING,

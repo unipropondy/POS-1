@@ -250,6 +250,7 @@ export default function MenuScreen() {
   const [selectedKitchenId, setSelectedKitchenId] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [allDishes, setAllDishes] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -561,8 +562,15 @@ export default function MenuScreen() {
     }
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
   const filteredItems = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
+    const query = debouncedSearch.trim().toLowerCase();
     if (!query) return items;
 
     // Search across all dishes if query exists
@@ -575,7 +583,7 @@ export default function MenuScreen() {
         name.includes(query) || code.includes(query) || desc.includes(query)
       );
     });
-  }, [searchText, items, allDishes]);
+  }, [debouncedSearch, items, allDishes]);
 
   const openModifiers = React.useCallback(
     async (dish: any) => {
@@ -766,6 +774,15 @@ export default function MenuScreen() {
                     columnWrapperStyle={
                       columns > 1 ? { gap: gap, marginBottom: gap } : undefined
                     }
+                    getItemLayout={(data, index) => ({
+                      length: 150, // Fixed height estimate
+                      offset: 150 * Math.floor(index / columns),
+                      index,
+                    })}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                    initialNumToRender={columns * 5}
+                    maxToRenderPerBatch={columns * 3}
+                    windowSize={5}
                     contentContainerStyle={[
                       styles.listPadding,
                       columns === 1 && { gap: gap },

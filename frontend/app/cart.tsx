@@ -470,75 +470,69 @@ export default function CartScreen() {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
         try {
-          // 1. Send Order and Get Official ID
-          const sendRes = await fetch(`${API_URL}/api/orders/send`, {
+          // 🟢 OPTIMISTIC UI: Update status and notify kitchen immediately
+          appendOrder(targetOrderId || "NEW", context, cart);
+          markItemsSent(targetOrderId || "NEW");
+
+          // We don't wait for save-cart as the store already syncs in background
+          const sendPromise = fetch(`${API_URL}/api/orders/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tableId }),
           });
+
+          // Navigate immediately
+          clearCart();
+          router.replace(`/(tabs)?section=${context.section}`);
+
+          const sendRes = await sendPromise;
           const sendData = await sendRes.json();
 
           if (sendData.success) {
             const officialId = sendData.currentOrderId || sendData.CurrentOrderId || targetOrderId;
             
             if (officialId) {
-              // 2. Sync Cart with official ID
-              await fetch(`${API_URL}/api/orders/save-cart`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                  tableId: tableId, 
-                  orderId: officialId, 
-                  items: cart 
-                }),
-              });
-
-              // 3. Update Local Store & UI
-              appendOrder(officialId, context, cart);
-              markItemsSent(officialId);
               useCartStore.getState().setTableOrderId(tableId, officialId);
               const serverStartTime = sendData.StartTime || sendData.startTime;
               updateTableStatus(tableId, context.section!, context.tableNo!, officialId, 'SENT', serverStartTime, undefined, payableAmount);
 
-              // 4. Notify Kitchen via Socket
+              // Notify Kitchen via Socket
               socket.emit("new_order", {
                 orderId: officialId,
                 context,
                 items: cart,
-                createdAt: Date.now(), // ✅ Add timestamp for synchronized KDS clock
-              });
-
-              showToast({
-                type: "success",
-                message: "Order Sent",
-                subtitle: `Kitchen notified. Order #${officialId}`,
+                createdAt: Date.now(),
               });
             }
           }
         } catch (err) {
           console.error("Failed to send order:", err);
-          showToast({ type: "error", message: "Failed to send order" });
         }
       }
-      clearCart();
-      router.replace(`/(tabs)?section=${context.section}`);
-
     } else if (context.orderType === "TAKEAWAY") {
       try {
-        // 1. Generate ID for Takeaway (No tableId needed)
-        const sendRes = await fetch(`${API_URL}/api/orders/send`, {
+        // 🟢 OPTIMISTIC UI: Update status immediately
+        appendOrder("NEW_TAKEAWAY", context, cart);
+        markItemsSent("NEW_TAKEAWAY");
+
+        const sendPromise = fetch(`${API_URL}/api/orders/send`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderType: "TAKEAWAY" }), 
         });
+
+        // Navigate immediately
+        clearCart();
+        router.replace(`/(tabs)?section=TAKEAWAY`);
+
+        const sendRes = await sendPromise;
         const sendData = await sendRes.json();
 
         if (sendData.success && sendData.currentOrderId) {
           const officialId = sendData.currentOrderId;
           const serverStartTime = sendData.StartTime || sendData.startTime;
           
-          appendOrder(officialId, context, cart);
-          markItemsSent(officialId);
+          useActiveOrdersStore.getState().updateOrderId("NEW_TAKEAWAY", officialId);
           updateTableStatus("", "TAKEAWAY", context.takeawayNo!, officialId, 'SENT', serverStartTime, undefined, payableAmount);
           
           socket.emit("new_order", {
@@ -547,18 +541,10 @@ export default function CartScreen() {
             items: cart,
             createdAt: Date.now(),
           });
-
-          showToast({
-            type: "success",
-            message: "Order Sent",
-            subtitle: `Takeaway notified. Order #${officialId}`,
-          });
         }
       } catch (err) {
         console.error("Takeaway Send Error:", err);
       }
-      clearCart();
-      router.replace(`/(tabs)?section=TAKEAWAY`);
     } else {
       clearCart();
       router.replace("/(tabs)");
