@@ -305,8 +305,8 @@ export default function KDSScreen() {
       groups[cat].push(i);
     });
 
-    // Stable card height: 50% of height for 2 rows, or undefined for mobile
-    const cardHeight = numColumns > 1 ? (height - 200) / 2 : undefined;
+    // Taller cards: ~55% of height for better visibility
+    const cardHeight = numColumns > 1 ? (height - 180) / 1.8 : undefined;
 
     return (
       <OrderCard
@@ -555,13 +555,13 @@ const styles = StyleSheet.create({
   cardContainer: {
     flex: 1, backgroundColor: Theme.bgCard, borderRadius: 24, overflow: "hidden",
     borderWidth: 1, borderColor: Theme.border, marginBottom: 20, ...Theme.shadowMd,
-    minHeight: 200, minWidth: 280,
+    minHeight: 250, minWidth: 280,
   },
   urgencyBar: { height: 6, width: "100%" },
   cardHeader: { padding: 18, paddingBottom: 12 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4, gap: 10 },
-  tableInfo: { fontSize: 19, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1, lineHeight: 24 },
-  timer: { fontSize: 20, fontFamily: Fonts.black },
+  tableInfo: { fontSize: 18, fontFamily: Fonts.bold, color: Theme.textPrimary, flex: 1, lineHeight: 22 },
+  timer: { fontSize: 18, fontFamily: Fonts.bold },
   orderIdText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted },
   statusBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   itemTitleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   itemStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   itemStatusText: { color: "#FFF", fontSize: 10, fontFamily: Fonts.black },
-  itemName: { fontSize: 19, fontFamily: Fonts.black, color: Theme.textPrimary, lineHeight: 24 },
+  itemName: { fontSize: 17, fontFamily: Fonts.bold, color: Theme.textPrimary, lineHeight: 22 },
   itemVoided: { color: Theme.danger, textDecorationLine: "line-through", opacity: 0.6 },
   modifierText: { fontSize: 14, fontFamily: Fonts.medium, color: Theme.textSecondary, marginTop: 2, marginLeft: 4 },
 
