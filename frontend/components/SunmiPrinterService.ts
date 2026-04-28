@@ -3,7 +3,7 @@
 import { Platform } from 'react-native';
 import { API_URL } from '../constants/Config';
 
-// ✅ Guarded imports for native module
+// ✅ Guarded imports for native module to prevent crashes on non-Android platforms
 let SunmiModule: any = null;
 if (Platform.OS === 'android') {
   try {
@@ -62,7 +62,8 @@ class SunmiPrinterService {
       try {
         let logoUrl = companySettings.companyLogo;
         if (logoUrl && !logoUrl.startsWith('http')) {
-          logoUrl = `${API_URL}${logoUrl}`;
+          // Use API_URL as primary, fallback to production if needed
+          logoUrl = logoUrl.startsWith('/') ? `${API_URL}${logoUrl}` : `${API_URL}/${logoUrl}`;
         }
         const base64Image = await this.urlToBase64(logoUrl);
         await SunmiModule.printImageBase64(base64Image);
@@ -70,6 +71,16 @@ class SunmiPrinterService {
         console.log('✅ Company logo printed');
       } catch (e) {
         console.log('❌ Company logo failed:', e);
+        // Secondary fallback to production URL if API_URL fails
+        try {
+            let prodUrl = companySettings.companyLogo;
+            if (prodUrl && !prodUrl.startsWith('http')) {
+                prodUrl = `https://uniprohawker-production.up.railway.app${prodUrl.startsWith('/') ? '' : '/'}${prodUrl}`;
+                const base64Image = await this.urlToBase64(prodUrl);
+                await SunmiModule.printImageBase64(base64Image);
+                await SunmiModule.lineWrap(1);
+            }
+        } catch (e2) {}
       }
     }
     
@@ -78,7 +89,7 @@ class SunmiPrinterService {
       try {
         let halalUrl = companySettings.halalLogo;
         if (halalUrl && !halalUrl.startsWith('http')) {
-          halalUrl = `${API_URL}${halalUrl}`;
+          halalUrl = halalUrl.startsWith('/') ? `${API_URL}${halalUrl}` : `${API_URL}/${halalUrl}`;
         }
         const base64Image = await this.urlToBase64(halalUrl);
         await SunmiModule.printImageBase64(base64Image);
@@ -86,6 +97,15 @@ class SunmiPrinterService {
         console.log('✅ Halal logo printed');
       } catch (e) {
         console.log('❌ Halal logo failed:', e);
+        try {
+            let prodUrl = companySettings.halalLogo;
+            if (prodUrl && !prodUrl.startsWith('http')) {
+                prodUrl = `https://uniprohawker-production.up.railway.app${prodUrl.startsWith('/') ? '' : '/'}${prodUrl}`;
+                const base64Image = await this.urlToBase64(prodUrl);
+                await SunmiModule.printImageBase64(base64Image);
+                await SunmiModule.lineWrap(1);
+            }
+        } catch (e2) {}
       }
     }
   }
@@ -150,7 +170,10 @@ class SunmiPrinterService {
   
   static async printReceipt(saleData: any, companySettings: any): Promise<boolean> {
     try {
-      await this.init();
+      if (!SunmiModule) {
+          const initialized = await this.init();
+          if (!initialized) return false;
+      }
       
       const symbol = companySettings.currencySymbol || '$';
       
@@ -224,7 +247,7 @@ class SunmiPrinterService {
         }
         
         // Show unit price if quantity > 1
-        if ((item.qty || item.quantity) > 1) {
+        if ((item.qty || item.quantity || 1) > 1) {
           await this.left(`    @ ${symbol}${item.price.toFixed(2)} ea`);
         }
       }
