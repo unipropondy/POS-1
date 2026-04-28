@@ -306,48 +306,13 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
       const res = await fetch(`${API_URL}/api/orders/active-kitchen`);
       if (!res.ok) throw new Error("Failed to fetch active kitchen orders");
       const result = await res.json();
-      console.log("📡 [ActiveOrdersStore] Fetch result received", { 
-        count: result.orders?.length || result.length,
-        serverTime: result.serverTime 
-      });
-      
-      let adjustedOrders = [];
-      if (result.orders && Array.isArray(result.orders)) {
-        // New format: { serverTime, orders }
-        const serverTime = result.serverTime;
-        const rawOrders = result.orders;
-        const localTime = Date.now();
-        const offset = serverTime - localTime;
-        console.log(`⏱️ [ActiveOrdersStore] Time Offset: ${offset}ms`);
-
-        adjustedOrders = rawOrders.map((order: any) => {
-          const orderCreated = typeof order.createdAt === 'number' ? order.createdAt : new Date(order.createdAt).getTime();
-          return {
-            ...order,
-            createdAt: orderCreated - offset,
-            items: order.items.map((item: any) => {
-              const itemSent = item.sentAt ? (typeof item.sentAt === 'number' ? item.sentAt : new Date(item.sentAt).getTime()) : undefined;
-              const itemReady = item.readyAt ? (typeof item.readyAt === 'number' ? item.readyAt : new Date(item.readyAt).getTime()) : undefined;
-              return {
-                ...item,
-                sentAt: itemSent ? itemSent - offset : undefined,
-                readyAt: itemReady ? itemReady - offset : undefined,
-              };
-            })
-          };
-        });
-      } else if (Array.isArray(result)) {
-        // Fallback for old array format
-        adjustedOrders = result.map(o => ({
-          ...o,
-          createdAt: typeof o.createdAt === 'number' ? o.createdAt : new Date(o.createdAt).getTime()
-        }));
-      }
+      const ordersFromApi = result.orders || (Array.isArray(result) ? result : []);
       
       // Merge with existing orders (avoid duplicates)
       const currentOrders = get().activeOrders;
-      const merged = [...adjustedOrders];
+      const merged = [...ordersFromApi];
       
+      // Keep local orders that have NEW items (unsent yet)
       currentOrders.forEach(local => {
         if (!merged.find(m => m.orderId === local.orderId)) {
           if (local.items.some(i => i.status === "NEW")) {

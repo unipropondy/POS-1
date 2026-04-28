@@ -612,7 +612,7 @@ router.get("/active-kitchen", async (req, res) => {
       SELECT 
         c.ItemId, c.CartId, c.ProductId, c.Quantity, c.Status, c.Cost, c.OrderNo, c.ModifiersJSON, c.IsTakeaway, c.IsVoided, c.Note,
         c.DiscountAmount, c.DiscountType,
-        CONVERT(VARCHAR, c.DateCreated, 126) as DateCreated,
+        DATEDIFF(SECOND, c.DateCreated, GETDATE()) as elapsedSeconds,
         d.Name as name, 
         d.CurrentCost as price,
         cat.CategoryName as categoryName,
@@ -640,24 +640,18 @@ router.get("/active-kitchen", async (req, res) => {
       if (!orderId) return;
 
       if (!ordersMap.has(orderId)) {
-        const ds = Number(row.section);
-        let sectionStr = "SECTION_1";
-        if (ds === 1) sectionStr = "SECTION_1";
-        else if (ds === 2) sectionStr = "SECTION_2";
-        else if (ds === 3) sectionStr = "SECTION_3";
-        else if (ds === 4) sectionStr = "TAKEAWAY";
-
         ordersMap.set(orderId, {
           orderId,
           context: {
+            tableNo: row.tableNo || "TAKEAWAY",
+            section: row.section || "TAKEAWAY",
             orderType: row.tableNo ? "DINE_IN" : "TAKEAWAY",
-            tableNo: row.tableNo,
-            section: sectionStr,
+            takeawayNo: row.OrderNo,
             tableId: row.tableId,
-            takeawayNo: !row.tableNo ? (row.OrderNo || row.CartId) : null
+            tableOrderId: row.tableOrderId,
           },
           items: [],
-          createdAt: new Date(row.DateCreated).getTime()
+          createdAt: Date.now() - ((row.elapsedSeconds || 0) * 1000)
         });
       }
 
@@ -671,7 +665,8 @@ router.get("/active-kitchen", async (req, res) => {
         dishGroupName: row.dishGroupName || "",
         price: row.price || row.Cost,
         status: row.Status,
-        sentAt: new Date(row.DateCreated).getTime(),
+        elapsedSeconds: row.elapsedSeconds || 0,
+        sentAt: Date.now() - ((row.elapsedSeconds || 0) * 1000),
         readyAt: row.Status === 'READY' ? new Date(row.DateCreated).getTime() : null, // Fallback
         modifiers: row.ModifiersJSON ? JSON.parse(row.ModifiersJSON) : [],
         isTakeaway: !!row.IsTakeaway,
