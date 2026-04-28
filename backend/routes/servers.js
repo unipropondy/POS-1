@@ -8,7 +8,7 @@ router.get("/", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT s.*, u.FullName AS CreatorName 
-      FROM ServerMaster s
+      FROM [server] s
       LEFT JOIN [dbo].[UserMaster] u ON s.CreatedBy = u.UserId
       ORDER BY s.CreatedDate DESC
     `);
@@ -35,7 +35,7 @@ router.post("/add", async (req, res) => {
       .input("SER_NAME", sql.VarChar, SER_NAME)
       .input("CreatedBy", sql.UniqueIdentifier, userId || null)
       .query(`
-        INSERT INTO ServerMaster (SER_NAME, CreatedBy, CreatedDate)
+        INSERT INTO [server] (SER_NAME, CreatedBy, CreatedDate)
         VALUES (@SER_NAME, @CreatedBy, GETDATE())
       `);
 
@@ -62,7 +62,7 @@ router.post("/update", async (req, res) => {
       .input("SER_NAME", sql.VarChar, SER_NAME)
       .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
       .query(`
-        UPDATE ServerMaster
+        UPDATE [server]
         SET 
           SER_NAME = @SER_NAME,
           ModifiedBy = @ModifiedBy,
@@ -85,7 +85,7 @@ router.post("/delete", async (req, res) => {
 
     await pool.request()
       .input("SER_ID", sql.Int, SER_ID)
-      .query(`DELETE FROM ServerMaster WHERE SER_ID = @SER_ID`);
+      .query(`DELETE FROM [server] WHERE SER_ID = @SER_ID`);
 
     res.json({ success: true, message: "Deleted successfully" });
   } catch (err) {
