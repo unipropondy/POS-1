@@ -305,7 +305,8 @@ export default function KDSScreen() {
       groups[cat].push(i);
     });
 
-    const cardHeight = numColumns === 1 ? undefined : (height - 180) / Math.ceil(kitchenOrders.length / numColumns);
+    // Stable card height: 50% of height for 2 rows, or undefined for mobile
+    const cardHeight = numColumns > 1 ? (height - 200) / 2 : undefined;
 
     return (
       <OrderCard
@@ -548,18 +549,18 @@ const styles = StyleSheet.create({
 
   gridRow: { flex: 1, flexDirection: "row", backgroundColor: Theme.bgMain },
 
-  listContainer: { padding: 15, paddingBottom: 80 },
-  columnWrapper: { gap: 15 },
+  listContainer: { padding: 20, paddingBottom: 100 },
+  columnWrapper: { gap: 20 },
 
   cardContainer: {
-    flex: 1, backgroundColor: Theme.bgCard, borderRadius: 20, overflow: "hidden",
+    flex: 1, backgroundColor: Theme.bgCard, borderRadius: 24, overflow: "hidden",
     borderWidth: 1, borderColor: Theme.border, marginBottom: 20, ...Theme.shadowMd,
-    minHeight: 150,
+    minHeight: 200, minWidth: 280,
   },
   urgencyBar: { height: 6, width: "100%" },
-  cardHeader: { padding: 15, paddingBottom: 10 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
-  tableInfo: { fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1 },
+  cardHeader: { padding: 18, paddingBottom: 12 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4, gap: 10 },
+  tableInfo: { fontSize: 19, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1, lineHeight: 24 },
   timer: { fontSize: 20, fontFamily: Fonts.black },
   orderIdText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted },
   statusBadge: {
@@ -572,16 +573,16 @@ const styles = StyleSheet.create({
   itemsScroll: { flex: 1, paddingHorizontal: 15 },
   categorySection: { marginTop: 6 },
   categoryHeader: { fontSize: 10, fontFamily: Fonts.black, color: Theme.primary, marginBottom: 2, letterSpacing: 1 },
-  itemRow: { flexDirection: "row", marginBottom: 6, paddingVertical: 2 },
-  itemFlash: { backgroundColor: Theme.success + "12", borderRadius: 8, marginHorizontal: -4, paddingHorizontal: 4 },
-  itemReadyFlash: { backgroundColor: Theme.success + "30", borderRadius: 8, marginHorizontal: -4, paddingHorizontal: 4 },
+  itemRow: { flexDirection: "row", marginBottom: 8, paddingVertical: 4, alignItems: 'center' },
+  itemFlash: { backgroundColor: Theme.success + "12", borderRadius: 10, marginHorizontal: -6, paddingHorizontal: 6 },
+  itemReadyFlash: { backgroundColor: Theme.success + "30", borderRadius: 10, marginHorizontal: -6, paddingHorizontal: 6 },
   itemTextWrap: { flex: 1 },
-  itemTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  itemStatusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  itemStatusText: { color: "#FFF", fontSize: 9, fontFamily: Fonts.black },
-  itemName: { fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, lineHeight: 22 },
+  itemTitleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
+  itemStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  itemStatusText: { color: "#FFF", fontSize: 10, fontFamily: Fonts.black },
+  itemName: { fontSize: 19, fontFamily: Fonts.black, color: Theme.textPrimary, lineHeight: 24 },
   itemVoided: { color: Theme.danger, textDecorationLine: "line-through", opacity: 0.6 },
-  modifierText: { fontSize: 13, fontFamily: Fonts.medium, color: Theme.textSecondary, marginTop: 1 },
+  modifierText: { fontSize: 14, fontFamily: Fonts.medium, color: Theme.textSecondary, marginTop: 2, marginLeft: 4 },
 
   noteWrapper: {
     flexDirection: "row",
