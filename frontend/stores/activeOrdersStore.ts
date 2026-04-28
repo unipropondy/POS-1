@@ -298,17 +298,20 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
       const res = await fetch(`${API_URL}/api/orders/active-kitchen`);
       if (!res.ok) throw new Error("Failed to fetch active kitchen orders");
       const result = await res.json();
+      console.log("📡 [ActiveOrdersStore] Fetch result:", { 
+        hasOrders: !!result.orders, 
+        count: result.orders?.length || result.length,
+        serverTime: result.serverTime 
+      });
       
       let adjustedOrders = [];
-      if (Array.isArray(result)) {
-        // Old format: just an array
-        adjustedOrders = result;
-      } else if (result.orders && Array.isArray(result.orders)) {
+      if (result.orders && Array.isArray(result.orders)) {
         // New format: { serverTime, orders }
         const serverTime = result.serverTime;
         const rawOrders = result.orders;
         const localTime = Date.now();
         const offset = serverTime - localTime;
+        console.log(`⏱️ [ActiveOrdersStore] Time Offset: ${offset}ms`);
 
         adjustedOrders = rawOrders.map((order: any) => {
           const orderCreated = typeof order.createdAt === 'number' ? order.createdAt : new Date(order.createdAt).getTime();
@@ -326,6 +329,12 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
             })
           };
         });
+      } else if (Array.isArray(result)) {
+        // Fallback for old array format
+        adjustedOrders = result.map(o => ({
+          ...o,
+          createdAt: typeof o.createdAt === 'number' ? o.createdAt : new Date(o.createdAt).getTime()
+        }));
       }
       
       // Merge with existing orders (avoid duplicates)

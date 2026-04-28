@@ -615,12 +615,15 @@ router.get("/active-kitchen", async (req, res) => {
         CONVERT(VARCHAR, c.DateCreated, 126) as DateCreated,
         d.Name as name, 
         d.CurrentCost as price,
+        cat.CategoryName as categoryName,
         t.TableNumber as tableNo,
         t.DiningSection as section,
         t.TableId as tableId,
         t.CurrentOrderId as tableOrderId
       FROM [dbo].[CartItems] c
       LEFT JOIN [dbo].[DishMaster] d ON CAST(c.ProductId AS NVARCHAR(128)) = CAST(d.DishId AS NVARCHAR(128))
+      LEFT JOIN [dbo].[DishGroupMaster] dg ON d.DishGroupId = dg.DishGroupId
+      LEFT JOIN [dbo].[CategoryMaster] cat ON dg.CategoryId = cat.CategoryId
       LEFT JOIN [dbo].[TableMaster] t ON CAST(c.CartId AS NVARCHAR(128)) = CAST(t.TableId AS NVARCHAR(128))
       WHERE c.Status IN ('SENT', 'READY', 'NEW', 'HOLD', 'SERVED')
       AND (t.Status IN (1, 2, 3) OR c.Status = 'NEW')
@@ -663,6 +666,7 @@ router.get("/active-kitchen", async (req, res) => {
         lineItemId: row.ItemId,
         qty: row.Quantity,
         name: row.name || "Unknown",
+        categoryName: row.categoryName || "OTHERS",
         price: row.price || row.Cost,
         status: row.Status,
         sentAt: new Date(row.DateCreated).getTime(),

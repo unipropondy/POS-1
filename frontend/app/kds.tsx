@@ -261,18 +261,24 @@ export default function KDSScreen() {
   const renderOrder = ({ item }: any) => {
     const getTs = (val: any) => {
       if (!val) return 0;
-      return typeof val === 'number' ? val : new Date(val).getTime();
+      const ts = typeof val === 'number' ? val : new Date(val).getTime();
+      return isNaN(ts) ? 0 : ts;
     };
+    
     const latestSent = Math.max(...item.items.map((i: any) => getTs(i.sentAt || item.createdAt)));
     const elapsed = Math.max(0, time - latestSent);
-    const minutes = Math.floor(elapsed / 60000);
-    const seconds = Math.floor((elapsed % 60000) / 1000);
+    
+    // Safety check for NaN
+    const safeElapsed = isNaN(elapsed) ? 0 : elapsed;
+    const minutes = Math.floor(safeElapsed / 60000);
+    const seconds = Math.floor((safeElapsed % 60000) / 1000);
     const urgency = getUrgency(minutes);
     const ui = URGENCY_UI[urgency];
 
     const groups: Record<string, OrderItem[]> = {};
     item.items.forEach((i: OrderItem) => {
-      const cat = (i.categoryName || "Others").toUpperCase();
+      // ✅ Use categoryName from the item (populated by our new API join)
+      const cat = (i.categoryName || "KITCHEN").toUpperCase();
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(i);
     });
