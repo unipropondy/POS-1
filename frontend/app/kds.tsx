@@ -259,7 +259,11 @@ export default function KDSScreen() {
   };
 
   const renderOrder = ({ item }: any) => {
-    const latestSent = Math.max(...item.items.map((i: any) => i.sentAt || item.createdAt));
+    const getTs = (val: any) => {
+      if (!val) return 0;
+      return typeof val === 'number' ? val : new Date(val).getTime();
+    };
+    const latestSent = Math.max(...item.items.map((i: any) => getTs(i.sentAt || item.createdAt)));
     const elapsed = Math.max(0, time - latestSent);
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);

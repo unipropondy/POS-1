@@ -96,7 +96,7 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
           status: "NEW",
         })),
         discount: discount || undefined, // 🔥 ADD HERE
-        createdAt: createdAt || Date.now(),
+        createdAt: createdAt ? (typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime()) : Date.now(),
       };
 
       set({ activeOrders: [...activeOrders, newOrder] });
@@ -310,15 +310,22 @@ export const useActiveOrdersStore = create<ActiveOrdersState>()(
         const localTime = Date.now();
         const offset = serverTime - localTime;
 
-        adjustedOrders = rawOrders.map((order: any) => ({
-          ...order,
-          createdAt: order.createdAt - offset,
-          items: order.items.map((item: any) => ({
-            ...item,
-            sentAt: item.sentAt ? item.sentAt - offset : undefined,
-            readyAt: item.readyAt ? item.readyAt - offset : undefined,
-          }))
-        }));
+        adjustedOrders = rawOrders.map((order: any) => {
+          const orderCreated = typeof order.createdAt === 'number' ? order.createdAt : new Date(order.createdAt).getTime();
+          return {
+            ...order,
+            createdAt: orderCreated - offset,
+            items: order.items.map((item: any) => {
+              const itemSent = item.sentAt ? (typeof item.sentAt === 'number' ? item.sentAt : new Date(item.sentAt).getTime()) : undefined;
+              const itemReady = item.readyAt ? (typeof item.readyAt === 'number' ? item.readyAt : new Date(item.readyAt).getTime()) : undefined;
+              return {
+                ...item,
+                sentAt: itemSent ? itemSent - offset : undefined,
+                readyAt: itemReady ? itemReady - offset : undefined,
+              };
+            })
+          };
+        });
       }
       
       // Merge with existing orders (avoid duplicates)
