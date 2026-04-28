@@ -234,15 +234,24 @@ export default function CartScreen() {
     return cart.filter((i: any) => !i.status || i.status === 'NEW').length;
   }, [cart]);
 
-  const subtotal = useMemo(() => {
-    return displayItems.reduce((sum, item) => {
-      if (!item || item.status === "VOIDED") return sum;
-      const baseTotal = (item.price || 0) * item.qty;
-      const discountVal = (item.discount || 0) / 100;
-      return sum + baseTotal * (1 - discountVal);
-    }, 0);
+  const { grossTotal, totalDiscount } = useMemo(() => {
+    return displayItems.reduce(
+      (acc, item) => {
+        if (!item || item.status === "VOIDED") return acc;
+        const baseTotal = (item.price || 0) * item.qty;
+        const discountVal = (item.discount || 0) / 100;
+        const itemDiscount = baseTotal * discountVal;
+        
+        return {
+          grossTotal: acc.grossTotal + baseTotal,
+          totalDiscount: acc.totalDiscount + itemDiscount,
+        };
+      },
+      { grossTotal: 0, totalDiscount: 0 },
+    );
   }, [displayItems]);
 
+  const subtotal = grossTotal - totalDiscount;
   const taxRate = 0;
   const taxAmount = subtotal * taxRate;
   const payableAmount = subtotal + taxAmount;
@@ -631,8 +640,21 @@ export default function CartScreen() {
 
         <View style={styles.bottomBlock}>
           <View style={styles.subtotalCard}>
-            <Text style={styles.subtotalLabel}>SUBTOTAL</Text>
-            <Text style={styles.subtotalAmount}>${subtotal.toFixed(2)}</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>GROSS TOTAL</Text>
+              <Text style={styles.summaryValue}>${grossTotal.toFixed(2)}</Text>
+            </View>
+            {totalDiscount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: Theme.danger }]}>DISCOUNT</Text>
+                <Text style={[styles.summaryValue, { color: Theme.danger }]}>-${totalDiscount.toFixed(2)}</Text>
+              </View>
+            )}
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.payableLabel}>PAYABLE</Text>
+              <Text style={styles.payableAmount}>${payableAmount.toFixed(2)}</Text>
+            </View>
           </View>
 
            <View style={styles.checkoutRow}>
@@ -1068,11 +1090,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 16,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 16,
     marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     borderWidth: 1,
     borderColor: Theme.primary + "15",
     ...Theme.shadowMd,
@@ -1085,6 +1104,38 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   subtotalAmount: {
+    color: Theme.primary,
+    fontFamily: Fonts.black,
+    fontSize: 24,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+  summaryLabel: {
+    color: Theme.textSecondary,
+    fontFamily: Fonts.bold,
+    fontSize: 13,
+  },
+  summaryValue: {
+    color: Theme.textPrimary,
+    fontFamily: Fonts.black,
+    fontSize: 14,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: Theme.border,
+    marginVertical: 8,
+    opacity: 0.5,
+  },
+  payableLabel: {
+    color: Theme.textPrimary,
+    fontFamily: Fonts.black,
+    fontSize: 16,
+  },
+  payableAmount: {
     color: Theme.primary,
     fontFamily: Fonts.black,
     fontSize: 24,
