@@ -7,6 +7,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -219,8 +220,9 @@ export default function KDSScreen() {
     return kitchenOrders.find((o: any) => o.orderId === selectedOrderId);
   }, [kitchenOrders, selectedOrderId]);
 
-  const numColumns = width > 1400 ? 4 : width > 1000 ? 3 : 2;
-  const cardHeight = height * 0.55;
+  const isWeb = Platform.OS === "web";
+  const numColumns = width > 1200 ? 4 : width > 900 ? 3 : width > 600 ? 2 : 1;
+  const cardHeight = width > 600 ? height * 0.55 : height * 0.65;
 
   const stats = useMemo(() => {
     let fresh = 0, warn = 0, critical = 0;
@@ -431,14 +433,16 @@ export default function KDSScreen() {
           />
 
           {/* SIDE SCROLL BUTTONS */}
-          <View style={styles.sideScrollArea}>
-            <Pressable style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]} onPress={() => scrollStep("up")}>
-              <Ionicons name="chevron-up" size={24} color={Theme.textPrimary} />
-            </Pressable>
-            <Pressable style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]} onPress={() => scrollStep("down")}>
-              <Ionicons name="chevron-down" size={24} color={Theme.textPrimary} />
-            </Pressable>
-          </View>
+          {isWeb && (
+            <View style={styles.sideScrollArea}>
+              <Pressable style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]} onPress={() => scrollStep("up")}>
+                <Ionicons name="chevron-up" size={24} color={Theme.textPrimary} />
+              </Pressable>
+              <Pressable style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]} onPress={() => scrollStep("down")}>
+                <Ionicons name="chevron-down" size={24} color={Theme.textPrimary} />
+              </Pressable>
+            </View>
+          )}
         </View>
 
       </View>
@@ -465,10 +469,12 @@ const styles = StyleSheet.create({
   totalOrdersCount: { fontSize: 14, fontFamily: Fonts.bold, color: Theme.textSecondary },
 
   legendBar: {
-    flexDirection: "row", justifyContent: "space-around", alignItems: "center",
-    paddingHorizontal: 25, paddingVertical: 6,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: 15, paddingVertical: 8,
     backgroundColor: Theme.bgMuted,
     borderBottomWidth: 1, borderBottomColor: Theme.border,
+    flexWrap: 'wrap',
+    gap: 10,
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
   legendText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textSecondary },
@@ -499,7 +505,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  gridRow: { flex: 1, flexDirection: "row" },
+  gridRow: { flex: 1, flexDirection: "row", backgroundColor: Theme.bgMain },
 
   listContainer: { padding: 15, paddingBottom: 80 },
   columnWrapper: { gap: 15 },
@@ -511,8 +517,8 @@ const styles = StyleSheet.create({
   urgencyBar: { height: 6, width: "100%" },
   cardHeader: { padding: 15, paddingBottom: 10 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
-  tableInfo: { fontSize: 20, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1 },
-  timer: { fontSize: 22, fontFamily: Fonts.black },
+  tableInfo: { fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, flex: 1 },
+  timer: { fontSize: 20, fontFamily: Fonts.black },
   orderIdText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted },
   statusBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,

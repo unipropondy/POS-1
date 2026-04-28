@@ -208,23 +208,32 @@ router.put("/status", async (req, res) => {
         .query("DELETE FROM [dbo].[CartItems] WHERE [CartId] = @tableId");
     }
 
-    // ✅ Get current total and startTime to include in socket
+    // ✅ Get current total, startTime and isOvertime to include in socket
     const tableRes = await pool.request()
       .input("tableId", sql.VarChar(50), cleanTableId)
-      .query("SELECT TotalAmount, StartTime FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
+      .query(`
+        SELECT TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime,
+        CASE 
+          WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+          ELSE 0 
+        END AS isOvertime
+        FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+      `);
     
     const row = tableRes.recordset[0];
     const currentTotal = row?.TotalAmount || 0;
     const currentStartTime = row?.StartTime || null;
+    const currentIsOvertime = row?.isOvertime || 0;
 
-    // 🔥 Emit socket event with TotalAmount and StartTime
+    // 🔥 Emit socket event with TotalAmount, StartTime and isOvertime
     const io = req.app.get("io");
     if (io) {
       io.emit("table_status_updated", { 
         tableId: cleanTableId, 
         status: Number(status),
         totalAmount: currentTotal,
-        startTime: currentStartTime
+        startTime: currentStartTime,
+        isOvertime: currentIsOvertime
       });
     }
 
@@ -279,14 +288,22 @@ router.put("/:tableId/status", async (req, res) => {
       // Get latest state for accurate broadcast
       const tableRes = await pool.request()
         .input("tableId", sql.VarChar(50), cleanTableId)
-        .query("SELECT TotalAmount, StartTime FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId");
+        .query(`
+          SELECT TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime,
+          CASE 
+            WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+            ELSE 0 
+          END AS isOvertime
+          FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+        `);
       
       const row = tableRes.recordset[0];
       io.emit("table_status_updated", { 
         tableId: cleanTableId, 
         status: Number(status),
         totalAmount: row?.TotalAmount || 0,
-        startTime: row?.StartTime || null
+        startTime: row?.StartTime || null,
+        isOvertime: row?.isOvertime || 0
       });
     }
 

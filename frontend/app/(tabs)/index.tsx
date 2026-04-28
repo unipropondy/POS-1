@@ -110,12 +110,20 @@ const TableItemComponent = React.memo(
     const labelColor = Theme.textPrimary;
 
     let timeText = "";
-    let billAmount = tableData?.totalAmount || 0;
+    let billAmount = tableData?.billAmount || item.totalAmount || 0;
 
-    const startTime = tableData?.startTime || tableData?.StartTime;
-    if (tableData && startTime && status !== 0 && status !== 5) {
+    // Use item.StartTime directly as it's the most reliable source during renders
+    const startTime = tableData?.startTime || item.StartTime;
+    
+    if (startTime && status !== 0 && status !== 5) {
       const time = new Date(startTime);
-      timeText = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}`;
+      if (!isNaN(time.getTime())) {
+        timeText = time.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+      }
     }
 
     return (
@@ -158,7 +166,7 @@ const TableItemComponent = React.memo(
                     <Text
                       style={[
                         styles.timeText,
-                        { fontSize: smallFont + 1, color: textColor },
+                        { fontSize: smallFont, color: textColor },
                       ]}
                     >
                       <Ionicons

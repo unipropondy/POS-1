@@ -120,7 +120,26 @@ async function updateTableStatus(req, tableId, status) {
   if (result.rowsAffected[0] > 0) {
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanId, status });
+      // Get full state for accurate broadcast
+      const tableRes = await pool.request()
+        .input("tableId", sql.VarChar(50), cleanId)
+        .query(`
+          SELECT TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime,
+          CASE 
+            WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+            ELSE 0 
+          END AS isOvertime
+          FROM TableMaster WHERE CAST(TableId AS NVARCHAR(128)) = @tableId
+        `);
+      
+      const row = tableRes.recordset[0];
+      io.emit("table_status_updated", { 
+        tableId: cleanId, 
+        status: Number(status),
+        totalAmount: row?.TotalAmount || 0,
+        startTime: row?.StartTime || null,
+        isOvertime: row?.isOvertime || 0
+      });
     }
   }
 }
@@ -159,7 +178,12 @@ async function syncTableStatus(req, tableId) {
           ModifiedOn = GETDATE()
         WHERE TableId = @tableId;
 
-        SELECT Status, TotalAmount, StartTime, CurrentOrderId FROM TableMaster WHERE TableId = @tableId;
+        SELECT Status, TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime, CurrentOrderId,
+        CASE 
+          WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+          ELSE 0 
+        END AS isOvertime
+        FROM TableMaster WHERE TableId = @tableId;
       `);
 
     const updated = result.recordset[0];
@@ -171,7 +195,8 @@ async function syncTableStatus(req, tableId) {
           status: updated.Status,
           totalAmount: updated.TotalAmount,
           startTime: updated.StartTime,
-          currentOrderId: updated.CurrentOrderId
+          currentOrderId: updated.CurrentOrderId,
+          isOvertime: updated.isOvertime || 0
         });
         io.emit("cart_updated", { tableId: cleanId });
       }
@@ -199,7 +224,7 @@ router.post("/send", async (req, res) => {
         await pool.request()
           .input("tableId", sql.UniqueIdentifier, cleanId)
           .input("orderId", sql.NVarChar(50), currentOrderId)
-          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId WHERE TableId = @tableId");
+          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId, StartTime = ISNULL(StartTime, GETDATE()) WHERE TableId = @tableId");
       
       // Also update all NEW cart items with this Order ID and set status to SENT
       await pool.request()
@@ -348,7 +373,7 @@ router.post("/save-cart", async (req, res) => {
         // Update table status to 1 (Occupied/Dining)
         await transaction.request()
           .input("tableId", sql.UniqueIdentifier, cleanTableId)
-          .query("UPDATE TableMaster SET Status = 1 WHERE TableId = @tableId");
+          .query("UPDATE TableMaster SET Status = 1, StartTime = ISNULL(StartTime, GETDATE()) WHERE TableId = @tableId");
         
         console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
       } else {
