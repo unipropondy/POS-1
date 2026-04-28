@@ -89,8 +89,14 @@ export default function WaitersScreen() {
       const isEdit = modalMode === "EDIT";
       const url = isEdit ? `${API_URL}/api/servers/update` : `${API_URL}/api/servers/add`;
 
-      // Be resilient: check both userId and UserId (just in case of casing issues)
-      const currentUserId = user?.userId || (user as any)?.UserId;
+      // Be resilient: check both userId, id, and UserId (just in case of casing issues)
+      const currentUserId = user?.userId || (user as any)?.id || (user as any)?.UserId;
+
+      if (!currentUserId) {
+        Alert.alert("Debug", "User ID is missing from your session. Please Log Out and Log In again.");
+        setIsSaving(false);
+        return;
+      }
 
       const body = isEdit 
         ? { SER_ID: editingWaiter?.SER_ID, SER_NAME: formData.name.trim(), userId: currentUserId }

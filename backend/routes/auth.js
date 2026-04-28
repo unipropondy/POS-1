@@ -84,21 +84,25 @@ router.post("/login", async (req, res) => {
     }
 
     await pool.request()
-      .input("UserId", user.UserId || user.userId || user.USERID)
+      .input("UserId", user.UserId || user.userId || user.USERID || user.Userid)
       .query("UPDATE [dbo].[UserMaster] SET LastLogInDate = GETDATE() WHERE UserId = @UserId");
 
-    const finalUserId = user.UserId || user.userId || user.USERID;
-    console.log(`✅ Login Success: ${user.FullName || user.UserName} (ID: ${finalUserId})`);
+    // Extremely robust ID capture
+    const rawUserId = user.UserId || user.userId || user.USERID || user.Userid || user.id || user.ID;
+    const finalUserId = rawUserId ? String(rawUserId).trim() : null;
+    
+    console.log(`✅ Login Success: ${user.FullName || user.UserName} | ID sent to frontend: ${finalUserId}`);
 
     return res.json({
       success: true,
       user: {
         userId: finalUserId,
+        id: finalUserId, // Double check for 'id' as well
         userCode: user.UserCode || user.userCode,
         userName: user.UserName || user.userName,
         fullName: user.FullName || user.FirstName || user.UserName,
-        role: user.RoleCode || "CASHIER",
-        roleName: user.RoleName || "Cashier",
+        role: user.RoleCode || user.role || "CASHIER",
+        roleName: user.RoleName || user.roleName || "Cashier",
       }
     });
   } catch (err) {
