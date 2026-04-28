@@ -383,11 +383,7 @@ export default function SummaryScreen() {
               <View style={[styles.receiptCard, isLandscape && !isTablet && { padding: 16 }]}>
                 <View style={[styles.receiptHeader, isLandscape && !isTablet && { marginBottom: 10 }]}>
                   <View style={{ backgroundColor: Theme.primaryLight, padding: 5, borderRadius: 8 }}>
-                    <Image 
-                      source={require("../assets/images/logo_pos.png")} 
-                      style={{ width: 24, height: 24, borderRadius: 4 }}
-                      resizeMode="contain"
-                    />
+                    <Ionicons name="receipt" size={24} color={Theme.primary} />
                   </View>
                   <Text style={styles.receiptHeaderText}>Bill Summary</Text>
                   <View style={styles.itemCountChip}>
