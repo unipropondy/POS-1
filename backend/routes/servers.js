@@ -8,7 +8,7 @@ router.get("/", async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT s.*, u.FullName AS CreatorName 
-      FROM server s
+      FROM [server] s
       LEFT JOIN [dbo].[UserMaster] u ON s.CreatedBy = u.UserId
       ORDER BY s.CreatedDate DESC
     `);
@@ -28,10 +28,10 @@ router.post("/add", async (req, res) => {
     const pool = await poolPromise;
 
     await pool.request()
-      .input("SER_NAME", sql.NVarChar, SER_NAME)
+      .input("SER_NAME", sql.VarChar, SER_NAME)
       .input("CreatedBy", sql.UniqueIdentifier, userId || null)
       .query(`
-        INSERT INTO server (SER_NAME, CreatedBy, CreatedDate)
+        INSERT INTO [server] (SER_NAME, CreatedBy, CreatedDate)
         VALUES (@SER_NAME, @CreatedBy, GETDATE())
       `);
 
@@ -52,10 +52,10 @@ router.post("/update", async (req, res) => {
 
     await pool.request()
       .input("SER_ID", sql.Int, SER_ID)
-      .input("SER_NAME", sql.NVarChar, SER_NAME)
+      .input("SER_NAME", sql.VarChar, SER_NAME)
       .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
       .query(`
-        UPDATE server
+        UPDATE [server]
         SET 
           SER_NAME = @SER_NAME,
           ModifiedBy = @ModifiedBy,
