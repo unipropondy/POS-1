@@ -128,7 +128,13 @@ router.post("/lock-persistent", async (req, res) => {
     // 🔥 Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: 5, totalAmount: 0, startTime: null });
+      io.emit("table_status_updated", { 
+        tableId: cleanTableId, 
+        status: 5, 
+        totalAmount: 0, 
+        startTime: null,
+        lockedByName: lockedByName || null 
+      });
     }
 
     res.json({ success: true });
@@ -160,7 +166,12 @@ router.post("/unlock-persistent", async (req, res) => {
     // 🔥 Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("table_status_updated", { tableId: cleanTableId, status: 0, totalAmount: 0 });
+      io.emit("table_status_updated", { 
+        tableId: cleanTableId, 
+        status: 0, 
+        totalAmount: 0,
+        lockedByName: null 
+      });
     }
 
     res.json({ success: true });

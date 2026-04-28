@@ -581,6 +581,7 @@ router.get("/active-kitchen", async (req, res) => {
     const result = await pool.request().query(`
       SELECT 
         c.ItemId, c.CartId, c.ProductId, c.Quantity, c.Status, c.Cost, c.OrderNo, c.ModifiersJSON, c.IsTakeaway, c.IsVoided, c.Note,
+        c.DiscountAmount, c.DiscountType,
         CONVERT(VARCHAR, c.DateCreated, 126) as DateCreated,
         d.Name as name, 
         d.CurrentCost as price,
@@ -639,7 +640,8 @@ router.get("/active-kitchen", async (req, res) => {
         modifiers: row.ModifiersJSON ? JSON.parse(row.ModifiersJSON) : [],
         isTakeaway: !!row.IsTakeaway,
         isVoided: !!row.IsVoided,
-        note: row.Note
+        note: row.Note,
+        discount: row.DiscountAmount || 0
       });
     });
 
@@ -666,6 +668,7 @@ router.get("/cart/:tableId", async (req, res) => {
       .input("cartId", sql.NVarChar(sql.MAX), cleanId)
       .query(`
         SELECT c.ItemId, c.CartId, c.ProductId, c.Quantity, c.Status, c.Cost, c.OrderNo, c.ModifiersJSON, c.IsTakeaway, c.IsVoided, c.Note,
+        c.DiscountAmount, c.DiscountType,
         CONVERT(VARCHAR, c.DateCreated, 126) as DateCreated,
         d.Name as name, d.CurrentCost as price
         FROM [dbo].[CartItems] c
@@ -690,7 +693,8 @@ router.get("/cart/:tableId", async (req, res) => {
       salt: item.Salt,
       oil: item.Oil,
       sugar: item.Sugar,
-      discount: item.DiscountAmount || 0
+      discount: item.DiscountAmount || 0,
+      DiscountAmount: item.DiscountAmount || 0
     }));
 
     const tableInfo = await pool.request()

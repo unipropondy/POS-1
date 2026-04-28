@@ -97,7 +97,7 @@ const TableItemComponent = React.memo(
   }) => {
     // 🟢 Prioritize Store Status over API Status for instant feedback
     const status = (tableData && tableData.status !== 'EMPTY') 
-      ? (tableData.status === 'SENT' ? 1 : tableData.status === 'BILL_REQUESTED' ? 2 : tableData.status === 'HOLD' ? 3 : 1)
+      ? (tableData.status === 'SENT' ? 1 : tableData.status === 'BILL_REQUESTED' ? 2 : tableData.status === 'HOLD' ? 3 : tableData.status === 'LOCKED' ? 5 : 1)
       : Number(item.Status);
     
     let ui = getStatusUI(status);
@@ -337,10 +337,10 @@ export default function Category() {
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    socket.on("table_status_updated", ({ tableId, status, totalAmount, StartTime, startTime, currentOrderId, isOvertime }) => {
+    socket.on("table_status_updated", ({ tableId, status, totalAmount, StartTime, startTime, currentOrderId, isOvertime, lockedByName }) => {
       const finalStartTime = StartTime || startTime;
       console.log(
-        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Time ${finalStartTime}`,
+        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Name ${lockedByName}`,
       );
       setAllTables((prev) =>
         prev.map((t) =>
@@ -352,6 +352,7 @@ export default function Category() {
                 StartTime: finalStartTime || t.StartTime,
                 currentOrderId: currentOrderId,
                 isOvertime: Number(isOvertime) || 0,
+                lockedByName: lockedByName !== undefined ? lockedByName : t.lockedByName,
               }
             : t,
         ),
@@ -377,7 +378,7 @@ export default function Category() {
                     ? "HOLD"
                     : "EMPTY",
             finalStartTime,
-            undefined,
+            lockedByName !== undefined ? lockedByName : table.lockedByName,
             totalAmount,
           );
       }
@@ -501,7 +502,7 @@ export default function Category() {
             t.Status === 2 ? "BILL_REQUESTED" : 
             t.Status === 3 ? "HOLD" : "EMPTY",
             finalStartTime,
-            "",
+            t.lockedByName,
             t.totalAmount
           );
         });
