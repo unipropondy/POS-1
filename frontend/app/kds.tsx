@@ -419,7 +419,7 @@ export default function KDSScreen() {
             key={numColumns}
             extraData={time}
             contentContainerStyle={styles.listContainer}
-            columnWrapperStyle={styles.columnWrapper}
+            columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
             showsVerticalScrollIndicator={false}
             onScroll={handleScroll}
             scrollEventThrottle={16}
