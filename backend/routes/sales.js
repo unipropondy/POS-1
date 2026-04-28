@@ -592,17 +592,7 @@ router.post("/save", async (req, res) => {
             .input("Section", sql.NVarChar(100), section || null)
             .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
             .query(`
-              -- Ensure columns exist
-              IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'TableNo')
-              ALTER TABLE servermaster ADD TableNo NVARCHAR(50);
-              
-              IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'OrderId')
-              ALTER TABLE servermaster ADD OrderId NVARCHAR(50);
-              
-              IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'servermaster' AND COLUMN_NAME = 'Section')
-              ALTER TABLE servermaster ADD Section NVARCHAR(100);
-
-              -- Insert record with all columns
+              -- Direct Insert (Schema is managed by initDB at startup)
               INSERT INTO servermaster (SER_ID, SER_NAME, TableNo, OrderId, Section, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)
               VALUES (@SER_ID, @SER_NAME, @TableNo, @OrderId, @Section, @CreatedBy, GETDATE(), @CreatedBy, GETDATE())
             `);
