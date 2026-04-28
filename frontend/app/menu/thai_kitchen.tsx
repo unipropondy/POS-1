@@ -527,12 +527,16 @@ export default function MenuScreen() {
         setKitchens(filtered);
         if (filtered.length > 0) loadGroups(filtered[0].CategoryId);
         setIsInitialLoading(false);
+      })
+      .catch(err => {
+        console.error("Kitchens fetch error:", err);
+        setIsInitialLoading(false);
       });
 
     fetch(`${API_URL}/api/menu/dishes/all`)
       .then((res) => res.json())
       .then((data) => setAllDishes(Array.isArray(data) ? data : []))
-      .catch((e) => console.log(e));
+      .catch((e) => console.log("All dishes fetch error:", e));
   }, []);
 
   const loadGroups = async (kitchenId: string) => {

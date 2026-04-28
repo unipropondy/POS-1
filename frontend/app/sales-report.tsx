@@ -21,6 +21,8 @@ import { PieChart } from "react-native-gifted-charts";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
+import BillPrompt from "../components/BillPrompt";
+import UniversalPrinter from "../components/UniversalPrinter";
 
 type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 type DetailReportType = "CATEGORY" | "DISH";
@@ -55,6 +57,8 @@ export default function SalesReport() {
   const [categoryReport, setCategoryReport] = useState<any[]>([]);
   const [dishReport, setDishReport] = useState<any[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [showPrintPrompt, setShowPrintPrompt] = useState(false);
+  const [isReprinting, setIsReprinting] = useState(false);
 
   useEffect(() => {
     const loadState = async () => {
@@ -202,6 +206,7 @@ export default function SalesReport() {
       const response = await fetch(`${API_URL}/api/sales/all`, {
         headers: { "Content-Type": "application/json" },
       });
+      if (!response.ok) throw new Error("Failed to fetch sales");
       const data = await response.json();
       if (Array.isArray(data)) {
         setSales(data);
@@ -460,6 +465,47 @@ export default function SalesReport() {
   const handleOrderPress = (order: any) => {
     setSelectedOrder(order);
     fetchOrderDetails(order.SettlementID);
+  };
+
+  const handleReprint = async () => {
+    if (!selectedOrder || orderDetails.length === 0) return;
+    
+    setIsReprinting(true);
+    setShowPrintPrompt(false);
+    
+    try {
+      const userId = await AsyncStorage.getItem("userId") || "1";
+      
+      const mappedItems = orderDetails.map(item => ({
+        name: item.DishName,
+        price: item.Price,
+        qty: item.Qty,
+        modifiers: [] // Modifiers are not typically in the standard sales report detail view
+      }));
+
+      const saleData = {
+        invoiceNumber: formatOrderId(selectedOrder),
+        total: selectedOrder.SysAmount,
+        paymentMethod: selectedOrder.PayMode || "CASH",
+        cashPaid: selectedOrder.SysAmount,
+        change: 0,
+        items: mappedItems,
+        date: selectedOrder.SettlementDate || new Date().toISOString(),
+      };
+
+      const dummyDiscount = {
+        applied: false,
+        type: 'fixed' as const,
+        value: 0,
+        amount: 0
+      };
+
+      await UniversalPrinter.smartPrint(saleData, userId, {}, dummyDiscount);
+    } catch (error) {
+      console.error("Reprint error:", error);
+    } finally {
+      setIsReprinting(false);
+    }
   };
 
   const renderMetricTile = (
@@ -1290,12 +1336,22 @@ export default function SalesReport() {
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  onPress={() => setSelectedOrder(null)}
-                  style={styles.doneBtn}
-                >
-                  <Text style={styles.doneBtnText}>CLOSE</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => setShowPrintPrompt(true)}
+                    style={[styles.doneBtn, { flex: 1, backgroundColor: Theme.primaryLight, borderWidth: 1, borderColor: Theme.primary }]}
+                  >
+                    <Ionicons name="print-outline" size={18} color={Theme.primary} style={{ marginRight: 8 }} />
+                    <Text style={[styles.doneBtnText, { color: Theme.primary }]}>REPRINT</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setSelectedOrder(null)}
+                    style={[styles.doneBtn, { flex: 1 }]}
+                  >
+                    <Text style={styles.doneBtnText}>CLOSE</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </Modal>
@@ -1432,6 +1488,22 @@ export default function SalesReport() {
               </View>
             </View>
           </Modal>
+
+          <BillPrompt
+            visible={showPrintPrompt}
+            onClose={() => setShowPrintPrompt(false)}
+            onSkip={() => setShowPrintPrompt(false)}
+            onPrintBill={handleReprint}
+            theme={Theme}
+            t={{
+              printBillReceipt: "Reprint Receipt?",
+              totalAmount: "Total",
+              printBillMessage: "Would you like to reprint the receipt for this order?",
+              skipBill: "Cancel",
+              printBill: "Print",
+            }}
+            total={String(selectedOrder?.SysAmount || 0)}
+          />
         </View>
       </SafeAreaView>
     </View>
