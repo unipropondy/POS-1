@@ -69,7 +69,7 @@ router.get("/all", async (req, res) => {
       CAST(DiningSection AS VARCHAR(10)) AS DiningSection, LockedByName as lockedByName,
       Status, CONVERT(VARCHAR, StartTime, 126) as StartTime, ISNULL(TotalAmount, 0) as totalAmount, CurrentOrderId as currentOrderId,
       CASE 
-        WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+        WHEN Status = 1 AND StartTime IS NOT NULL AND StartTime > '2000-01-01' AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
         ELSE 0 
       END AS isOvertime
       FROM TableMaster
@@ -205,7 +205,7 @@ router.put("/status", async (req, res) => {
       SET Status = @status,
           ModifiedBy = @ModifiedBy,
           StartTime = CASE 
-            WHEN (@status = 1 OR @status = 2 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
+            WHEN (@status = 1 OR @status = 2 OR @status = 3) AND (StartTime IS NULL OR StartTime < '2000-01-01') THEN GETDATE() 
             WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
           END,
@@ -218,7 +218,7 @@ router.put("/status", async (req, res) => {
         INSERTED.TotalAmount, 
         CONVERT(VARCHAR, INSERTED.StartTime, 126) AS StartTime,
         CASE 
-          WHEN INSERTED.Status = 1 AND INSERTED.StartTime IS NOT NULL AND DATEDIFF(MINUTE, INSERTED.StartTime, GETDATE()) >= 60 THEN 1 
+          WHEN INSERTED.Status = 1 AND INSERTED.StartTime IS NOT NULL AND INSERTED.StartTime > '2000-01-01' AND DATEDIFF(MINUTE, INSERTED.StartTime, GETDATE()) >= 60 THEN 1 
           ELSE 0 
         END AS isOvertime
       WHERE TableId = @tableId
@@ -278,7 +278,7 @@ router.put("/:tableId/status", async (req, res) => {
           LockedByName = CASE WHEN @status = 5 THEN @lockedByName ELSE NULL END,
           StartTime = CASE 
             -- Status 1 (Dining), 2 (Checkout), or 3 (Hold) starts/maintains the timer
-            WHEN (@status = 1 OR @status = 2 OR @status = 3) AND StartTime IS NULL THEN GETDATE() 
+            WHEN (@status = 1 OR @status = 2 OR @status = 3) AND (StartTime IS NULL OR StartTime < '2000-01-01') THEN GETDATE() 
             -- Status 0 (Available) or 5 (Locked) resets the timer
             WHEN @status = 0 OR @status = 5 THEN NULL 
             ELSE StartTime 
@@ -305,7 +305,7 @@ router.put("/:tableId/status", async (req, res) => {
         .query(`
           SELECT TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime,
           CASE 
-            WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+            WHEN Status = 1 AND StartTime IS NOT NULL AND StartTime > '2000-01-01' AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
             ELSE 0 
           END AS isOvertime
           FROM TableMaster WHERE TableId = @tableId

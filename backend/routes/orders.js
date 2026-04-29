@@ -77,7 +77,10 @@ async function getOrGenerateOrderId(req, tableId) {
     .query(`
       UPDATE TableMaster 
       SET CurrentOrderId = @oid, 
-          StartTime = ISNULL(StartTime, GETDATE()) 
+          StartTime = CASE 
+            WHEN StartTime IS NULL OR StartTime < '2000-01-01' THEN GETDATE() 
+            ELSE StartTime 
+          END
       WHERE TableId = @tid
     `);
 
@@ -100,10 +103,9 @@ async function updateTableStatus(req, tableId, status) {
     .input("tableId", sql.VarChar(50), cleanId)
     .input("status", sql.Int, status)
     .query(`
-      UPDATE TableMaster 
-      SET Status = @status,
+      UPDATE TableMaster        SET Status = @status,
           StartTime = CASE 
-            WHEN (@status = 1 OR @status = 3) AND StartTime IS NULL THEN GETDATE()
+            WHEN (@status = 1 OR @status = 3) AND (StartTime IS NULL OR StartTime < '2000-01-01') THEN GETDATE()
             WHEN @status = 0 THEN NULL
             ELSE StartTime
           END,
@@ -170,7 +172,7 @@ async function syncTableStatus(req, tableId) {
             ELSE (CASE WHEN Status IN (1, 2, 3, 4) THEN 0 ELSE Status END)
           END,
           StartTime = CASE 
-            WHEN @itemCount > 0 AND StartTime IS NULL THEN GETDATE()
+            WHEN @itemCount > 0 AND (StartTime IS NULL OR StartTime < '2000-01-01') THEN GETDATE()
             WHEN @itemCount = 0 THEN NULL
             ELSE StartTime
           END,
@@ -213,10 +215,12 @@ router.post("/send", async (req, res) => {
   try {
     const { tableId, orderType } = req.body;
     const userId = req.body.userId || req.body.UserId || req.body.USERID;
-    const isTakeaway = orderType === "TAKEAWAY" || (!tableId || tableId === "undefined" || tableId === "null");
+    
+    // ✅ FIX: Treat as takeaway ONLY if no tableId is provided
+    const isTakeaway = (!tableId || tableId === "undefined" || tableId === "null");
 
     const pool = await poolPromise;
-    const cleanId = !isTakeaway ? String(tableId).replace(/^\{|\}$/g, "").trim() : null;
+    const cleanId = tableId && tableId !== "undefined" && tableId !== "null" ? String(tableId).replace(/^\{|\}$/g, "").trim() : null;
 
     // Generate Order ID (Logic handles null tableId for Takeaway)
     const currentOrderId = await getOrGenerateOrderId(req, cleanId);
@@ -226,21 +230,34 @@ router.post("/send", async (req, res) => {
           .input("tableId", sql.VarChar(50), cleanId)
           .input("orderId", sql.NVarChar(50), currentOrderId)
           .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
-          .query("UPDATE TableMaster SET Status = 1, CurrentOrderId = @orderId, StartTime = ISNULL(StartTime, GETDATE()), ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
+          .query(`
+            UPDATE TableMaster 
+            SET Status = 1, 
+                CurrentOrderId = @orderId, 
+                StartTime = CASE WHEN StartTime IS NULL OR StartTime < '2000-01-01' THEN GETDATE() ELSE StartTime END, 
+                ModifiedBy = @ModifiedBy 
+            WHERE TableId = @tableId
+          `);
       
-      // Also update all NEW cart items with this Order ID and set status to SENT
+        // Also update all NEW cart items with this Order ID and set status to SENT
         await pool.request()
           .input("cartId", sql.NVarChar(128), cleanId)
           .input("orderId", sql.NVarChar(50), currentOrderId)
           .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
           .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE(), Status = 'SENT', ModifiedBy = @ModifiedBy WHERE CartId = @cartId AND (OrderNo IS NULL OR OrderNo = 'PENDING' OR Status = 'NEW')");
 
-      const updated = await syncTableStatus(req, tableId);
-      return res.json({ success: true, currentOrderId, ...updated });
-    } else {
-      // Takeaway logic: Just return the new ID
-      return res.json({ success: true, currentOrderId });
-    }
+        const updated = await syncTableStatus(req, tableId);
+        return res.json({ success: true, currentOrderId, ...updated });
+      } else {
+        // ✅ FIX: Mark items as SENT even for non-table Takeaway (using orderNo if possible)
+        // This ensures they show up on the KDS even without a tableId
+        await pool.request()
+          .input("orderId", sql.NVarChar(50), currentOrderId)
+          .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
+          .query("UPDATE CartItems SET OrderNo = @orderId, DateCreated = GETDATE(), Status = 'SENT', ModifiedBy = @ModifiedBy WHERE (OrderNo = @orderId OR OrderNo = 'PENDING' OR OrderNo IS NULL) AND (Status = 'NEW' OR Status IS NULL)");
+
+        return res.json({ success: true, currentOrderId });
+      }
   } catch (err) {
     console.error("❌ [Send Order] Error:", err.message);
     res.status(500).json({ error: err.message });
@@ -385,7 +402,7 @@ router.post("/save-cart", async (req, res) => {
         await transaction.request()
           .input("tableId", sql.UniqueIdentifier, cleanTableId)
           .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
-          .query("UPDATE TableMaster SET Status = 1, StartTime = ISNULL(StartTime, GETDATE()), ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
+          .query("UPDATE TableMaster SET Status = 1, StartTime = CASE WHEN StartTime IS NULL OR StartTime < '2000-01-01' THEN GETDATE() ELSE StartTime END, ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
         
         console.log(`✅ [CartSave] Saved ${items.length} items. Table Status -> 1`);
       } else {
@@ -627,7 +644,7 @@ router.get("/active-kitchen", async (req, res) => {
       LEFT JOIN [dbo].[CategoryMaster] cat ON dg.CategoryId = cat.CategoryId
       LEFT JOIN [dbo].[TableMaster] t ON CAST(c.CartId AS NVARCHAR(128)) = CAST(t.TableId AS NVARCHAR(128))
       WHERE c.Status IN ('SENT', 'READY', 'NEW', 'HOLD', 'SERVED')
-      AND (t.Status IN (1, 2, 3) OR c.Status = 'NEW')
+      AND (t.Status IN (1, 2, 3) OR c.Status IN ('SENT', 'READY', 'NEW'))
       ORDER BY c.DateCreated ASC
     `);
 
