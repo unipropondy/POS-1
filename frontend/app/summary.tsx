@@ -380,6 +380,10 @@ export default function SummaryScreen() {
               showsVerticalScrollIndicator={false}
               keyExtractor={(item, index) => item.id + index}
               contentContainerStyle={{ paddingBottom: 20 }}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              removeClippedSubviews={true}
               renderItem={({ item }: { item: any }) => (
                 <View style={styles.row}>
                   <View style={styles.qtyBadge}>
