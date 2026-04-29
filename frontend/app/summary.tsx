@@ -33,7 +33,7 @@ import GstSettingsModal from "../components/GstSettingsModal";
 import { findActiveOrder, useActiveOrdersStore, voidOrderItem } from "../stores/activeOrdersStore";
 import { useCartStore } from "../stores/cartStore";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
-import { getOrderContext, setOrderContext } from "../stores/orderContextStore";
+import { getOrderContext, setOrderContext, useOrderContextStore } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
 import UniversalPrinter from "../components/UniversalPrinter";
 
@@ -47,7 +47,7 @@ export default function SummaryScreen() {
   const router = useRouter();
   const { showToast } = useToast();
 
-  const context = getOrderContext();
+  const context = useOrderContextStore((state) => state.currentOrder);
   const activeOrder = context ? findActiveOrder(context) : undefined;
 
   const [showDiscount, setShowDiscount] = useState(false);
@@ -505,35 +505,64 @@ export default function SummaryScreen() {
                 {/* SERVER SELECTION & BILL BUTTON */}
                 <View style={{ marginBottom: 15 }}>
                   <Text style={[styles.grandLabel, { fontSize: 11, marginBottom: 8, opacity: 0.7 }]}>Assigned Waiter</Text>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TouchableOpacity 
-                      style={[
-                        styles.serverSelector,
-                        { flex: 1 },
-                        (!context.serverId && settings.waiterRequired) && { borderColor: Theme.danger, borderStyle: 'dashed' }
-                      ]}
-                      onPress={() => setShowServerModal(true)}
-                    >
-                      <View style={styles.serverInfoRow}>
-                        <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : (settings.waiterRequired ? Theme.dangerBg : Theme.bgMuted) }]}>
-                          <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : (settings.waiterRequired ? Theme.danger : Theme.textMuted)} />
-                        </View>
-                        <Text style={[styles.serverNameText, (!context.serverId && settings.waiterRequired) && { color: Theme.danger }]} numberOfLines={1}>
-                          {context.serverName || (settings.waiterRequired ? "Select Waiter" : "Select Waiter (Optional)")}
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color={Theme.textMuted} />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                      <View style={{ position: 'relative' }}>
+                        <TouchableOpacity 
+                          style={[
+                            styles.serverSelector,
+                            (!context.serverId && settings.waiterRequired) && { borderColor: Theme.danger, borderStyle: 'dashed' }
+                          ]}
+                          onPress={() => setShowServerModal(true)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.serverInfoRow}>
+                            <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : (settings.waiterRequired ? Theme.dangerBg : Theme.bgMuted) }]}>
+                              <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : (settings.waiterRequired ? Theme.danger : Theme.textMuted)} />
+                            </View>
+                            <Text style={[styles.serverNameText, (!context.serverId && settings.waiterRequired) && { color: Theme.danger }]} numberOfLines={1}>
+                              {context.serverName || (settings.waiterRequired ? "Select Waiter" : "Select Waiter (Optional)")}
+                            </Text>
+                            {!context.serverId && <Ionicons name="chevron-forward" size={14} color={Theme.textMuted} />}
+                          </View>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity 
-                      style={styles.billBtn}
-                      onPress={() => setShowBillOptions(true)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="receipt-outline" size={20} color={Theme.primary} />
-                      <Text style={styles.billBtnText}>Bill</Text>
-                    </TouchableOpacity>
-                  </View>
+                        {context.serverId && (
+                          <TouchableOpacity 
+                            onPress={() => {
+                              setOrderContext({
+                                ...context,
+                                serverId: undefined,
+                                serverName: undefined
+                              });
+                            }}
+                            style={{ 
+                              position: 'absolute', 
+                              top: -8, 
+                              right: -8, 
+                              backgroundColor: '#fff',
+                              borderRadius: 12,
+                              elevation: 2,
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 1 },
+                              shadowOpacity: 0.2,
+                              shadowRadius: 2,
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="close-circle" size={24} color={Theme.danger} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <TouchableOpacity 
+                        style={styles.billBtn}
+                        onPress={() => setShowBillOptions(true)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="receipt-outline" size={20} color={Theme.primary} />
+                        <Text style={styles.billBtnText}>Bill</Text>
+                      </TouchableOpacity>
+                    </View>
                   {!context.serverId && settings.waiterRequired && (
                     <Text style={{ color: Theme.danger, fontSize: 10, marginTop: 4, fontFamily: Fonts.bold }}>
                       * Required to proceed
@@ -781,6 +810,28 @@ export default function SummaryScreen() {
               <FlatList
                 data={servers}
                 keyExtractor={(item) => item.SER_ID.toString()}
+                ListHeaderComponent={
+                  context.serverId ? (
+                    <TouchableOpacity
+                      style={[styles.serverItem, { borderBottomWidth: 1, borderBottomColor: Theme.border, marginBottom: 10 }]}
+                      onPress={() => {
+                        setOrderContext({
+                          ...context,
+                          serverId: undefined,
+                          serverName: undefined
+                        });
+                        setShowServerModal(false);
+                      }}
+                    >
+                      <View style={[styles.serverAvatar, { backgroundColor: Theme.dangerBg }]}>
+                        <Ionicons name="close" size={20} color={Theme.danger} />
+                      </View>
+                      <Text style={[styles.serverItemName, { color: Theme.danger, fontFamily: Fonts.bold }]}>
+                        Clear Selection (No Waiter)
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null
+                }
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[
@@ -1536,8 +1587,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Theme.bgMuted,
-    padding: 12,
-    borderRadius: 12,
+    padding: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: Theme.border,
   },
@@ -1547,14 +1598,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   serverIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   serverNameText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: Fonts.bold,
     color: Theme.textPrimary,
   },
@@ -1601,11 +1652,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Theme.primaryLight,
-    paddingHorizontal: 15,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: Theme.primaryBorder,
-    gap: 8,
+    gap: 6,
   },
   billBtnText: {
     color: Theme.primary,

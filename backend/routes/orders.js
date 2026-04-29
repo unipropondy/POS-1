@@ -296,10 +296,16 @@ router.post("/checkout", async (req, res) => {
 
     const pool = await poolPromise;
     const cleanId = String(tableId).replace(/^\{|\}$/g, "").trim();
+
     await pool.request()
       .input("tableId", sql.NVarChar(128), cleanId)
       .input("ModifiedBy", sql.UniqueIdentifier, userId || null)
       .query("UPDATE TableMaster SET Status = 2, ModifiedBy = @ModifiedBy WHERE TableId = @tableId");
+
+    // Also mark all NEW items as SENT when checking out, so they are officially part of the bill
+    await pool.request()
+      .input("cartId", sql.NVarChar(128), cleanId)
+      .query("UPDATE CartItems SET Status = 'SENT' WHERE CartId = @cartId AND (Status = 'NEW' OR Status IS NULL)");
 
     const updated = await syncTableStatus(req, tableId);
     res.json({ success: true, ...updated });

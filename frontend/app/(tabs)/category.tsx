@@ -328,6 +328,30 @@ export default function Category() {
   const isTablet = Math.min(width, height) >= 500;
   const isLandscape = width > height;
 
+  const insets = useSafeAreaInsets();
+  const GAP = !isTablet && isLandscape ? 8 : 10;
+  const PADDING = isTablet ? 24 : isLandscape ? 12 : 16;
+  const availableGridWidth = width - PADDING * 2 - insets.left - insets.right - 2;
+
+  let columns = 3;
+  if (isTablet) {
+    if (width < 768) columns = 4;
+    else if (width < 1024) columns = 6;
+    else if (width < 1280) columns = 8;
+    else if (width < 1920) columns = 10;
+    else columns = 12;
+  } else {
+    if (isLandscape) {
+      columns = Math.max(5, Math.floor(availableGridWidth / 115));
+    } else {
+      columns = 3;
+    }
+  }
+
+  const itemSize = Math.floor((availableGridWidth - GAP * (columns - 1)) / columns);
+  const numberFont = Math.max(12, Math.min(isTablet ? 24 : 20, itemSize * 0.32));
+  const smallFont = Math.max(8, Math.min(isTablet ? 14 : 11, itemSize * 0.18));
+
   const user = useAuthStore((s: any) => s.user);
   const logout = useAuthStore((s: any) => s.logout);
   const canAccessSalesReport = useAuthStore((s: any) => s.canAccessSalesReport);
@@ -570,33 +594,7 @@ export default function Category() {
     }
   }, [urlSection]);
 
-  const insets = useSafeAreaInsets();
-  const GAP = !isTablet && isLandscape ? 8 : 10;
-  const PADDING = isTablet ? 24 : isLandscape ? 12 : 16;
-  // Subtract safe area insets to account for notches in landscape
-  const availableGridWidth =
-    width - PADDING * 2 - insets.left - insets.right - 2;
 
-  let columns = 3;
-  if (isTablet) {
-    if (width < 768) columns = 4;
-    else if (width < 1024) columns = 6;
-    else if (width < 1280) columns = 8;
-    else if (width < 1920) columns = 10;
-    else columns = 12;
-  } else {
-    if (isLandscape) {
-      // Aim for approx 110-120px boxes on mobile landscape
-      columns = Math.max(5, Math.floor(availableGridWidth / 115));
-    } else {
-      columns = 3;
-    }
-  }
-
-  // Use Math.floor to be safe against sub-pixel overflow
-  const itemSize = Math.floor(
-    (availableGridWidth - GAP * (columns - 1)) / columns,
-  );
 
   useEffect(() => {
     const index = SECTIONS.indexOf(activeTab);
@@ -605,11 +603,7 @@ export default function Category() {
     }
   }, [activeTab]);
 
-  const numberFont = Math.max(
-    12,
-    Math.min(isTablet ? 24 : 20, itemSize * 0.32),
-  );
-  const smallFont = Math.max(8, Math.min(isTablet ? 14 : 11, itemSize * 0.18));
+
 
   const currentTables = allTables.filter((table: TableItem) => {
     if (activeTab === "TAKEAWAY") return table.DiningSection === 4;
