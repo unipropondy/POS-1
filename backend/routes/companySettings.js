@@ -29,6 +29,11 @@ router.post("/:id", async (req, res) => {
     const s = req.body;
     const pool = await poolPromise;
 
+    // Optional: Ensure column exists (one-time check)
+    try {
+      await pool.request().query("IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('CompanySettings') AND name = 'WaiterRequired') ALTER TABLE CompanySettings ADD WaiterRequired BIT DEFAULT 1;");
+    } catch (e) { console.log("Column check skipped or failed", e.message); }
+
     await pool.request()
       .input("Id", sql.NVarChar, id)
       .input("CompanyName", sql.NVarChar, s.CompanyName)
@@ -42,10 +47,11 @@ router.post("/:id", async (req, res) => {
       .input("CurrencySymbol", sql.NVarChar, s.CurrencySymbol)
       .input("CompanyLogoUrl", sql.NVarChar(sql.MAX), s.CompanyLogoUrl)
       .input("HalalLogoUrl", sql.NVarChar(sql.MAX), s.HalalLogoUrl)
-      .input("PrinterIP", sql.NVarChar, s.PrinterIP) // ✅ ADDED
+      .input("PrinterIP", sql.NVarChar, s.PrinterIP)
       .input("ShowCompanyLogo", sql.Bit, s.ShowCompanyLogo)
       .input("ShowHalalLogo", sql.Bit, s.ShowHalalLogo)
       .input("TaxMode", sql.NVarChar, s.TaxMode || 'exclusive')
+      .input("WaiterRequired", sql.Bit, s.WaiterRequired !== undefined ? s.WaiterRequired : 1)
       .query(`
         IF EXISTS (SELECT 1 FROM CompanySettings WHERE Id = @Id)
         BEGIN
@@ -65,13 +71,14 @@ router.post("/:id", async (req, res) => {
             ShowCompanyLogo = @ShowCompanyLogo,
             ShowHalalLogo = @ShowHalalLogo,
             TaxMode = @TaxMode,
+            WaiterRequired = @WaiterRequired,
             UpdatedOn = GETDATE()
           WHERE Id = @Id
         END
         ELSE
         BEGIN
-          INSERT INTO CompanySettings (Id, CompanyName, Address, GSTNo, GSTPercentage, Phone, Email, CashierName, Currency, CurrencySymbol, CompanyLogoUrl, HalalLogoUrl, PrinterIP, ShowCompanyLogo, ShowHalalLogo, TaxMode)
-          VALUES (@Id, @CompanyName, @Address, @GSTNo, @GSTPercentage, @Phone, @Email, @CashierName, @Currency, @CurrencySymbol, @CompanyLogoUrl, @HalalLogoUrl, @PrinterIP, @ShowCompanyLogo, @ShowHalalLogo, @TaxMode)
+          INSERT INTO CompanySettings (Id, CompanyName, Address, GSTNo, GSTPercentage, Phone, Email, CashierName, Currency, CurrencySymbol, CompanyLogoUrl, HalalLogoUrl, PrinterIP, ShowCompanyLogo, ShowHalalLogo, TaxMode, WaiterRequired)
+          VALUES (@Id, @CompanyName, @Address, @GSTNo, @GSTPercentage, @Phone, @Email, @CashierName, @Currency, @CurrencySymbol, @CompanyLogoUrl, @HalalLogoUrl, @PrinterIP, @ShowCompanyLogo, @ShowHalalLogo, @TaxMode, @WaiterRequired)
         END
       `);
 

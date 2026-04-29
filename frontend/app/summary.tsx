@@ -510,16 +510,16 @@ export default function SummaryScreen() {
                       style={[
                         styles.serverSelector,
                         { flex: 1 },
-                        !context.serverId && { borderColor: Theme.danger, borderStyle: 'dashed' }
+                        (!context.serverId && settings.waiterRequired) && { borderColor: Theme.danger, borderStyle: 'dashed' }
                       ]}
                       onPress={() => setShowServerModal(true)}
                     >
                       <View style={styles.serverInfoRow}>
-                        <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : Theme.dangerBg }]}>
-                          <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : Theme.danger} />
+                        <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : (settings.waiterRequired ? Theme.dangerBg : Theme.bgMuted) }]}>
+                          <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : (settings.waiterRequired ? Theme.danger : Theme.textMuted)} />
                         </View>
-                        <Text style={[styles.serverNameText, !context.serverId && { color: Theme.danger }]} numberOfLines={1}>
-                          {context.serverName || "Select Waiter"}
+                        <Text style={[styles.serverNameText, (!context.serverId && settings.waiterRequired) && { color: Theme.danger }]} numberOfLines={1}>
+                          {context.serverName || (settings.waiterRequired ? "Select Waiter" : "Select Waiter (Optional)")}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color={Theme.textMuted} />
@@ -534,7 +534,7 @@ export default function SummaryScreen() {
                       <Text style={styles.billBtnText}>Bill</Text>
                     </TouchableOpacity>
                   </View>
-                  {!context.serverId && (
+                  {!context.serverId && settings.waiterRequired && (
                     <Text style={{ color: Theme.danger, fontSize: 10, marginTop: 4, fontFamily: Fonts.bold }}>
                       * Required to proceed
                     </Text>
@@ -553,10 +553,10 @@ export default function SummaryScreen() {
                   style={[
                     styles.proceedBtn, 
                     isLandscape && !isTablet && { height: 48, borderRadius: 12 },
-                    !context.serverId && { opacity: 0.5, backgroundColor: Theme.textMuted }
+                    (!context.serverId && settings.waiterRequired) && { opacity: 0.5, backgroundColor: Theme.textMuted }
                   ]}
                   onPress={() => {
-                    if (!context.serverId) {
+                    if (!context.serverId && settings.waiterRequired) {
                       showToast({ type: "warning", message: "Select Waiter", subtitle: "Please assign a waiter before proceeding" });
                       setShowServerModal(true);
                       return;

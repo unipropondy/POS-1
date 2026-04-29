@@ -20,6 +20,7 @@ export interface CompanySettings {
   showCompanyLogo: boolean;
   showHalalLogo: boolean;
   taxMode: "exclusive" | "inclusive";
+  waiterRequired: boolean;
 }
 
 interface CompanySettingsState {
@@ -45,6 +46,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   showCompanyLogo: true,
   showHalalLogo: true,
   taxMode: "exclusive",
+  waiterRequired: true,
 };
 
 export const useCompanySettingsStore = create<CompanySettingsState>()(
@@ -80,6 +82,7 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
                 showCompanyLogo: !!s.ShowCompanyLogo,
                 showHalalLogo: !!s.ShowHalalLogo,
                 taxMode: s.TaxMode || "exclusive",
+                waiterRequired: s.WaiterRequired !== undefined ? !!s.WaiterRequired : true,
               },
             });
             console.log("✅ [CompanySettingsStore] Settings loaded");
@@ -119,6 +122,7 @@ export const useCompanySettingsStore = create<CompanySettingsState>()(
             ShowCompanyLogo: updated.showCompanyLogo,
             ShowHalalLogo: updated.showHalalLogo,
             TaxMode: updated.taxMode,
+            WaiterRequired: updated.waiterRequired,
           };
 
           const response = await API.post(`/company-settings/${userId}`, payload);

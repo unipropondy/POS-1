@@ -11,8 +11,7 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
-  Platform,
-  StatusBar,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -21,6 +20,7 @@ import { API_URL } from "@/constants/Config";
 import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import { useAuthStore } from "@/stores/authStore";
+import { useCompanySettingsStore } from "@/stores/companySettingsStore";
 
 type WaiterType = {
   SER_ID: number;
@@ -33,9 +33,17 @@ type WaiterType = {
 export default function WaitersScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { settings, updateSettings } = useCompanySettingsStore();
+  
   const [waiters, setWaiters] = useState<WaiterType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const toggleWaiterRequired = async () => {
+    const newVal = !settings.waiterRequired;
+    const currentUserId = user?.userId || (user as any)?.id || (user as any)?.UserId;
+    await updateSettings({ waiterRequired: newVal }, currentUserId);
+  };
 
   // Modal State
   const [modalMode, setModalMode] = useState<"ADD" | "EDIT" | "NONE">("NONE");
@@ -205,6 +213,22 @@ export default function WaitersScreen() {
           </View>
         </View>
 
+        <View style={styles.configCard}>
+          <View style={styles.configInfo}>
+            <MaterialCommunityIcons name="account-check-outline" size={24} color={Theme.primary} />
+            <View style={{ marginLeft: 12 }}>
+              <Text style={styles.configTitle}>Waiter Mandatory</Text>
+              <Text style={styles.configDesc}>Require waiter selection before payment</Text>
+            </View>
+          </View>
+          <Switch
+            trackColor={{ false: "#E2E8F0", true: Theme.primary + "80" }}
+            thumbColor={settings.waiterRequired ? Theme.primary : "#94A3B8"}
+            onValueChange={toggleWaiterRequired}
+            value={settings.waiterRequired}
+          />
+        </View>
+
         {loading ? (
           <View style={styles.center}><ActivityIndicator size="large" color={Theme.primary} /></View>
         ) : (
@@ -329,6 +353,15 @@ const styles = StyleSheet.create({
     ...Theme.shadowSm 
   },
   searchField: { flex: 1, color: Theme.textPrimary, fontFamily: Fonts.medium, fontSize: 16, marginLeft: 12, ...Platform.select({ web: { outlineStyle: "none" } as any }) },
+  configCard: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: 20, marginBottom: 20, padding: 16, 
+    backgroundColor: Theme.bgCard, borderRadius: 20, borderWidth: 1, borderColor: Theme.border,
+    ...Theme.shadowSm
+  },
+  configInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  configTitle: { color: Theme.textPrimary, fontSize: 15, fontFamily: Fonts.bold },
+  configDesc: { color: Theme.textMuted, fontSize: 11, fontFamily: Fonts.medium, marginTop: 2 },
   listContainer: { paddingHorizontal: 20, paddingBottom: 40, gap: 16 },
   waiterCard: { 
     backgroundColor: Theme.bgCard, borderRadius: 20, padding: 20, 
