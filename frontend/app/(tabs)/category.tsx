@@ -67,7 +67,7 @@ const getStatusUI = (status: number) => {
     case 4:
       return { text: "OVERTIME", color: "#8b5cf6", lightBg: "#F5F3FF" };
     case 5:
-      return { text: "LOCKED", color: "#ef4444", lightBg: "#FEF2F2" };
+      return { text: "RESERVED", color: "#ef4444", lightBg: "#FEF2F2" };
     case 0:
     default:
       return { text: "AVAILABLE", color: "#94A3B8", lightBg: "transparent" }; // Gray
@@ -102,9 +102,9 @@ const TableItemComponent = React.memo(
     
     let ui = getStatusUI(status);
 
-    // Dynamic Overtime: If Dining and backend flagged as overtime, override UI
-    if (status === 1 && item.isOvertime) {
-      ui = getStatusUI(4); // Use OVERTIME UI settings
+    // Dynamic Overtime: If occupied and backend flagged as overtime, override UI
+    if ((status === 1 || status === 2 || status === 3) && item.isOvertime) {
+      ui = getStatusUI(4);
     }
 
     // Use ONLY ui values derived from status
@@ -708,7 +708,7 @@ export default function Category() {
 
   const handleHold = (id: string) => updateTableStatus(id, 3); // Hold
   const handleReserved = (id: string, name: string) =>
-    updateTableStatus(id, 4, name); // Reserved
+    updateTableStatus(id, 5, name); // Reserved (Use 5 for red locked/reserved state)
   const handleComplete = (id: string) => updateTableStatus(id, 0); // Available
 
   const handleTablePress = React.useCallback(
@@ -906,8 +906,7 @@ export default function Category() {
             {SECTIONS.map((section) => {
               const isActive = activeTab === section;
               const sectionTables = allTables.filter((t: TableItem) => {
-                if (section === "TAKEAWAY")
-                  return t.DiningSection === 3 || t.DiningSection === 4;
+                if (section === "TAKEAWAY") return t.DiningSection === 4;
                 if (section === "SECTION_1") return t.DiningSection === 1;
                 if (section === "SECTION_2") return t.DiningSection === 2;
                 if (section === "SECTION_3") return t.DiningSection === 3;

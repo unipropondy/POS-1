@@ -182,7 +182,7 @@ async function syncTableStatus(req, tableId) {
 
         SELECT Status, TotalAmount, CONVERT(VARCHAR, StartTime, 126) AS StartTime, CurrentOrderId,
         CASE 
-          WHEN Status = 1 AND StartTime IS NOT NULL AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
+          WHEN Status IN (1, 2, 3) AND StartTime IS NOT NULL AND StartTime > '2000-01-01' AND DATEDIFF(MINUTE, StartTime, GETDATE()) >= 60 THEN 1 
           ELSE 0 
         END AS isOvertime
         FROM TableMaster WHERE TableId = @tableId;
