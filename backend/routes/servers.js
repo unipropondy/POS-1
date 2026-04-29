@@ -96,14 +96,16 @@ router.post("/delete", async (req, res) => {
 // 🔹 GET HISTORY (from servermaster)
 router.get("/history", async (req, res) => {
   try {
-    const { name, serId, startDate, endDate } = req.query;
+    const { name, serId, startDate, endDate, detail } = req.query;
     const pool = await poolPromise;
-    let query = `
-      SELECT SER_ID, SER_NAME, COUNT(*) as OrderCount 
-      FROM servermaster 
-      WHERE 1=1
-    `;
     const request = pool.request();
+    
+    let query = "";
+    if (detail === "true") {
+      query = `SELECT * FROM servermaster WHERE 1=1`;
+    } else {
+      query = `SELECT SER_ID, SER_NAME, COUNT(*) as OrderCount FROM servermaster WHERE 1=1`;
+    }
 
     if (name) {
       request.input("name", sql.VarChar, `%${name}%`);
@@ -124,7 +126,11 @@ router.get("/history", async (req, res) => {
       query += ` AND CreatedDate <= @endDate`;
     }
 
-    query += ` GROUP BY SER_ID, SER_NAME ORDER BY OrderCount DESC`;
+    if (detail === "true") {
+      query += ` ORDER BY CreatedDate DESC`;
+    } else {
+      query += ` GROUP BY SER_ID, SER_NAME ORDER BY OrderCount DESC`;
+    }
 
     const result = await request.query(query);
     res.json(result.recordset);

@@ -322,7 +322,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
         action: "CLOSE",
       });
 
-      router.replace(`/(tabs)?section=${orderContext.section}`);
+      router.replace(`/(tabs)/category?section=${orderContext.section}`);
     } else {
       router.push("/summary");
     }
@@ -353,7 +353,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
       });
 
       // Navigate immediately while request processes in background
-      router.replace(`/(tabs)?section=${orderContext.section}`);
+      router.replace(`/(tabs)/category?section=${orderContext.section}`);
 
       const sendRes = await sendPromise;
       const sendData = await sendRes.json();
@@ -688,7 +688,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
                     }
                     holdOrder(targetOrderId || "HOLD", cart, orderContext);
                     router.replace(
-                      `/(tabs)?section=${orderContext.section}`,
+                      `/(tabs)/category?section=${orderContext.section}`,
                     );
                   }}
                 >

@@ -398,7 +398,7 @@ export default function KDSScreen() {
         <View style={styles.topBar}>
           <View style={styles.headerLeftSection}>
             {!isKDSUser && (
-              <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
+              <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/category')} style={styles.backBtn}>
                 <Ionicons name="arrow-back" size={22} color={Theme.textPrimary} />
               </Pressable>
             )}
@@ -414,7 +414,7 @@ export default function KDSScreen() {
               <TouchableOpacity
                 onPress={() => {
                   logout();
-                  router.replace("/(tabs)");
+                  router.replace("/(tabs)/category");
                 }}
                 style={styles.logoutBtn}
               >

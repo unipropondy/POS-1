@@ -59,7 +59,7 @@ export default function PaymentSuccess() {
 
   const handleDone = () => {
     router.replace({
-      pathname: "/(tabs)",
+      pathname: "/(tabs)/category",
       params: { section },
     });
   };
