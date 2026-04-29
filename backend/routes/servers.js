@@ -93,4 +93,42 @@ router.post("/delete", async (req, res) => {
   }
 });
 
+// 🔹 GET HISTORY (from servermaster)
+router.get("/history", async (req, res) => {
+  try {
+    const { name, serId, startDate, endDate } = req.query;
+    const pool = await poolPromise;
+    let query = `SELECT * FROM servermaster WHERE 1=1`;
+    const request = pool.request();
+
+    if (name) {
+      request.input("name", sql.VarChar, `%${name}%`);
+      query += ` AND SER_NAME LIKE @name`;
+    }
+    if (serId) {
+      request.input("serId", sql.Int, serId);
+      query += ` AND SER_ID = @serId`;
+    }
+    if (startDate) {
+      request.input("startDate", sql.DateTime, startDate);
+      query += ` AND CreatedDate >= @startDate`;
+    }
+    if (endDate) {
+      // Set to end of day
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      request.input("endDate", sql.DateTime, end);
+      query += ` AND CreatedDate <= @endDate`;
+    }
+
+    query += ` ORDER BY CreatedDate DESC`;
+
+    const result = await request.query(query);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error("GET SERVER HISTORY ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
