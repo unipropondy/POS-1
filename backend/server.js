@@ -1,4 +1,5 @@
 const express = require("express");
+const compression = require("compression");
 const cors = require("cors");
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
@@ -31,6 +32,7 @@ const io = new Server(httpServer, {
     origin: "*",
     methods: ["GET", "POST"],
   },
+  perMessageDeflate: true,
 });
 
 const PORT = process.env.PORT || 3000;
@@ -60,6 +62,7 @@ io.on("connection", (socket) => {
 });
 
 // ✅ Global Middleware
+app.use(compression()); // Compress all responses
 app.use(
   cors({
     origin: "*",
@@ -68,7 +71,10 @@ app.use(
   }),
 );
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
+  maxAge: '1d',
+  immutable: true
+}));
 
 // 🔄 Database Connection Check (for all API routes)
 app.use("/api", dbCheck);

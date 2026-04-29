@@ -19,6 +19,11 @@ const dbConfig = {
   },
   connectionTimeout: 60000,
   requestTimeout: 60000,
+  pool: {
+    max: 100,
+    min: 0,
+    idleTimeoutMillis: 30000
+  }
 };
 
 // Log configuration for debugging (mask password)

@@ -122,7 +122,7 @@ router.get("/all", async (req, res) => {
     res.set("Cache-Control", "no-store");
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT sh.SettlementID, sh.LastSettlementDate AS SettlementDate, 
+      SELECT TOP 200 sh.SettlementID, sh.LastSettlementDate AS SettlementDate, 
       sh.BillNo AS OrderId, 
       sh.OrderType,
       sh.TableNo, sh.Section, sh.CashierId, sh.BillNo, sh.SER_NAME,

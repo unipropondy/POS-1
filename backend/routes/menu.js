@@ -83,6 +83,7 @@ router.get("/image/:imageId", async (req, res) => {
       .query(`SELECT ImageData FROM ImageList WHERE Imageid = @Imageid`);
 
     if (result.recordset.length > 0 && result.recordset[0].ImageData) {
+      res.set("Cache-Control", "public, max-age=86400"); // Cache for 1 day
       res.type("image/jpeg").send(result.recordset[0].ImageData);
     } else {
       res.status(404).send("Image not found");

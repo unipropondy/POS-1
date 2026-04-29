@@ -110,7 +110,8 @@ router.get("/summary/:userId", async (req, res) => {
           CreatedOn
         FROM TimeEntry
         WHERE Userid = @UserId 
-        AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE)
+        AND CreatedOn >= CAST(GETDATE() AS DATE)
+        AND CreatedOn < DATEADD(DAY, 1, CAST(GETDATE() AS DATE))
         ORDER BY CreatedOn ASC
       `);
 
@@ -235,7 +236,8 @@ router.post("/save", async (req, res) => {
         SELECT status, ClockinTime
         FROM TimeEntry
         WHERE Userid = @UserId 
-        AND CAST(CreatedOn AS DATE) = CAST(GETDATE() AS DATE)
+        AND CreatedOn >= CAST(GETDATE() AS DATE)
+        AND CreatedOn < DATEADD(DAY, 1, CAST(GETDATE() AS DATE))
         ORDER BY CreatedOn ASC
       `);
 
