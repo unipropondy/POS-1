@@ -349,7 +349,6 @@ export default function Category() {
       lockedByName 
     }: any) => {
       const finalStartTime = StartTime || startTime;
-      console.log(`🔌 [Socket] Table ${tableId} update received`);
 
       // 1. Update local state using functional update (no dependency on allTables)
       setAllTables((prev) =>
@@ -808,47 +807,32 @@ export default function Category() {
     [activeTab, router],
   );
 
+  // 🚀 PERFORMANCE: Create a lookup map for table status data to avoid O(N) .find() inside renderItem
+  const tableDataMap = React.useMemo(() => {
+    const map = new Map();
+    tables.forEach((t: any) => {
+      map.set(t.tableId, t);
+    });
+    return map;
+  }, [tables]);
+
   const renderItem = React.useCallback(
     ({ item }: { item: TableItem }) => {
-      const rawTableData = tables.find(
-        (t: any) => t.section === activeTab && t.tableNo === item.label,
-      );
-
-      // Prepare optimized data for memoized component
-      let tableData = null;
-      if (rawTableData) {
-        // Use totalAmount from database as the source of truth
-        const billAmount = rawTableData.totalAmount || 0;
-
-        tableData = {
-          ...rawTableData,
-          billAmount,
-        };
-      }
-
+      const tableData = tableDataMap.get(item.id);
       return (
         <TableItemComponent
           item={item}
+          tableData={tableData}
           itemSize={itemSize}
           activeTab={activeTab}
-          tableData={tableData}
           onPress={handleTablePress}
           numberFont={numberFont}
           smallFont={smallFont}
-          isTabletPortrait={isTablet && !isLandscape}
+          isTabletPortrait={!isLandscape && isTablet}
         />
       );
     },
-    [
-      activeTab,
-      tables,
-      activeOrders,
-      carts,
-      itemSize,
-      numberFont,
-      smallFont,
-      handleTablePress,
-    ],
+    [itemSize, activeTab, tableDataMap, handleTablePress, numberFont, smallFont, isLandscape, isTablet],
   );
 
   if (loading) {
@@ -1390,10 +1374,10 @@ export default function Category() {
           offset: (itemSize + GAP) * Math.floor(index / columns),
           index,
         })}
-        removeClippedSubviews={Platform.OS === 'android'}
-        maxToRenderPerBatch={columns * 3}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        maxToRenderPerBatch={isTablet ? 32 : 16}
         windowSize={5}
-        initialNumToRender={columns * 4}
+        initialNumToRender={isTablet ? 40 : 20}
         contentContainerStyle={{
           gap: GAP,
           paddingHorizontal: PADDING,
