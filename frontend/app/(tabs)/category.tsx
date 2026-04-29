@@ -452,6 +452,8 @@ export default function Category() {
     }
   };
 
+
+
   const fetchTables = async () => {
     try {
       const controller = new AbortController();
@@ -807,7 +809,8 @@ export default function Category() {
     [activeTab, router],
   );
 
-  // 🚀 PERFORMANCE: Create a lookup map for table status data to avoid O(N) .find() inside renderItem
+  // ——— PERFORMANCE OPTIMIZATIONS ———
+  // 🚀 O(1) Lookup Map for table status data
   const tableDataMap = React.useMemo(() => {
     const map = new Map();
     tables.forEach((t: any) => {
@@ -816,6 +819,7 @@ export default function Category() {
     return map;
   }, [tables]);
 
+  // 🚀 Memoized Render Function for Table Grid
   const renderItem = React.useCallback(
     ({ item }: { item: TableItem }) => {
       const tableData = tableDataMap.get(item.id);
@@ -834,6 +838,8 @@ export default function Category() {
     },
     [itemSize, activeTab, tableDataMap, handleTablePress, numberFont, smallFont, isLandscape, isTablet],
   );
+
+
 
   if (loading) {
     return (
