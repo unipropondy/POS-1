@@ -98,7 +98,11 @@ router.get("/history", async (req, res) => {
   try {
     const { name, serId, startDate, endDate } = req.query;
     const pool = await poolPromise;
-    let query = `SELECT * FROM servermaster WHERE 1=1`;
+    let query = `
+      SELECT SER_ID, SER_NAME, COUNT(*) as OrderCount 
+      FROM servermaster 
+      WHERE 1=1
+    `;
     const request = pool.request();
 
     if (name) {
@@ -114,14 +118,13 @@ router.get("/history", async (req, res) => {
       query += ` AND CreatedDate >= @startDate`;
     }
     if (endDate) {
-      // Set to end of day
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       request.input("endDate", sql.DateTime, end);
       query += ` AND CreatedDate <= @endDate`;
     }
 
-    query += ` ORDER BY CreatedDate DESC`;
+    query += ` GROUP BY SER_ID, SER_NAME ORDER BY OrderCount DESC`;
 
     const result = await request.query(query);
     res.json(result.recordset);
