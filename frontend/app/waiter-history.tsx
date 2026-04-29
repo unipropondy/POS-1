@@ -26,7 +26,7 @@ export default function WaiterHistoryScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const isTablet = width > 768;
+  const isTablet = width >= 768;
 
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,8 +98,7 @@ export default function WaiterHistoryScreen() {
         onPress={() => toggleExpand(item.SER_ID)}
         style={[
           styles.recordCard, 
-          isExpanded && styles.expandedCard,
-          { width: isTablet && !isExpanded ? (width - 60) / 2 : '100%' }
+          isExpanded && styles.expandedCard
         ]}
       >
         <View style={styles.cardMainRow}>
@@ -185,52 +184,54 @@ export default function WaiterHistoryScreen() {
           </View>
 
           {/* Responsive Filter Panel */}
-          <View style={[styles.filterSection, isLandscape && { padding: 12, gap: 10 }]}>
-            <View style={[styles.filterRow, isLandscape && { flexDirection: 'row', gap: 10 }]}>
-              <View style={styles.searchInputWrapper}>
-                <Ionicons name="search" size={20} color={Theme.primary} />
-                <TextInput
-                  placeholder="Search Name or ID..."
-                  placeholderTextColor={Theme.textMuted}
-                  style={styles.searchInput}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmitEditing={fetchHistory}
-                />
-                {searchQuery !== "" && (
-                  <TouchableOpacity onPress={() => setSearchQuery("")}>
-                    <Ionicons name="close-circle" size={20} color={Theme.textMuted} />
-                  </TouchableOpacity>
-                )}
+          <View style={styles.filterSection}>
+            <View style={[styles.filterRow, (isLandscape || isTablet) && { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }]}>
+              <View style={[(isLandscape || isTablet) ? { flex: 1.2 } : { width: '100%', marginBottom: 12 }]}>
+                <View style={styles.searchInputWrapper}>
+                  <Ionicons name="search" size={20} color={Theme.primary} />
+                  <TextInput
+                    placeholder="Search Name or ID..."
+                    placeholderTextColor={Theme.textMuted}
+                    style={styles.searchInput}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onSubmitEditing={fetchHistory}
+                  />
+                  {searchQuery !== "" && (
+                    <TouchableOpacity onPress={() => setSearchQuery("")}>
+                      <Ionicons name="close-circle" size={20} color={Theme.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
-              {!isLandscape && <View style={{ height: 10 }} />}
-
-              <View style={[styles.dateRow, isLandscape && { flex: 1.5 }]}>
-                <View style={styles.dateInputWrapper}>
-                  <View style={styles.dateHeader}>
-                    <Ionicons name="calendar" size={12} color={Theme.primary} />
-                    <Text style={styles.dateLabel}>From</Text>
+              <View style={[(isLandscape || isTablet) ? { flex: 1.8 } : { width: '100%' }]}>
+                <View style={styles.dateRow}>
+                  <View style={styles.dateInputWrapper}>
+                    <View style={styles.dateHeader}>
+                      <Ionicons name="calendar" size={12} color={Theme.primary} />
+                      <Text style={styles.dateLabel}>From</Text>
+                    </View>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={startDate}
+                      onChangeText={setStartDate}
+                      placeholder="YYYY-MM-DD"
+                    />
                   </View>
-                  <TextInput
-                    style={styles.dateInput}
-                    value={startDate}
-                    onChangeText={setStartDate}
-                    placeholder="YYYY-MM-DD"
-                  />
-                </View>
-                
-                <View style={styles.dateInputWrapper}>
-                  <View style={styles.dateHeader}>
-                    <Ionicons name="calendar" size={12} color={Theme.primary} />
-                    <Text style={styles.dateLabel}>To</Text>
+                  
+                  <View style={styles.dateInputWrapper}>
+                    <View style={styles.dateHeader}>
+                      <Ionicons name="calendar" size={12} color={Theme.primary} />
+                      <Text style={styles.dateLabel}>To</Text>
+                    </View>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={endDate}
+                      onChangeText={setEndDate}
+                      placeholder="YYYY-MM-DD"
+                    />
                   </View>
-                  <TextInput
-                    style={styles.dateInput}
-                    value={endDate}
-                    onChangeText={setEndDate}
-                    placeholder="YYYY-MM-DD"
-                  />
                 </View>
               </View>
             </View>
@@ -353,13 +354,12 @@ const styles = StyleSheet.create({
   filterSection: { marginHorizontal: 20, marginBottom: 15, padding: 16, backgroundColor: "#fff", borderRadius: 24, gap: 12, ...Theme.shadowMd, borderWidth: 1, borderColor: Theme.border },
   filterRow: { width: '100%' },
   searchInputWrapper: { 
-    flex: 1, 
     flexDirection: 'row', 
     alignItems: 'center', 
     backgroundColor: Theme.bgInput, 
     borderRadius: 14, 
     paddingHorizontal: 15, 
-    height: 46, 
+    height: 48, 
     borderWidth: 1, 
     borderColor: Theme.border,
   },
@@ -412,8 +412,8 @@ const styles = StyleSheet.create({
   countBadgeText: { color: '#fff', fontSize: 10, fontFamily: Fonts.black },
 
   listContent: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  recordCard: { backgroundColor: "#fff", borderRadius: 20, padding: 12, borderWidth: 1, borderColor: Theme.border, ...Theme.shadowSm },
-  expandedCard: { borderColor: Theme.primary + "40", backgroundColor: Theme.primary + "05" },
+  recordCard: { backgroundColor: "#fff", borderRadius: 24, padding: 16, borderWidth: 1, borderColor: Theme.border, ...Theme.shadowSm, flex: 1 },
+  expandedCard: { borderColor: Theme.primary + "60", backgroundColor: "#fff", ...Theme.shadowMd },
   cardMainRow: { flexDirection: 'row', alignItems: 'center' },
   avatarCircle: { width: 44, height: 44, borderRadius: 14, justifyContent: "center", alignItems: "center" },
   avatarLetter: { color: "#fff", fontSize: 18, fontFamily: Fonts.black },
@@ -422,16 +422,16 @@ const styles = StyleSheet.create({
   idBadgeMini: { flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.bgMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 2 },
   idTextMini: { color: Theme.textSecondary, fontSize: 9, fontFamily: Fonts.bold },
   
-  quickStat: { alignItems: 'center', backgroundColor: Theme.bgMain, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: Theme.border },
-  quickStatValue: { fontSize: 15, fontFamily: Fonts.black, color: Theme.primary },
-  quickStatLabel: { fontSize: 8, fontFamily: Fonts.bold, color: Theme.textMuted, textTransform: 'uppercase' },
+  quickStat: { alignItems: 'center', backgroundColor: Theme.bgMain, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: Theme.border, minWidth: 70 },
+  quickStatValue: { fontSize: 16, fontFamily: Fonts.black, color: Theme.primary },
+  quickStatLabel: { fontSize: 9, fontFamily: Fonts.bold, color: Theme.textMuted, textTransform: 'uppercase' },
 
-  expandedContent: { marginTop: 12 },
-  divider: { height: 1, backgroundColor: Theme.border, marginBottom: 12 },
-  statsGrid: { gap: 8, marginBottom: 12 },
-  statBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.bgInput, padding: 12, borderRadius: 14, gap: 10, borderWidth: 1, borderColor: Theme.border },
-  statLabel: { fontSize: 9, color: Theme.textMuted, fontFamily: Fonts.black, textTransform: 'uppercase' },
-  statValueSmall: { fontSize: 12, color: Theme.textPrimary, fontFamily: Fonts.black, marginTop: 2 },
+  expandedContent: { marginTop: 16 },
+  divider: { height: 1, backgroundColor: Theme.border, marginBottom: 16 },
+  statsGrid: { marginBottom: 16 },
+  statBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.bgMain, padding: 14, borderRadius: 16, gap: 12, borderWidth: 1, borderColor: Theme.border },
+  statLabel: { fontSize: 10, color: Theme.textMuted, fontFamily: Fonts.black, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValueSmall: { fontSize: 14, color: Theme.textPrimary, fontFamily: Fonts.black, marginTop: 4 },
   
   viewDetailBtn: { height: 44, borderRadius: 12, overflow: 'hidden' },
   gradientBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
