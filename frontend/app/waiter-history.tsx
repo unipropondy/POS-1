@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,39 +14,37 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { API_URL } from "@/constants/Config";
 import { Fonts } from "@/constants/Fonts";
 import { Theme } from "@/constants/theme";
-import { API_URL } from "@/constants/Config";
 
 export default function WaiterHistoryScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isTablet = width > 768;
+
   const [history, setHistory] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const fetchHistory = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-        name: searchQuery,
-      });
-      if (!isNaN(Number(searchQuery)) && searchQuery !== "") {
-        params.append("serId", searchQuery);
-      }
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [detailedRecords, setDetailedRecords] = useState<any[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [viewingWaiter, setViewingWaiter] = useState<any>(null);
 
-      const res = await fetch(`${API_URL}/api/servers/history?${params.toString()}`);
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoading(true);
+      const url = `${API_URL}/api/servers/history?name=${searchQuery}&startDate=${startDate}&endDate=${endDate}`;
+      const res = await fetch(url);
       const data = await res.json();
       if (Array.isArray(data)) {
         setHistory(data);
@@ -56,21 +54,11 @@ export default function WaiterHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, startDate, endDate]);
 
-  const clearFilters = () => {
-    setSearchQuery("");
-    const today = new Date().toISOString().split("T")[0];
-    setStartDate(today);
-    setEndDate(today);
-    setExpandedId(null);
+  useEffect(() => {
     fetchHistory();
-  };
-
-  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [detailedRecords, setDetailedRecords] = useState<any[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [viewingWaiter, setViewingWaiter] = useState<any>(null);
+  }, [fetchHistory]);
 
   const fetchWaiterDetails = async (waiter: any) => {
     setViewingWaiter(waiter);
@@ -88,6 +76,14 @@ export default function WaiterHistoryScreen() {
     }
   };
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    const today = new Date().toISOString().split("T")[0];
+    setStartDate(today);
+    setEndDate(today);
+    setExpandedId(null);
+    fetchHistory();
+  };
 
   const toggleExpand = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
@@ -100,13 +96,15 @@ export default function WaiterHistoryScreen() {
       <TouchableOpacity 
         activeOpacity={0.9}
         onPress={() => toggleExpand(item.SER_ID)}
-        style={[styles.recordCard, isExpanded && styles.expandedCard]}
+        style={[
+          styles.recordCard, 
+          isExpanded && styles.expandedCard,
+          { width: isTablet && !isExpanded ? (width - 60) / 2 : '100%' }
+        ]}
       >
         <View style={styles.cardMainRow}>
           <LinearGradient
-            colors={[Theme.primary, Theme.primary + "CC"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            colors={[Theme.primary, Theme.primary]}
             style={styles.avatarCircle}
           >
             <Text style={styles.avatarLetter}>{item.SER_NAME?.charAt(0).toUpperCase()}</Text>
@@ -138,7 +136,7 @@ export default function WaiterHistoryScreen() {
             <View style={styles.divider} />
             <View style={styles.statsGrid}>
               <View style={styles.statBox}>
-                <Ionicons name="calendar-outline" size={16} color={Theme.textMuted} />
+                <Ionicons name="calendar-outline" size={16} color={Theme.primary} />
                 <View>
                   <Text style={styles.statLabel}>Tracking Period</Text>
                   <Text style={styles.statValueSmall}>{startDate} to {endDate}</Text>
@@ -152,7 +150,7 @@ export default function WaiterHistoryScreen() {
               onPress={() => fetchWaiterDetails(item)}
             >
               <LinearGradient
-                colors={[Theme.primary, "#4F46E5"]}
+                colors={[Theme.primary, Theme.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientBtn}
@@ -170,7 +168,7 @@ export default function WaiterHistoryScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <LinearGradient colors={["#F8FAFC", "#F1F5F9"]} style={{ flex: 1 }}>
+      <LinearGradient colors={["#FAF7F2", "#F5F0E8"]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           {/* Header */}
           <View style={styles.headerBar}>
@@ -186,9 +184,9 @@ export default function WaiterHistoryScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Premium Filter Panel */}
-          <View style={styles.filterSection}>
-            <View style={styles.searchRow}>
+          {/* Responsive Filter Panel */}
+          <View style={[styles.filterSection, isLandscape && { padding: 12, gap: 10 }]}>
+            <View style={[styles.filterRow, isLandscape && { flexDirection: 'row', gap: 10 }]}>
               <View style={styles.searchInputWrapper}>
                 <Ionicons name="search" size={20} color={Theme.primary} />
                 <TextInput
@@ -205,45 +203,47 @@ export default function WaiterHistoryScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
 
-            <View style={styles.dateRow}>
-              <View style={styles.dateInputWrapper}>
-                <View style={styles.dateHeader}>
-                  <Ionicons name="calendar" size={12} color={Theme.primary} />
-                  <Text style={styles.dateLabel}>From Date</Text>
+              {!isLandscape && <View style={{ height: 10 }} />}
+
+              <View style={[styles.dateRow, isLandscape && { flex: 1.5 }]}>
+                <View style={styles.dateInputWrapper}>
+                  <View style={styles.dateHeader}>
+                    <Ionicons name="calendar" size={12} color={Theme.primary} />
+                    <Text style={styles.dateLabel}>From</Text>
+                  </View>
+                  <TextInput
+                    style={styles.dateInput}
+                    value={startDate}
+                    onChangeText={setStartDate}
+                    placeholder="YYYY-MM-DD"
+                  />
                 </View>
-                <TextInput
-                  style={styles.dateInput}
-                  value={startDate}
-                  onChangeText={setStartDate}
-                  placeholder="YYYY-MM-DD"
-                />
-              </View>
-              
-              <View style={styles.dateInputWrapper}>
-                <View style={styles.dateHeader}>
-                  <Ionicons name="calendar" size={12} color={Theme.danger} />
-                  <Text style={styles.dateLabel}>To Date</Text>
+                
+                <View style={styles.dateInputWrapper}>
+                  <View style={styles.dateHeader}>
+                    <Ionicons name="calendar" size={12} color={Theme.primary} />
+                    <Text style={styles.dateLabel}>To</Text>
+                  </View>
+                  <TextInput
+                    style={styles.dateInput}
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    placeholder="YYYY-MM-DD"
+                  />
                 </View>
-                <TextInput
-                  style={styles.dateInput}
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  placeholder="YYYY-MM-DD"
-                />
               </View>
             </View>
 
             <View style={styles.filterActions}>
               <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
-                <Ionicons name="trash-outline" size={18} color={Theme.danger} />
-                <Text style={styles.clearBtnText}>Clear All</Text>
+                <Ionicons name="trash-outline" size={18} color={Theme.primary} />
+                <Text style={styles.clearBtnText}>Clear</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.searchBtn} onPress={fetchHistory}>
                 <LinearGradient
-                  colors={[Theme.primary, "#4F46E5"]}
+                  colors={[Theme.primary, Theme.primary]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.searchBtnGradient}
@@ -258,9 +258,9 @@ export default function WaiterHistoryScreen() {
           {/* List Section */}
           <View style={{ flex: 1 }}>
             <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>Waiter Summary</Text>
+              <Text style={styles.listTitle}>Staff Overview</Text>
               <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{history.length} Staff</Text>
+                <Text style={styles.countBadgeText}>{history.length} Waiters</Text>
               </View>
             </View>
 
@@ -270,8 +270,11 @@ export default function WaiterHistoryScreen() {
               <FlatList
                 data={history}
                 renderItem={renderHistoryItem}
+                numColumns={isTablet ? 2 : 1}
+                key={isTablet ? 'tablet' : 'mobile'}
                 keyExtractor={(item, index) => String(item.SER_ID || index)}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[styles.listContent, isTablet && { paddingHorizontal: 15 }]}
+                columnWrapperStyle={isTablet ? { gap: 15, marginBottom: 15 } : null}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchHistory} tintColor={Theme.primary} />}
                 ListEmptyComponent={
@@ -279,8 +282,7 @@ export default function WaiterHistoryScreen() {
                     <View style={styles.emptyIconBg}>
                       <Ionicons name="search-outline" size={48} color={Theme.textMuted} />
                     </View>
-                    <Text style={styles.emptyText}>No matches found</Text>
-                    <Text style={styles.emptySubText}>Try changing your search or date range.</Text>
+                    <Text style={styles.emptyText}>No results found</Text>
                   </View>
                 }
               />
@@ -290,11 +292,11 @@ export default function WaiterHistoryScreen() {
           {/* Details Modal */}
           <Modal visible={detailsModalVisible} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
-              <View style={styles.detailsSheet}>
+              <View style={[styles.detailsSheet, isLandscape && { height: '90%', width: '80%', alignSelf: 'center', marginBottom: '5%' }]}>
                 <View style={styles.sheetHeader}>
                   <View>
                     <Text style={styles.sheetTitle}>{viewingWaiter?.SER_NAME}</Text>
-                    <Text style={styles.sheetSubtitle}>Detailed Order History</Text>
+                    <Text style={styles.sheetSubtitle}>Order History Log</Text>
                   </View>
                   <TouchableOpacity onPress={() => setDetailsModalVisible(false)} style={styles.closeBtn}>
                     <Ionicons name="close" size={24} color={Theme.textPrimary} />
@@ -316,7 +318,7 @@ export default function WaiterHistoryScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={styles.orderIdText}>Order #{item.ORDER_ID}</Text>
                           <Text style={styles.dateTimeText}>
-                            {new Date(item.CreatedDate).toLocaleDateString()} at {new Date(item.CreatedDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(item.CreatedDate).toLocaleDateString()} • {new Date(item.CreatedDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         </View>
                         <View style={styles.badge}>
@@ -341,25 +343,25 @@ export default function WaiterHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: "#FAF7F2" },
   headerBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 20, gap: 15 },
-  circularBack: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", ...Theme.shadowSm, borderWidth: 1, borderColor: "#E2E8F0" },
+  circularBack: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", ...Theme.shadowSm, borderWidth: 1, borderColor: Theme.border },
   screenTitle: { color: Theme.textPrimary, fontSize: 24, fontFamily: Fonts.black, lineHeight: 28 },
   screenSubtitle: { color: Theme.textMuted, fontSize: 13, fontFamily: Fonts.medium, marginTop: -2 },
-  refreshBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: Theme.primary + "10", justifyContent: "center", alignItems: "center" },
+  refreshBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: Theme.primary + "15", justifyContent: "center", alignItems: "center" },
   
-  filterSection: { marginHorizontal: 20, marginBottom: 15, padding: 16, backgroundColor: "#fff", borderRadius: 24, gap: 12, ...Theme.shadowMd, borderWidth: 1, borderColor: "#E2E8F0" },
-  searchRow: { flexDirection: 'row', alignItems: 'center' },
+  filterSection: { marginHorizontal: 20, marginBottom: 15, padding: 16, backgroundColor: "#fff", borderRadius: 24, gap: 12, ...Theme.shadowMd, borderWidth: 1, borderColor: Theme.border },
+  filterRow: { width: '100%' },
   searchInputWrapper: { 
     flex: 1, 
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: "#F8FAFC", 
+    backgroundColor: Theme.bgInput, 
     borderRadius: 14, 
     paddingHorizontal: 15, 
     height: 46, 
     borderWidth: 1, 
-    borderColor: "#F1F5F9",
+    borderColor: Theme.border,
   },
   searchInput: { 
     flex: 1, 
@@ -367,9 +369,7 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary, 
     fontFamily: Fonts.bold, 
     fontSize: 14,
-    ...Platform.select({
-      web: { outlineStyle: 'none' } as any
-    })
+    ...Platform.select({ web: { outlineStyle: 'none' } as any })
   },
   
   dateRow: { flexDirection: 'row', gap: 10 },
@@ -378,14 +378,14 @@ const styles = StyleSheet.create({
   dateLabel: { fontSize: 10, fontFamily: Fonts.black, color: Theme.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 },
   dateInput: { 
     height: 44, 
-    backgroundColor: "#F8FAFC", 
+    backgroundColor: Theme.bgInput, 
     borderRadius: 12, 
     paddingHorizontal: 15, 
     color: Theme.textPrimary, 
     fontFamily: Fonts.black, 
     fontSize: 13, 
     borderWidth: 1, 
-    borderColor: "#F1F5F9" 
+    borderColor: Theme.border 
   },
   
   filterActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
@@ -393,15 +393,15 @@ const styles = StyleSheet.create({
     flex: 0.3, 
     height: 44, 
     borderRadius: 12, 
-    backgroundColor: "#FFF1F2", 
+    backgroundColor: Theme.primary + '10', 
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
     gap: 6, 
     borderWidth: 1, 
-    borderColor: "#FECDD3" 
+    borderColor: Theme.primary + '30' 
   },
-  clearBtnText: { color: "#E11D48", fontSize: 12, fontFamily: Fonts.bold },
+  clearBtnText: { color: Theme.primary, fontSize: 12, fontFamily: Fonts.bold },
   searchBtn: { flex: 0.7, height: 44, borderRadius: 12, overflow: 'hidden' },
   searchBtnGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   searchBtnText: { color: '#fff', fontSize: 14, fontFamily: Fonts.bold },
@@ -412,24 +412,24 @@ const styles = StyleSheet.create({
   countBadgeText: { color: '#fff', fontSize: 10, fontFamily: Fonts.black },
 
   listContent: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  recordCard: { backgroundColor: "#fff", borderRadius: 20, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", ...Theme.shadowSm },
-  expandedCard: { borderColor: Theme.primary + "40", backgroundColor: Theme.primary + "02" },
+  recordCard: { backgroundColor: "#fff", borderRadius: 20, padding: 12, borderWidth: 1, borderColor: Theme.border, ...Theme.shadowSm },
+  expandedCard: { borderColor: Theme.primary + "40", backgroundColor: Theme.primary + "05" },
   cardMainRow: { flexDirection: 'row', alignItems: 'center' },
   avatarCircle: { width: 44, height: 44, borderRadius: 14, justifyContent: "center", alignItems: "center" },
   avatarLetter: { color: "#fff", fontSize: 18, fontFamily: Fonts.black },
   mainInfo: { flex: 1, marginLeft: 12 },
   waiterName: { color: Theme.textPrimary, fontSize: 16, fontFamily: Fonts.black },
-  idBadgeMini: { flexDirection: 'row', alignItems: 'center', backgroundColor: "#F1F5F9", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 2 },
+  idBadgeMini: { flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.bgMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 2 },
   idTextMini: { color: Theme.textSecondary, fontSize: 9, fontFamily: Fonts.bold },
   
-  quickStat: { alignItems: 'center', backgroundColor: "#F8FAFC", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: "#F1F5F9" },
+  quickStat: { alignItems: 'center', backgroundColor: Theme.bgMain, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: Theme.border },
   quickStatValue: { fontSize: 15, fontFamily: Fonts.black, color: Theme.primary },
   quickStatLabel: { fontSize: 8, fontFamily: Fonts.bold, color: Theme.textMuted, textTransform: 'uppercase' },
 
   expandedContent: { marginTop: 12 },
-  divider: { height: 1, backgroundColor: "#F1F5F9", marginBottom: 12 },
+  divider: { height: 1, backgroundColor: Theme.border, marginBottom: 12 },
   statsGrid: { gap: 8, marginBottom: 12 },
-  statBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: "#F8FAFC", padding: 12, borderRadius: 14, gap: 10, borderWidth: 1, borderColor: "#F1F5F9" },
+  statBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.bgInput, padding: 12, borderRadius: 14, gap: 10, borderWidth: 1, borderColor: Theme.border },
   statLabel: { fontSize: 9, color: Theme.textMuted, fontFamily: Fonts.black, textTransform: 'uppercase' },
   statValueSmall: { fontSize: 12, color: Theme.textPrimary, fontFamily: Fonts.black, marginTop: 2 },
   
@@ -437,23 +437,22 @@ const styles = StyleSheet.create({
   gradientBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   viewDetailText: { color: '#fff', fontSize: 13, fontFamily: Fonts.bold },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  detailsSheet: { backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, height: '80%', padding: 24 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center' },
+  detailsSheet: { backgroundColor: '#fff', borderRadius: 32, height: '85%', width: '95%', alignSelf: 'center', padding: 24, ...Theme.shadowLg },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sheetTitle: { fontSize: 22, fontFamily: Fonts.black, color: Theme.textPrimary },
   sheetSubtitle: { fontSize: 14, fontFamily: Fonts.medium, color: Theme.textMuted },
-  closeBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Theme.bgMuted, justifyContent: 'center', alignItems: 'center' },
   sheetCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   detailsList: { paddingBottom: 20, gap: 12 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 18, gap: 15, borderWidth: 1, borderColor: '#F1F5F9' },
-  detailIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: Theme.primary + '10', justifyContent: 'center', alignItems: 'center' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.bgMain, padding: 16, borderRadius: 18, gap: 15, borderWidth: 1, borderColor: Theme.border },
+  detailIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: Theme.primary + '15', justifyContent: 'center', alignItems: 'center' },
   orderIdText: { fontSize: 16, fontFamily: Fonts.black, color: Theme.textPrimary },
   dateTimeText: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted, marginTop: 2 },
-  badge: { backgroundColor: '#E2E8F0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  badge: { backgroundColor: Theme.bgMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontSize: 10, fontFamily: Fonts.black, color: Theme.textSecondary },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40 },
-  emptyIconBg: { width: 90, height: 90, borderRadius: 30, backgroundColor: "#F1F5F9", justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  emptyIconBg: { width: 90, height: 90, borderRadius: 30, backgroundColor: Theme.bgMuted, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   emptyText: { color: Theme.textPrimary, fontSize: 20, fontFamily: Fonts.black, textAlign: 'center' },
-  emptySubText: { color: Theme.textMuted, fontSize: 15, fontFamily: Fonts.medium, textAlign: 'center', marginTop: 8 },
 });
