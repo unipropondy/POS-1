@@ -102,8 +102,9 @@ const TableItemComponent = React.memo(
     
     let ui = getStatusUI(status);
 
-    // Dynamic Overtime: If occupied and backend flagged as overtime, override UI
-    if ((status === 1 || status === 2 || status === 3) && item.isOvertime) {
+    // Dynamic Overtime: If occupied (Dining/Hold) and backend flagged as overtime, override UI
+    // Note: Status 2 (Checkout) is excluded here so that it keeps its high-priority Orange color.
+    if ((status === 1 || status === 3) && item.isOvertime) {
       ui = getStatusUI(4);
     }
 

@@ -234,7 +234,7 @@ router.post("/send", async (req, res) => {
             UPDATE TableMaster 
             SET Status = 1, 
                 CurrentOrderId = @orderId, 
-                StartTime = CASE WHEN StartTime IS NULL OR StartTime < '2000-01-01' THEN GETDATE() ELSE StartTime END, 
+                StartTime = GETDATE(), 
                 ModifiedBy = @ModifiedBy 
             WHERE TableId = @tableId
           `);
