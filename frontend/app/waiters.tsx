@@ -7,11 +7,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
+  RefreshControl,
+  StatusBar,
+  Switch,
   TextInput,
   Modal,
   ScrollView,
-  RefreshControl,
-  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
