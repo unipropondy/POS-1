@@ -19,6 +19,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Image,
+  Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -34,6 +35,7 @@ import { useCartStore } from "../stores/cartStore";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
 import { getOrderContext, setOrderContext } from "../stores/orderContextStore";
 import { useTableStatusStore } from "../stores/tableStatusStore";
+import UniversalPrinter from "../components/UniversalPrinter";
 
 const formatSection = (sec: string) => {
   if (!sec) return "";
@@ -64,6 +66,13 @@ export default function SummaryScreen() {
   const [showServerModal, setShowServerModal] = useState(false);
   const [servers, setServers] = useState<Array<{ SER_ID: number; SER_NAME: string }>>([]);
   const [loadingServers, setLoadingServers] = useState(false);
+  const [showBillOptions, setShowBillOptions] = useState(false);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [splitQuantities, setSplitQuantities] = useState<Record<string, number>>({});
+  const [allDishes, setAllDishes] = useState<any[]>([]);
+  const [searchDishText, setSearchDishText] = useState("");
+  const [extraSplitItems, setExtraSplitItems] = useState<any[]>([]);
 
   const settings = useCompanySettingsStore((state) => state.settings);
   const currencySymbol = settings.currencySymbol || "$";
@@ -115,6 +124,12 @@ export default function SummaryScreen() {
 
     // 3. Fetch servers
     fetchServers();
+
+    // 4. Fetch all dishes for split search
+    fetch(`${API_URL}/api/menu/dishes/all`)
+      .then(res => res.json())
+      .then(data => setAllDishes(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error fetching all dishes:", err));
   }, [activeOrder]);
 
   const fetchServers = async () => {
@@ -223,7 +238,7 @@ export default function SummaryScreen() {
       setCancelPassword("");
 
       setTimeout(() => {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/category");
       }, 500);
     } catch (error) {
       console.error("Cancel error:", error);
@@ -231,6 +246,34 @@ export default function SummaryScreen() {
     } finally {
       setIsCancellingOrder(false);
     }
+  };
+
+
+  const handleSplitBill = () => {
+    // Reset split quantities to 0 for all items in cart
+    const initialSplit: Record<string, number> = {};
+    cart.forEach((item: any) => {
+      initialSplit[item.lineItemId] = 0;
+    });
+    setSplitQuantities(initialSplit);
+    setExtraSplitItems([]);
+    setSearchDishText("");
+    setShowSplitModal(true);
+    setShowBillOptions(false);
+  };
+
+  const handleMergeBill = () => {
+    setShowMergeModal(true);
+    setShowBillOptions(false);
+  };
+
+  const handleManualBill = () => {
+    setOrderContext({
+      orderType: "MANUAL",
+      takeawayNo: "M-" + Date.now().toString().slice(-4),
+    });
+    setShowBillOptions(false);
+    router.push("/menu" as any);
   };
 
   const totalItems = useMemo(
@@ -281,7 +324,7 @@ export default function SummaryScreen() {
         {/* HEADER */}
         <View style={[styles.headerBar, isPhone && isLandscape && { height: 50, marginBottom: 5 }]}>
           <View style={styles.headerLeft}>
-            <Pressable style={styles.iconBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
+            <Pressable style={styles.iconBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/category')}>
               <Ionicons name="arrow-back" size={24} color={Theme.textPrimary} />
             </Pressable>
 
@@ -455,26 +498,38 @@ export default function SummaryScreen() {
                   <View style={[styles.dashLine, { borderColor: Theme.border }]} />
                 </View>
 
-                {/* SERVER SELECTION */}
+                {/* SERVER SELECTION & BILL BUTTON */}
                 <View style={{ marginBottom: 15 }}>
                   <Text style={[styles.grandLabel, { fontSize: 11, marginBottom: 8, opacity: 0.7 }]}>Assigned Waiter</Text>
-                  <TouchableOpacity 
-                    style={[
-                      styles.serverSelector,
-                      !context.serverId && { borderColor: Theme.danger, borderStyle: 'dashed' }
-                    ]}
-                    onPress={() => setShowServerModal(true)}
-                  >
-                    <View style={styles.serverInfoRow}>
-                      <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : Theme.dangerBg }]}>
-                        <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : Theme.danger} />
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.serverSelector,
+                        { flex: 1 },
+                        !context.serverId && { borderColor: Theme.danger, borderStyle: 'dashed' }
+                      ]}
+                      onPress={() => setShowServerModal(true)}
+                    >
+                      <View style={styles.serverInfoRow}>
+                        <View style={[styles.serverIcon, { backgroundColor: context.serverId ? Theme.primaryLight : Theme.dangerBg }]}>
+                          <Ionicons name="person" size={16} color={context.serverId ? Theme.primary : Theme.danger} />
+                        </View>
+                        <Text style={[styles.serverNameText, !context.serverId && { color: Theme.danger }]} numberOfLines={1}>
+                          {context.serverName || "Select Waiter"}
+                        </Text>
                       </View>
-                      <Text style={[styles.serverNameText, !context.serverId && { color: Theme.danger }]}>
-                        {context.serverName || "Select Waiter"}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={Theme.textMuted} />
-                  </TouchableOpacity>
+                      <Ionicons name="chevron-forward" size={18} color={Theme.textMuted} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.billBtn}
+                      onPress={() => setShowBillOptions(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="receipt-outline" size={20} color={Theme.primary} />
+                      <Text style={styles.billBtnText}>Bill</Text>
+                    </TouchableOpacity>
+                  </View>
                   {!context.serverId && (
                     <Text style={{ color: Theme.danger, fontSize: 10, marginTop: 4, fontFamily: Fonts.bold }}>
                       * Required to proceed
@@ -753,6 +808,338 @@ export default function SummaryScreen() {
                 contentContainerStyle={{ paddingBottom: 20 }}
               />
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* BILL OPTIONS MODAL */}
+      <Modal transparent visible={showBillOptions} animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowBillOptions(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.modalContent, { maxWidth: 350 }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Bill Options</Text>
+                  <TouchableOpacity onPress={() => setShowBillOptions(false)}>
+                    <Ionicons name="close" size={24} color={Theme.textPrimary} />
+                  </TouchableOpacity>
+                </View>
+                
+                <Text style={styles.modalDesc}>Select an action for this bill</Text>
+
+
+                <TouchableOpacity style={styles.billOptionItem} onPress={handleSplitBill}>
+                  <View style={[styles.billOptionIcon, { backgroundColor: Theme.infoBg }]}>
+                    <Ionicons name="git-branch-outline" size={20} color={Theme.info} />
+                  </View>
+                  <Text style={styles.billOptionText}>Split Bill</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.billOptionItem} onPress={handleMergeBill}>
+                  <View style={[styles.billOptionIcon, { backgroundColor: Theme.warningBg }]}>
+                    <Ionicons name="layers-outline" size={20} color={Theme.warning} />
+                  </View>
+                  <Text style={styles.billOptionText}>Merge Bill</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.billOptionItem} onPress={handleManualBill}>
+                  <View style={[styles.billOptionIcon, { backgroundColor: Theme.dangerBg }]}>
+                    <Ionicons name="add-circle-outline" size={20} color={Theme.danger} />
+                  </View>
+                  <Text style={styles.billOptionText}>Manual Bill</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* SPLIT BILL MODAL */}
+      <Modal transparent visible={showSplitModal} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '95%', maxWidth: 600, width: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Split Bill</Text>
+                <Text style={styles.modalSubTitle}>
+                  Order #{displayOrderId} • {context.orderType === 'DINE_IN' ? `Table ${context.tableNo}` : `Takeaway ${context.takeawayNo}`}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowSplitModal(false)}>
+                <Ionicons name="close" size={28} color={Theme.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={{ flex: 1 }}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.sectionLabel, { marginBottom: 10 }]}>Select Items from Cart</Text>
+                {cart.filter((i: any) => i.status !== "VOIDED").map((item: any) => (
+                  <View key={item.lineItemId} style={styles.splitItemRow}>
+                    <View style={styles.splitItemInfo}>
+                      <Text style={styles.splitItemName}>{item.name}</Text>
+                      <Text style={[styles.splitItemPrice, { color: Theme.primary, fontFamily: Fonts.bold }]}>
+                        {currencySymbol}{item.price?.toFixed(2)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.splitQtyControls}>
+                      <TouchableOpacity 
+                        style={styles.splitQtyBtn}
+                        onPress={() => {
+                          const current = splitQuantities[item.lineItemId] || 0;
+                          if (current > 0) {
+                            setSplitQuantities(prev => ({ ...prev, [item.lineItemId]: current - 1 }));
+                          }
+                        }}
+                      >
+                        <Ionicons name="remove" size={16} color={Theme.primary} />
+                      </TouchableOpacity>
+                      
+                      <Text style={styles.splitQtyText}>{splitQuantities[item.lineItemId] || 0}</Text>
+                      
+                      <TouchableOpacity 
+                        style={styles.splitQtyBtn}
+                        onPress={() => {
+                          const current = splitQuantities[item.lineItemId] || 0;
+                          if (current < item.qty) {
+                            setSplitQuantities(prev => ({ ...prev, [item.lineItemId]: current + 1 }));
+                          }
+                        }}
+                      >
+                        <Ionicons name="add" size={16} color={Theme.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                {extraSplitItems.length > 0 && (
+                  <>
+                    <Text style={[styles.sectionLabel, { marginTop: 20, marginBottom: 10 }]}>Extra Items Added</Text>
+                    {extraSplitItems.map((item, idx) => (
+                      <View key={`extra-${idx}`} style={[styles.splitItemRow, { borderColor: Theme.success }]}>
+                        <View style={styles.splitItemInfo}>
+                          <Text style={styles.splitItemName}>{item.name}</Text>
+                          <Text style={[styles.splitItemPrice, { color: Theme.success, fontFamily: Fonts.bold }]}>
+                            {currencySymbol}{item.price?.toFixed(2)}
+                          </Text>
+                        </View>
+                        <View style={styles.splitQtyControls}>
+                          <TouchableOpacity 
+                            style={styles.splitQtyBtn}
+                            onPress={() => {
+                              const newExtras = [...extraSplitItems];
+                              if (newExtras[idx].qty > 1) {
+                                newExtras[idx].qty -= 1;
+                                setExtraSplitItems(newExtras);
+                              } else {
+                                newExtras.splice(idx, 1);
+                                setExtraSplitItems(newExtras);
+                              }
+                            }}
+                          >
+                            <Ionicons name="remove" size={16} color={Theme.danger} />
+                          </TouchableOpacity>
+                          <Text style={styles.splitQtyText}>{item.qty}</Text>
+                          <TouchableOpacity 
+                            style={styles.splitQtyBtn}
+                            onPress={() => {
+                              const newExtras = [...extraSplitItems];
+                              newExtras[idx].qty += 1;
+                              setExtraSplitItems(newExtras);
+                            }}
+                          >
+                            <Ionicons name="add" size={16} color={Theme.success} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                <View style={{ marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: Theme.border }}>
+                  <Text style={styles.sectionLabel}>Add Extra Items</Text>
+                  <View style={[styles.searchWrap, { marginTop: 10 }]}>
+                    <Ionicons name="search" size={20} color={Theme.textMuted} />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Search dish to add..."
+                      value={searchDishText}
+                      onChangeText={setSearchDishText}
+                    />
+                    {searchDishText.length > 0 && (
+                      <TouchableOpacity onPress={() => setSearchDishText("")}>
+                        <Ionicons name="close-circle" size={20} color={Theme.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {searchDishText.length > 0 && (
+                    <View style={styles.searchResults}>
+                      {allDishes
+                        .filter(d => (d.Name || d.DishName || "").toLowerCase().includes(searchDishText.toLowerCase()))
+                        .slice(0, 5)
+                        .map(dish => (
+                          <TouchableOpacity 
+                            key={dish.DishId} 
+                            style={styles.searchResultItem}
+                            onPress={() => {
+                              const existingIdx = extraSplitItems.findIndex(i => i.id === dish.DishId);
+                              if (existingIdx > -1) {
+                                const newExtras = [...extraSplitItems];
+                                newExtras[existingIdx].qty += 1;
+                                setExtraSplitItems(newExtras);
+                              } else {
+                                setExtraSplitItems([...extraSplitItems, {
+                                  lineItemId: `extra-${Date.now()}`,
+                                  id: dish.DishId,
+                                  name: dish.Name || dish.DishName,
+                                  price: dish.Price || 0,
+                                  qty: 1
+                                }]);
+                              }
+                              setSearchDishText("");
+                              Keyboard.dismiss();
+                            }}
+                          >
+                            <Text style={styles.searchResultName}>{dish.Name || dish.DishName}</Text>
+                            <Text style={styles.searchResultPrice}>{currencySymbol}{dish.Price?.toFixed(2)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+
+            <View style={styles.splitFooter}>
+              <View style={styles.splitTotalRow}>
+                <View>
+                  <Text style={styles.splitTotalLabel}>Selected Total</Text>
+                  <Text style={styles.grandSub}>Dish + Price Summary</Text>
+                </View>
+                <Text style={styles.splitTotalValue}>
+                  {currencySymbol}
+                  {(
+                    Object.entries(splitQuantities).reduce((sum, [lineItemId, qty]: [string, any]) => {
+                      const item = cart.find((i: any) => i.lineItemId === lineItemId);
+                      return sum + (item?.price || 0) * qty;
+                    }, 0) +
+                    extraSplitItems.reduce((sum, item) => sum + (item.price || 0) * item.qty, 0)
+                  ).toFixed(2)}
+                </Text>
+              </View>
+
+              <TouchableOpacity 
+                style={[
+                  styles.proceedBtn,
+                  (Object.values(splitQuantities).every(q => q === 0) && extraSplitItems.length === 0) && { opacity: 0.5 }
+                ]}
+                disabled={Object.values(splitQuantities).every(q => q === 0) && extraSplitItems.length === 0}
+                onPress={() => {
+                  const selectedItems = [
+                    ...cart.map((item: any) => ({
+                      ...item,
+                      qty: splitQuantities[item.lineItemId] || 0
+                    })).filter((i: any) => i.qty > 0),
+                    ...extraSplitItems
+                  ];
+                  
+                  setShowSplitModal(false);
+                  router.push({
+                    pathname: "/payment",
+                    params: { splitItems: JSON.stringify(selectedItems) }
+                  });
+                }}
+              >
+                <Ionicons name="card-outline" size={22} color="#fff" />
+                <Text style={styles.proceedText}>Pay Separate Amount</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MERGE BILL MODAL */}
+      <Modal transparent visible={showMergeModal} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%', maxWidth: 500 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Merge Bills</Text>
+              <TouchableOpacity onPress={() => setShowMergeModal(false)}>
+                <Ionicons name="close" size={24} color={Theme.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalDesc}>Select orders to merge into current bill</Text>
+
+            <FlatList
+              data={useActiveOrdersStore.getState().activeOrders.filter(o => o.orderId !== (displayOrderId || activeOrder?.orderId))}
+              keyExtractor={(item) => item.orderId}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.mergeItem}
+                  onPress={() => {
+                    Alert.alert(
+                      "Confirm Merge",
+                      `Merge Order #${item.orderId} into this bill?`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { 
+                          text: "Merge", 
+                          onPress: async () => {
+                            try {
+                              const otherItems = item.items;
+                              const currentCart = [...cart];
+                              const mergedItems = [...currentCart];
+                              otherItems.forEach(oi => {
+                                const existing = mergedItems.find(mi => mi.id === oi.id && mi.status === "NEW" && oi.status === "NEW");
+                                if (existing) {
+                                  existing.qty += oi.qty;
+                                } else {
+                                  mergedItems.push(oi);
+                                }
+                              });
+                              useCartStore.getState().setCartItems(currentContextId!, mergedItems);
+                              useActiveOrdersStore.getState().closeActiveOrder(item.orderId);
+                              if (item.context.tableId) {
+                                await fetch(`${API_URL}/api/orders/complete`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ tableId: item.context.tableId }),
+                                });
+                              }
+                              showToast({ type: "success", message: "Bills Merged" });
+                              setShowMergeModal(false);
+                            } catch (err) {
+                              console.error("Merge failed:", err);
+                              showToast({ type: "error", message: "Merge Failed" });
+                            }
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  <View style={[styles.mergeIcon, { backgroundColor: Theme.primaryLight }]}>
+                    <Ionicons name="receipt-outline" size={20} color={Theme.primary} />
+                  </View>
+                  <View style={styles.mergeInfo}>
+                    <Text style={styles.mergeTitle}>Order #{item.orderId}</Text>
+                    <Text style={styles.mergeSub}>
+                      {item.context.orderType === "DINE_IN" ? `Table ${item.context.tableNo}` : "Takeaway"} • {item.items.length} items
+                    </Text>
+                  </View>
+                  <Text style={styles.mergePrice}>
+                    {currencySymbol}{item.items.reduce((s, i) => s + (i.price || 0) * i.qty, 0).toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={() => (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Text style={{ color: Theme.textMuted, fontFamily: Fonts.medium }}>No other active orders found</Text>
+                </View>
+              )}
+            />
           </View>
         </View>
       </Modal>
@@ -1204,5 +1591,210 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Theme.textPrimary,
     fontFamily: Fonts.medium,
+  },
+  billBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Theme.primaryLight,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Theme.primaryBorder,
+    gap: 8,
+  },
+  billBtnText: {
+    color: Theme.primary,
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+  },
+  billOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: Theme.bgMuted,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    gap: 16,
+  },
+  billOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  billOptionText: {
+    fontSize: 16,
+    color: Theme.textPrimary,
+    fontFamily: Fonts.extraBold,
+  },
+  splitItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: Theme.bgCard,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  splitItemInfo: {
+    flex: 1,
+  },
+  splitItemName: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: Theme.textPrimary,
+  },
+  splitItemPrice: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    color: Theme.textSecondary,
+    marginTop: 2,
+  },
+  splitQtyControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Theme.bgMuted,
+    padding: 6,
+    borderRadius: 10,
+  },
+  splitQtyBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  splitQtyText: {
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    minWidth: 20,
+    textAlign: 'center',
+  },
+  splitFooter: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: Theme.border,
+  },
+  splitTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  splitTotalLabel: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+    color: Theme.textSecondary,
+  },
+  splitTotalValue: {
+    fontFamily: Fonts.black,
+    fontSize: 20,
+    color: Theme.primary,
+  },
+  mergeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: Theme.bgCard,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    gap: 15,
+  },
+  mergeItemSelected: {
+    borderColor: Theme.primary,
+    backgroundColor: Theme.primaryLight,
+  },
+  mergeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mergeInfo: {
+    flex: 1,
+  },
+  mergeTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    color: Theme.textPrimary,
+  },
+  mergeSub: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    color: Theme.textSecondary,
+    marginTop: 2,
+  },
+  mergePrice: {
+    fontFamily: Fonts.black,
+    fontSize: 16,
+    color: Theme.primary,
+  },
+  modalSubTitle: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    color: Theme.textSecondary,
+    marginTop: 2,
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.bgMuted,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    height: 48,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontFamily: Fonts.medium,
+    fontSize: 15,
+    color: Theme.textPrimary,
+  },
+  searchResults: {
+    marginTop: 8,
+    backgroundColor: Theme.bgCard,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Theme.border,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.border,
+  },
+  searchResultName: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: Theme.textPrimary,
+  },
+  searchResultPrice: {
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    color: Theme.primary,
+  },
+  sectionLabel: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: Theme.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });

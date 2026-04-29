@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type OrderContext = {
-  orderType: "DINE_IN" | "TAKEAWAY";
+  orderType: "DINE_IN" | "TAKEAWAY" | "MANUAL";
   section?: string;
   tableId?: string;
   tableNo?: string;

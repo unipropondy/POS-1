@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -1067,6 +1067,28 @@ export default function Category() {
 
             {/* Menu Options */}
             <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setIsMenuVisible(false);
+                  router.push("/waiters");
+                }}
+              >
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    { backgroundColor: Theme.primary + "10" },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="account-group"
+                    size={18}
+                    color={Theme.primary}
+                  />
+                </View>
+                <Text style={styles.menuItemText}>Waiters</Text>
+              </TouchableOpacity>
+
               {canAccessTimeEntry() && (
                 <TouchableOpacity
                   style={styles.menuItem}

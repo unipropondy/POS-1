@@ -34,7 +34,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="category"
         options={{
           title: "POS",
           tabBarIcon: ({ color }) => (

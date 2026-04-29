@@ -141,6 +141,22 @@ export default function PaymentScreen() {
   const [cashInput, setCashInput] = useState("");
   const [processing, setProcessing] = useState(false);
   const [time, setTime] = useState(new Date());
+
+  // 🔥 Split Bill Support
+  const params = useRouter() as any; // expo-router doesn't export useLocalSearchParams easily in some versions, but we can get it from useRouter or useLocalSearchParams hook
+  const { useLocalSearchParams } = require("expo-router");
+  const localParams = useLocalSearchParams();
+  const splitItemsRaw = localParams.splitItems;
+  
+  const splitItems = useMemo(() => {
+    if (!splitItemsRaw) return null;
+    try {
+      return JSON.parse(splitItemsRaw);
+    } catch (e) {
+      console.error("Failed to parse split items", e);
+      return null;
+    }
+  }, [splitItemsRaw]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loadingMethods, setLoadingMethods] = useState(true);
   const [selectedDetail, setSelectedDetail] = useState<PaymentMethod | null>(null);
@@ -151,6 +167,10 @@ export default function PaymentScreen() {
   const currencySymbol = settingsStore.currencySymbol || "$";
   const gstRate = (settingsStore.gstPercentage || 0) / 100;
   const { settings } = usePaymentSettingsStore();
+
+  const finalItems = useMemo(() => {
+    return splitItems || cart;
+  }, [splitItems, cart]);
 
   useEffect(() => {
     const init = async () => {
@@ -290,19 +310,22 @@ export default function PaymentScreen() {
 
   const subtotal = useMemo(
     () =>
-      cart.reduce((sum: number, item: any) => {
+      finalItems.reduce((sum: number, item: any) => {
         const isVoided = "status" in item && (item as any).status === "VOIDED";
         if (isVoided) return sum;
         return sum + (item.price || 0) * (item.qty || 0);
       }, 0),
-    [cart],
+    [finalItems],
   );
 
   const discountAmount = useMemo(() => {
     if (!discount?.applied) return 0;
+    // If splitting, we might want to apply a proportional discount or none at all. 
+    // For now, if a percentage discount is applied, apply it to the split portion.
     if (discount.type === "percentage") return (subtotal * discount.value) / 100;
-    return discount.value;
-  }, [discount, subtotal]);
+    // For fixed discount, we only apply it if NOT splitting (as it's for the whole bill usually)
+    return splitItems ? 0 : discount.value;
+  }, [discount, subtotal, splitItems]);
 
   const discSubtotal = Math.max(0, subtotal - discountAmount);
   
@@ -342,7 +365,7 @@ export default function PaymentScreen() {
         orderType: context?.orderType === "DINE_IN" ? "DINE-IN" : context?.orderType || "DINE-IN",
         tableNo: context?.orderType === "TAKEAWAY" ? context?.takeawayNo : context?.tableNo,
         section: context?.section,
-        items: cart
+        items: finalItems
           .filter((item: any) => (item as any).status !== "VOIDED")
           .map((item: any) => ({
             dishId: item.id,
@@ -466,22 +489,43 @@ export default function PaymentScreen() {
           section: context?.section ?? "",
           orderType: context?.orderType ?? "",
           discountInfo: JSON.stringify(discount || {}),
-          items: JSON.stringify(cart || []),
+          items: JSON.stringify(finalItems || []),
+          isSplit: splitItems ? "true" : "false",
         },
       });
 
       if (context) {
-        if (context.orderType === "DINE_IN" && context.section && context.tableNo) {
-          clearTable(context.section, context.tableNo);
-          if (context.tableId) {
-            fetch(`${API_URL}/api/orders/complete`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ tableId: context.tableId }),
-            }).catch(err => console.error("Sync Error:", err));
+        if (splitItems) {
+          // 🔥 If this was a split payment, we need to subtract the paid items from the main cart
+          const { carts, currentContextId, setCartItems } = useCartStore.getState();
+          if (currentContextId) {
+            const originalCart = carts[currentContextId] || [];
+            const updatedCart = originalCart.map(origItem => {
+              const splitItem = splitItems.find((si: any) => si.lineItemId === origItem.lineItemId);
+              if (splitItem) {
+                return { ...origItem, qty: origItem.qty - splitItem.qty };
+              }
+              return origItem;
+            }).filter(i => i.qty > 0);
+            
+            setCartItems(currentContextId, updatedCart);
+            // Sync with DB
+            useCartStore.getState().syncCartWithDB(currentContextId);
           }
-        } else if (context.orderType === "TAKEAWAY" && context.takeawayNo) {
-          clearTable("TAKEAWAY", context.takeawayNo);
+        } else {
+          // Standard full payment logic
+          if (context.orderType === "DINE_IN" && context.section && context.tableNo) {
+            clearTable(context.section, context.tableNo);
+            if (context.tableId) {
+              fetch(`${API_URL}/api/orders/complete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tableId: context.tableId }),
+              }).catch(err => console.error("Sync Error:", err));
+            }
+          } else if ((context.orderType === "TAKEAWAY" || context.orderType === "MANUAL") && context.takeawayNo) {
+            clearTable("TAKEAWAY", context.takeawayNo);
+          }
         }
       }
       setProcessing(false);
@@ -515,7 +559,7 @@ export default function PaymentScreen() {
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/category')} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={20} color={Theme.textPrimary} />
           </TouchableOpacity>
 

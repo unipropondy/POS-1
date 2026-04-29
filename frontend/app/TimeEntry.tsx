@@ -249,13 +249,6 @@ export default function TimeEntryScreen() {
               <Text style={styles.title}>TIME <Text style={styles.titleSpan}>ENTRY</Text></Text>
               <Text style={styles.timeText}>{currentTime.toLocaleTimeString()}</Text>
             </View>
-            <TouchableOpacity 
-              onPress={() => router.push("/waiters")} 
-              style={styles.waiterBtnHeader}
-            >
-              <MaterialCommunityIcons name="account-group" size={24} color={Theme.primary} />
-              <Text style={styles.waiterBtnText}>Waiter</Text>
-            </TouchableOpacity>
           </View>
 
           {/* User Display Badge */}

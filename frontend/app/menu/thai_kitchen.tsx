@@ -1,5 +1,5 @@
 import { API_URL } from "@/constants/Config";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -52,6 +52,9 @@ const NavRail = () => {
           <TouchableOpacity
             key={item.id}
             style={[styles.railItem, item.active && styles.railItemActive]}
+            onPress={() => {
+              if (item.id === "home") router.replace("/(tabs)/category");
+            }}
           >
             <Ionicons
               name={item.icon as any}
@@ -346,7 +349,7 @@ export default function MenuScreen() {
       ]}
     >
       <TouchableOpacity
-        onPress={() => router.replace("/(tabs)")}
+        onPress={() => router.replace("/(tabs)/category")}
         style={[
           styles.backBtn,
           isPhone && isLandscape && { width: 36, height: 36, borderRadius: 8 },

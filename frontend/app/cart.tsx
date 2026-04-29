@@ -450,7 +450,7 @@ export default function CartScreen() {
           "EMPTY",
         );
       }
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/category");
     }
 
     setShowCancelModal(false);
@@ -510,7 +510,7 @@ export default function CartScreen() {
 
           // Navigate immediately
           clearCart();
-          router.replace(`/(tabs)?section=${context.section}`);
+          router.replace(`/(tabs)/category?section=${context.section}`);
 
           const sendRes = await sendPromise;
           const sendData = await sendRes.json();
@@ -550,7 +550,7 @@ export default function CartScreen() {
 
         // Navigate immediately
         clearCart();
-        router.replace(`/(tabs)?section=TAKEAWAY`);
+        router.replace(`/(tabs)/category?section=TAKEAWAY`);
 
         const sendRes = await sendPromise;
         const sendData = await sendRes.json();
@@ -574,7 +574,7 @@ export default function CartScreen() {
       }
     } else {
       clearCart();
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/category");
     }
   };
 
@@ -719,15 +719,15 @@ export default function CartScreen() {
                       }
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
-                      router.replace(`/(tabs)?section=${orderContext.section}`);
+                      router.replace(`/(tabs)/category?section=${orderContext.section}`);
                     } else if (orderContext.orderType === "TAKEAWAY") {
                       updateTableStatus("", "TAKEAWAY", orderContext.takeawayNo!, targetOrderId, 'HOLD', undefined, undefined, payableAmount);
                       holdOrder(targetOrderId, cart, orderContext);
                       clearCart();
-                      router.replace(`/(tabs)?section=TAKEAWAY`);
+                      router.replace(`/(tabs)/category?section=TAKEAWAY`);
                     } else {
                       clearCart();
-                      router.replace("/(tabs)");
+                      router.replace("/(tabs)/category");
                     }
                   }}
                 >

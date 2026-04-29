@@ -61,7 +61,7 @@ export default function RootLayout() {
       if (userName === "KDS") {
         router.replace("/kds" as any);
       } else {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/category");
       }
     }
   }, [user, segments, fontsLoaded]);
