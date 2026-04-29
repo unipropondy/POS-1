@@ -337,19 +337,23 @@ export default function KDSScreen() {
         >
           <BlurView intensity={20} tint="dark" style={styles.modalOverlay}>
             <Pressable style={styles.modalBackdrop} onPress={() => setSelectedOrderId(null)} />
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { maxHeight: height * 0.85 }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {selectedOrder?.context.orderType === "DINE_IN"
-                    ? `Table ${selectedOrder.context.tableNo}`
-                    : `Takeaway #${selectedOrder?.context.takeawayNo}`}
-                </Text>
+                <View>
+                  <Text style={styles.modalTitle}>
+                    {selectedOrder?.context.orderType === "DINE_IN"
+                      ? `Table ${selectedOrder.context.tableNo}`
+                      : `Takeaway #${selectedOrder?.context.takeawayNo}`}
+                  </Text>
+                  <Text style={styles.modalOrderId}>Order #{selectedOrder?.orderId}</Text>
+                </View>
                 <Pressable onPress={() => setSelectedOrderId(null)} style={styles.modalCloseBtn}>
-                  <Ionicons name="close" size={24} color={Theme.textPrimary} />
+                  <Ionicons name="close" size={24} color={Theme.danger} />
                 </Pressable>
               </View>
+              <View style={styles.modalHeaderDivider} />
 
-              <ScrollView style={styles.modalItemsList}>
+              <ScrollView style={styles.modalItemsList} contentContainerStyle={{ paddingBottom: 10 }}>
                 {selectedOrder?.items.map((i: any) => {
                   const isReady = i.status === "READY";
                   return (
@@ -672,14 +676,26 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: Fonts.black,
     color: Theme.textPrimary,
+    lineHeight: 32,
+  },
+  modalOrderId: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+    marginTop: 2,
+  },
+  modalHeaderDivider: {
+    height: 1,
+    backgroundColor: Theme.border + "80",
+    marginBottom: 15,
   },
   modalCloseBtn: {
     padding: 5,
-    backgroundColor: Theme.bgMuted,
+    backgroundColor: Theme.danger + "10",
     borderRadius: 12,
   },
   modalItemsList: {
-    maxHeight: 500,
+    flexShrink: 1,
   },
   modalItemRow: {
     flexDirection: "row",
@@ -687,7 +703,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Theme.border,
+    borderBottomColor: Theme.border + "60",
   },
   modalItemReady: {
     backgroundColor: Theme.success + "08",
@@ -717,7 +733,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Theme.primary,
+    backgroundColor: Theme.success,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -732,14 +748,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.black,
   },
   modalDoneBtn: {
-    backgroundColor: Theme.textPrimary,
+    backgroundColor: Theme.primary + "15",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
     marginTop: 20,
   },
   modalDoneText: {
-    color: "#FFF",
+    color: Theme.primary,
     fontSize: 18,
     fontFamily: Fonts.black,
   },
