@@ -151,16 +151,30 @@ const CartItemCard = React.memo(
 );
 
 export default function CartScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuthStore();
 
+  const isTablet = width > 768;
+  const isDesktop = width > 1200;
+  const isLandscape = width > height;
+
   const numColumns = useMemo(() => {
-    if (width > 1200) return 4;
-    if (width > 768) return 2;
+    if (isDesktop) return 4;
+    if (isTablet) return isLandscape ? 3 : 2;
+    if (isLandscape) return 2;
     return 1;
-  }, [width]);
+  }, [width, height, isTablet, isDesktop, isLandscape]);
+
+  const horizontalPadding = 20; // 10 from listContent + 10 from gridRow
+  const gap = 12;
+  const itemWidth = useMemo(() => {
+    if (numColumns === 1) return '100%';
+    const totalGaps = (numColumns - 1) * gap;
+    const totalPadding = horizontalPadding * 2;
+    return (width - totalPadding - totalGaps) / numColumns;
+  }, [width, numColumns]);
 
   const [showCancelModal, setShowCancelModal] = React.useState(false);
   const [cancelPassword, setCancelPassword] = React.useState("");
@@ -319,23 +333,23 @@ export default function CartScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <View style={styles.container}>
-        <LinearGradient colors={["#1a1a1a", "#2d2d2d"]} style={styles.header}>
+        <LinearGradient colors={["#1a1a1a", "#2d2d2d"]} style={[styles.header, isLandscape && !isTablet && { paddingVertical: 6, paddingHorizontal: 12 }]}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Ionicons name="chevron-back" size={22} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isLandscape && !isTablet && { width: 32, height: 32 }]}><Ionicons name="chevron-back" size={isLandscape && !isTablet ? 18 : 22} color="#FFF" /></TouchableOpacity>
             <View>
-              <Text style={styles.headerTitle}>{orderContext.orderType === "DINE_IN" ? `Table ${orderContext.tableNo}` : `Takeaway #${orderContext.takeawayNo}`}</Text>
-              <Text style={styles.headerSub}>{orderContext.orderType === "DINE_IN" ? orderContext.section?.replace("_", "-") : "Standard Queue"}</Text>
+              <Text style={[styles.headerTitle, isTablet && { fontSize: 24 }, isLandscape && !isTablet && { fontSize: 18 }]}>{orderContext.orderType === "DINE_IN" ? `Table ${orderContext.tableNo}` : `Takeaway #${orderContext.takeawayNo}`}</Text>
+              <Text style={[styles.headerSub, isLandscape && !isTablet && { fontSize: 10 }]}>{orderContext.orderType === "DINE_IN" ? orderContext.section?.replace("_", "-") : "Standard Queue"}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.clearBtn} onPress={() => clearCart()}><Text style={styles.clearText}>Clear All</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.clearBtn, isLandscape && !isTablet && { padding: 6 }]} onPress={() => clearCart()}><Text style={[styles.clearText, isLandscape && !isTablet && { fontSize: 10 }]}>Clear All</Text></TouchableOpacity>
         </LinearGradient>
 
         <SectionList
           sections={sections}
-          keyExtractor={(item, index) => index.toString()}
-          contentContainerStyle={styles.listContent}
+          keyExtractor={(item, index) => (item[0] as any)?.lineItemId || index.toString()}
+          contentContainerStyle={[styles.listContent, { paddingBottom: isLandscape && !isTablet ? 140 : 220 }]}
           stickySectionHeadersEnabled={false}
           renderSectionHeader={({ section: { title, count } }) => (
             <View style={styles.batchHeader}><Text style={styles.batchHeaderText}>{title} ({count})</Text><View style={styles.batchHeaderLine} /></View>
@@ -343,7 +357,7 @@ export default function CartScreen() {
           renderItem={({ item: rowItems }) => (
             <View style={styles.gridRow}>
               {rowItems.map((item: any) => (
-                <View key={item.lineItemId} style={{ width: numColumns > 1 ? (width - 48) / numColumns : '100%' }}>
+                <View key={item.lineItemId} style={{ width: itemWidth }}>
                   <CartItemCard item={item} onPlus={handlePlus} onMinus={handleMinus} onEdit={handleEdit} onVoid={handleVoidItem} />
                 </View>
               ))}
@@ -351,30 +365,55 @@ export default function CartScreen() {
           )}
         />
 
-        <View style={styles.footer}>
-          <View style={styles.footerMain}>
-            <View><Text style={styles.totalLabel}>Total Payable</Text><Text style={styles.totalValue}>{currencySymbol}{payableAmount.toFixed(2)}</Text></View>
+        <View style={[styles.footer, isLandscape && !isTablet && styles.footerCompact]}>
+          <View style={[styles.footerMain, isLandscape && !isTablet && styles.footerMainCompact]}>
+            <View style={isLandscape && !isTablet ? { flexDirection: 'row', alignItems: 'baseline', gap: 8 } : {}}>
+              <Text style={styles.totalLabel}>Total Payable</Text>
+              <Text style={[styles.totalValue, isLandscape && !isTablet && { fontSize: 24 }]}>{currencySymbol}{payableAmount.toFixed(2)}</Text>
+            </View>
             <View style={styles.footerActions}>
               {unsentCount > 0 ? (
                 <>
-                  <TouchableOpacity onPress={handleHoldOrder} style={styles.holdBtn}><Ionicons name="pause" size={16} color="#FFF" /><Text style={styles.btnText}>HOLD</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={sendOrder} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={styles.btnGradient}><Ionicons name="send" size={18} color="#FFF" /><Text style={styles.btnText}>SEND ORDER</Text></LinearGradient></TouchableOpacity>
+                  <TouchableOpacity onPress={handleHoldOrder} style={[styles.holdBtn, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="pause" size={16} color="#FFF" /><Text style={styles.btnText}>HOLD</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={sendOrder} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="send" size={18} color="#FFF" /><Text style={styles.btnText}>SEND ORDER</Text></LinearGradient></TouchableOpacity>
                 </>
               ) : (
-                <TouchableOpacity onPress={() => router.push("/summary")} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={styles.btnGradient}><Ionicons name="receipt" size={18} color="#FFF" /><Text style={styles.btnText}>CHECKOUT</Text></LinearGradient></TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push("/summary")} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="receipt" size={18} color="#FFF" /><Text style={styles.btnText}>CHECKOUT</Text></LinearGradient></TouchableOpacity>
               )}
             </View>
           </View>
-          <View style={styles.breakdown}>
+          <View style={[styles.breakdown, isLandscape && !isTablet && { paddingTop: 8, marginTop: 8 }]}>
             <Text style={styles.breakdownText}>Gross: {currencySymbol}{grossTotal.toFixed(2)}</Text>
-            {totalDiscount > 0 && <Text style={[styles.breakdownText, { color: "#10b981" }]}> • Discount: -{currencySymbol}{totalDiscount.toFixed(2)}</Text>}
+            {totalDiscount > 0 && <Text style={[styles.breakdownText, { color: "#10b981" }]}> • Disc: -{currencySymbol}{totalDiscount.toFixed(2)}</Text>}
             {taxAmount > 0 && <Text style={styles.breakdownText}> • Tax: {currencySymbol}{taxAmount.toFixed(2)}</Text>}
           </View>
         </View>
       </View>
 
       <Modal transparent visible={showCancelModal} animationType="fade">
-        <View style={styles.modalOverlay}><View style={styles.modalContent}><Text style={styles.modalTitle}>{itemToVoid ? "Void Item?" : "Cancel Order?"}</Text><TextInput style={styles.modalInput} secureTextEntry autoFocus value={cancelPassword} onChangeText={setCancelPassword} placeholder="Admin Password" /><View style={styles.modalActions}><TouchableOpacity onPress={() => setShowCancelModal(false)}><Text>Back</Text></TouchableOpacity><TouchableOpacity onPress={handleCancelOrder}><Text>Confirm</Text></TouchableOpacity></View></View></View>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{itemToVoid ? "Void Item?" : "Cancel Order?"}</Text>
+            <Text style={{ fontSize: 14, color: Theme.textMuted, marginBottom: 16 }}>This action requires administrator privileges.</Text>
+            <TextInput 
+              style={styles.modalInput} 
+              secureTextEntry 
+              autoFocus 
+              value={cancelPassword} 
+              onChangeText={setCancelPassword} 
+              placeholder="Admin Password" 
+              placeholderTextColor="#9ca3af"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setShowCancelModal(false)} style={[styles.modalBtn, { backgroundColor: '#f3f4f6' }]}>
+                <Text style={[styles.modalBtnText, { color: Theme.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleCancelOrder} style={[styles.modalBtn, { backgroundColor: Theme.danger }]}>
+                <Text style={[styles.modalBtnText, { color: '#FFF' }]}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
       <EditDishModal visible={!!editingItem} onClose={() => setEditingItem(null)} item={editingItem} />
     </SafeAreaView>
@@ -398,7 +437,9 @@ const styles = StyleSheet.create({
   batchHeaderText: { fontSize: 11, fontFamily: Fonts.black, color: Theme.textMuted, letterSpacing: 1.2 },
   batchHeaderLine: { flex: 1, height: 1, backgroundColor: "#e5e7eb", opacity: 0.5 },
   footer: { backgroundColor: "#FFF", padding: 20, borderTopLeftRadius: 30, borderTopRightRadius: 30, ...Theme.shadowLg },
+  footerCompact: { padding: 12, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   footerMain: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  footerMainCompact: { marginBottom: 4 },
   totalLabel: { fontSize: 12, fontFamily: Fonts.bold, color: Theme.textMuted, textTransform: 'uppercase' },
   totalValue: { fontSize: 32, fontFamily: Fonts.black, color: "#1a1a1a" },
   footerActions: { flexDirection: 'row', gap: 12 },
@@ -434,9 +475,11 @@ const styles = StyleSheet.create({
   actionButtons: { flexDirection: 'row', gap: 8 },
   deleteBtnIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#fee2e2", justifyContent: "center", alignItems: "center" },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#FFF', borderRadius: 20, padding: 24, width: '90%', maxWidth: 400 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 20, padding: 24, width: '90%', maxWidth: 400, maxHeight: '90%' },
   modalTitle: { fontSize: 20, fontFamily: Fonts.black, marginBottom: 8 },
-  modalInput: { backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, fontSize: 18, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 20 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
+  modalInput: { backgroundColor: '#f9fafb', borderRadius: 12, padding: 12, fontSize: 18, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 16 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16 },
+  modalBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
+  modalBtnText: { fontSize: 16, fontFamily: Fonts.bold },
   emptyText: { fontSize: 16, color: Theme.textMuted },
 });
