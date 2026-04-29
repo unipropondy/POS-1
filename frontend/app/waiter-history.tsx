@@ -88,14 +88,6 @@ export default function WaiterHistoryScreen() {
     }
   };
 
-  const clearFilters = () => {
-    setSearchQuery("");
-    const today = new Date().toISOString().split("T")[0];
-    setStartDate(today);
-    setEndDate(today);
-    setExpandedId(null);
-    fetchHistory();
-  };
 
   const toggleExpand = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
