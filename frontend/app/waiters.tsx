@@ -180,10 +180,16 @@ export default function WaitersScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.circularBack}>
             <Ionicons name="chevron-back" size={24} color={Theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.screenTitle}>Waiter Management</Text>
-          <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
-            <Text style={styles.addBtnText}>+ Add Waiter</Text>
-          </TouchableOpacity>
+          <Text style={styles.screenTitle}>Waiters</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity onPress={() => router.push("/waiter-history" as any)} style={styles.historyBtn}>
+              <Ionicons name="time-outline" size={18} color={Theme.primary} />
+              <Text style={styles.historyBtnText}>History</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
+              <Text style={styles.addBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.searchWrapper}>
@@ -309,6 +315,13 @@ const styles = StyleSheet.create({
   screenTitle: { flex: 1, color: Theme.textPrimary, fontSize: 20, fontFamily: Fonts.black },
   addBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Theme.primary, borderRadius: 12, ...Theme.shadowSm },
   addBtnText: { color: "#fff", fontFamily: Fonts.bold, fontSize: 13 },
+  historyBtn: { 
+    flexDirection: 'row', alignItems: 'center', gap: 6, 
+    paddingHorizontal: 12, paddingVertical: 10, 
+    backgroundColor: Theme.primary + "15", borderRadius: 12,
+    borderWidth: 1, borderColor: Theme.primary + "30"
+  },
+  historyBtnText: { color: Theme.primary, fontFamily: Fonts.bold, fontSize: 13 },
   searchWrapper: { marginHorizontal: 20, marginBottom: 20 },
   searchInner: { 
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16, height: 56, 
