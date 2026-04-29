@@ -337,11 +337,20 @@ export default function Category() {
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
-    socket.on("table_status_updated", ({ tableId, status, totalAmount, StartTime, startTime, currentOrderId, isOvertime, lockedByName }) => {
+    const handleStatusUpdate = ({ 
+      tableId, 
+      status, 
+      totalAmount, 
+      StartTime, 
+      startTime, 
+      currentOrderId, 
+      isOvertime, 
+      lockedByName 
+    }: any) => {
       const finalStartTime = StartTime || startTime;
-      console.log(
-        `🔌 [Socket] Table ${tableId} updated -> Status ${status}, Name ${lockedByName}`,
-      );
+      console.log(`🔌 [Socket] Table ${tableId} update received`);
+
+      // 1. Update local state using functional update (no dependency on allTables)
       setAllTables((prev) =>
         prev.map((t) =>
           t.id === tableId
@@ -358,36 +367,33 @@ export default function Category() {
         ),
       );
 
-      // Update store for consistency
-      const table = allTables.find((t) => t.id === tableId);
-      if (table) {
-        useTableStatusStore
-          .getState()
-          .updateTableStatus(
-            tableId,
-            getSectionFromDiningSection(table.DiningSection),
-            table.label,
-            currentOrderId || "SYNC",
-            status === 5
-              ? "LOCKED"
-              : status === 1
-                ? "SENT"
-                : status === 2
-                  ? "BILL_REQUESTED"
-                  : status === 3
-                    ? "HOLD"
-                    : "EMPTY",
-            finalStartTime,
-            lockedByName !== undefined ? lockedByName : table.lockedByName,
-            totalAmount,
-          );
+      // 2. Update global store for cross-component consistency
+      // We look up the existing table info in the store to avoid dependency on local allTables
+      const existingTables = useTableStatusStore.getState().tables;
+      const existingTable = existingTables.find((t: any) => t.tableId === tableId);
+      
+      if (existingTable) {
+        useTableStatusStore.getState().updateTableStatus(
+          tableId,
+          existingTable.section,
+          existingTable.tableNo,
+          currentOrderId || "SYNC",
+          status === 5 ? "LOCKED" : 
+          status === 1 ? "SENT" : 
+          status === 2 ? "BILL_REQUESTED" : 
+          status === 3 ? "HOLD" : "EMPTY",
+          finalStartTime,
+          lockedByName !== undefined ? lockedByName : existingTable.lockedByName,
+          totalAmount,
+        );
       }
-    });
-
-    return () => {
-      socket.off("table_status_updated");
     };
-  }, [allTables]);
+
+    socket.on("table_status_updated", handleStatusUpdate);
+    return () => {
+      socket.off("table_status_updated", handleStatusUpdate);
+    };
+  }, []); // ✅ Empty dependency array - listener registered once
 
   // ——— Route guard: redirect to login if not authenticated ———
   useFocusEffect(
