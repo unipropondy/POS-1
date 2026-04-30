@@ -1370,14 +1370,14 @@ export default function SalesReport() {
                   </Text>
                 </View>
                 <View style={styles.txRightInfo}>
+                  {item.VoidAmount > 0 && (
+                    <View style={styles.voidTag}>
+                      <Text style={styles.voidTagText}>V</Text>
+                    </View>
+                  )}
                   <Text style={styles.txAmount}>
                     {formatCurrency(item.SysAmount)}
                   </Text>
-                  {item.VoidAmount > 0 && (
-                    <Text style={{ color: "#dc2626", fontSize: 10, fontFamily: Fonts.bold }}>
-                      VOID: {formatCurrency(item.VoidAmount)}
-                    </Text>
-                  )}
                   <View style={styles.paidBadgeSmall}>
                     <Ionicons
                       name="checkmark"
@@ -2383,8 +2383,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontSize: 12,
   },
-  txRightInfo: { flexDirection: "row", alignItems: "center", gap: 8 },
+  txRightInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
   txAmount: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 15 },
+  voidTag: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#fecaca' },
+  voidTagText: { color: '#dc2626', fontSize: 10, fontFamily: Fonts.black },
   paidBadgeSmall: {
     backgroundColor: Theme.success + "20",
     padding: 4,
