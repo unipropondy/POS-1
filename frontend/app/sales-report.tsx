@@ -1353,8 +1353,8 @@ export default function SalesReport() {
                       ? "🛍️ Takeaway"
                       : `🪑 Table ${item.TableNo || "N/A"}`}
                   </Text>
-                  <Text style={styles.txSmall}>
-                    Order #{formatOrderId(item)} {item.SER_NAME ? ` • Waiter: ${item.SER_NAME}` : ""}
+                  <Text style={styles.txSmall} numberOfLines={1}>
+                    Order #{formatOrderId(item)} {item.SER_NAME ? ` • ${item.SER_NAME}` : ""}
                   </Text>
                 </View>
                 <View style={styles.txTimeInfo}>
@@ -2369,22 +2369,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  txOrderInfo: { flex: 1.5 },
-  txTitle: { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 14 },
+  txOrderInfo: { flex: 4, paddingRight: 10 },
+  txTitle: { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 13 },
   txSmall: {
     color: Theme.textSecondary,
     fontFamily: Fonts.medium,
-    fontSize: 10,
+    fontSize: 9,
     marginTop: 2,
   },
-  txTimeInfo: { width: 140, alignItems: "center" },
+  txTimeInfo: { flex: 2.7, alignItems: "center" },
   txDatetime: {
     color: Theme.textSecondary,
     fontFamily: Fonts.medium,
-    fontSize: 12,
+    fontSize: 11,
+    textAlign: 'center',
   },
-  txRightInfo: { width: 130, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8 },
-  txAmount: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 15, minWidth: 60, textAlign: 'right' },
+  txRightInfo: { flex: 2.5, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6 },
+  txAmount: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 14, minWidth: 55, textAlign: 'right' },
   voidTag: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#fecaca' },
   voidTagText: { color: '#dc2626', fontSize: 10, fontFamily: Fonts.black },
   paidBadgeSmall: {
