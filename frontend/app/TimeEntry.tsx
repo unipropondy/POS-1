@@ -160,10 +160,10 @@ export default function TimeEntryScreen() {
 
   const getStatus = () => {
     switch (lastStatus) {
-      case 1: return { text: "ACTIVE", color: Theme.success };
-      case 3: return { text: "BREAK", color: Theme.warning };
-      case 4: return { text: "ACTIVE", color: Theme.info };
-      default: return { text: "OFF", color: Theme.textMuted };
+      case 1: return { text: "ACTIVE", color: "#22c55e" };
+      case 3: return { text: "BREAK", color: "#f59e0b" };
+      case 4: return { text: "ACTIVE", color: "#3b82f6" };
+      default: return { text: "OFF", color: "#6b7280" };
     }
   };
 
@@ -172,12 +172,10 @@ export default function TimeEntryScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color={Theme.primary} />
+          <Ionicons name="arrow-back" size={20} color={Theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Staff Attendance</Text>
-        <View style={styles.timeBadge}>
-          <Text style={styles.headerTime}>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-        </View>
+        <Text style={styles.headerTime}>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
@@ -185,96 +183,116 @@ export default function TimeEntryScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchTodaySummary} tintColor={Theme.primary} />}
         >
-          {/* Main Control Panel (Swapped Layout) */}
-          <View style={styles.mainCard}>
-            <View style={styles.topRow}>
-              {/* Inputs on the LEFT */}
-              <View style={styles.inputBox}>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="person-outline" size={14} color={Theme.textMuted} />
-                  <TextInput
-                    style={styles.input}
-                    value={userName}
-                    onChangeText={setUserName}
-                    placeholder="User ID"
-                    placeholderTextColor={Theme.textMuted}
-                    autoCapitalize="none"
-                  />
-                </View>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={14} color={Theme.textMuted} />
-                  <TextInput
-                    style={styles.input}
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="PIN"
-                    placeholderTextColor={Theme.textMuted}
-                    secureTextEntry
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-
-              {/* Staff Info on the RIGHT */}
-              <View style={styles.staffBox}>
-                <View style={{ alignItems: 'flex-end', marginRight: 12 }}>
-                  <Text style={styles.staffName}>{staffName || "Select Staff"}</Text>
-                  <View style={styles.statusRow}>
-                    {todaySummary && <Text style={[styles.hoursText, { marginRight: 8 }]}>{todaySummary.netHours.toFixed(2)}h Today</Text>}
-                    <Text style={[styles.statusText, { color: getStatus().color }]}>{getStatus().text}</Text>
-                    <View style={[styles.statusDot, { backgroundColor: getStatus().color, marginLeft: 6, marginRight: 0 }]} />
-                  </View>
-                </View>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{staffName ? staffName.charAt(0) : "?"}</Text>
-                </View>
+          {/* USER CARD (Based on Snippet) */}
+          <View style={styles.userCard}>
+            <View>
+              <Text style={styles.userName}>{staffName || "Select Staff"}</Text>
+              <View style={styles.statusRow}>
+                <Text style={[styles.statusText, { color: getStatus().color }]}>● {getStatus().text}</Text>
+                {todaySummary && <Text style={styles.hoursText}> • {todaySummary.netHours.toFixed(2)}h Today</Text>}
               </View>
             </View>
-
-            {/* High Contrast Action Grid */}
-            <View style={styles.grid}>
-              {[
-                { id: 1, label: "CLOCK IN", icon: "enter", color: "#10b981", active: canLogin },
-                { id: 3, label: "BREAK IN", icon: "cafe", color: "#f59e0b", active: canBreakIn },
-                { id: 4, label: "BREAK OUT", icon: "play", color: "#3b82f6", active: canBreakOut },
-                { id: 0, label: "CLOCK OUT", icon: "power", color: "#ef4444", active: canOut },
-              ].map((btn) => (
-                <Animated.View key={btn.id} style={{ flex: 1, transform: [{ scale: btnScales[btn.id] }] }}>
-                  <TouchableOpacity
-                    disabled={!btn.active}
-                    onPressIn={() => handlePressIn(btn.id)}
-                    onPressOut={() => handlePressOut(btn.id)}
-                    onPress={() => handleAction(btn.id)}
-                    style={[
-                      styles.gridBtn, 
-                      btn.active ? { backgroundColor: btn.color } : styles.btnDisabled
-                    ]}
-                  >
-                    <Ionicons name={btn.icon as any} size={24} color={btn.active ? "#fff" : Theme.textMuted} />
-                    <Text style={[styles.btnLabel, { color: btn.active ? "#fff" : Theme.textMuted }]}>{btn.label}</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              ))}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{staffName ? staffName.charAt(0) : "?"}</Text>
             </View>
           </View>
 
-          {/* Minimalist Logs */}
-          {todayLogs.length > 0 && (
-            <View style={styles.historySection}>
-              <Text style={styles.sectionTitle}>RECENT RECORDS</Text>
-              {todayLogs.slice(0, 3).map((log, i) => (
-                <View key={i} style={styles.historyCard}>
-                  <View style={styles.historyIcon}>
-                    <Ionicons name="time-outline" size={14} color={Theme.primary} />
-                  </View>
-                  <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.historyAction}>{log.ActionName}</Text>
-                    <Text style={styles.historyTime}>{new Date(log.ClockinTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-                  </View>
-                </View>
-              ))}
+          {/* INPUTS (Compact Row) */}
+          <View style={styles.inputRow}>
+            <View style={styles.inputField}>
+              <Ionicons name="person-outline" size={16} color={Theme.textMuted} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.textInput}
+                value={userName}
+                onChangeText={setUserName}
+                placeholder="User ID"
+                placeholderTextColor={Theme.textMuted}
+                autoCapitalize="none"
+              />
             </View>
-          )}
+            <View style={styles.inputField}>
+              <Ionicons name="lock-closed-outline" size={16} color={Theme.textMuted} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.textInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="PIN"
+                placeholderTextColor={Theme.textMuted}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          {/* ACTION BUTTONS (With Icons & Clear Labels) */}
+          <View style={styles.grid}>
+            {[
+              { id: 1, label: "CLOCK IN", icon: "enter", color: "#22c55e", active: canLogin },
+              { id: 3, label: "BREAK IN", icon: "cafe", color: "#f97316", active: canBreakIn },
+              { id: 4, label: "BREAK OUT", icon: "play", color: "#3b82f6", active: canBreakOut },
+              { id: 0, label: "CLOCK OUT", icon: "power", color: "#ef4444", active: canOut },
+            ].map((btn) => (
+              <Animated.View key={btn.id} style={{ flex: 1, transform: [{ scale: btnScales[btn.id] }] }}>
+                <TouchableOpacity
+                  disabled={!btn.active}
+                  onPressIn={() => handlePressIn(btn.id)}
+                  onPressOut={() => handlePressOut(btn.id)}
+                  onPress={() => handleAction(btn.id)}
+                  style={[
+                    styles.actionBtn, 
+                    { backgroundColor: btn.active ? btn.color : "#e2e8f0" }
+                  ]}
+                >
+                  <Ionicons name={btn.icon as any} size={24} color={btn.active ? "#fff" : "#94a3b8"} style={{ marginBottom: 4 }} />
+                  <Text style={[styles.btnText, { color: btn.active ? "#fff" : "#94a3b8" }]}>
+                    {btn.label}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </View>
+
+          {/* DETAILED HISTORY SECTION */}
+          <View style={styles.historySection}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.sectionTitle}>RECENT RECORDS</Text>
+              <Ionicons name="list" size={16} color="#9ca3af" />
+            </View>
+            
+            {todayLogs.length > 0 ? (
+              todayLogs.slice(0, 6).map((log, i) => {
+                const isClockIn = log.ActionName.toLowerCase().includes('in');
+                const isOut = log.ActionName.toLowerCase().includes('out');
+                const isBreak = log.ActionName.toLowerCase().includes('break');
+                
+                let iconName = "time-outline";
+                let iconColor = "#6b7280";
+                if (isClockIn) { iconName = "checkmark-circle"; iconColor = "#22c55e"; }
+                if (isOut) { iconName = "power"; iconColor = "#ef4444"; }
+                if (isBreak) { iconName = "cafe"; iconColor = "#f97316"; }
+
+                return (
+                  <View key={i} style={[styles.historyRow, { borderLeftColor: iconColor }]}>
+                    <View style={styles.historyDetailLeft}>
+                      <View style={[styles.historyIconBox, { backgroundColor: iconColor + '15' }]}>
+                        <Ionicons name={iconName as any} size={16} color={iconColor} />
+                      </View>
+                      <View>
+                        <Text style={styles.historyAction}>{log.ActionName}</Text>
+                        <Text style={styles.historyStatusText}>Staff activity recorded successfully</Text>
+                      </View>
+                    </View>
+                    <View style={styles.historyDetailRight}>
+                      <Text style={styles.historyTime}>{new Date(log.ClockinTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                      <Text style={styles.historyDate}>{new Date(log.ClockinTime).toLocaleDateString([], { month: 'short', day: 'numeric' })}</Text>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyText}>No records recorded for today</Text>
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -284,106 +302,114 @@ export default function TimeEntryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bgMain },
+  container: { flex: 1, backgroundColor: "#f3f4f6" },
   header: { 
     flexDirection: "row", 
     alignItems: "center", 
-    paddingHorizontal: 20, 
+    justifyContent: "space-between",
+    paddingHorizontal: 16, 
     paddingVertical: 12, 
-    backgroundColor: Theme.bgCard, 
-    borderBottomWidth: 1, 
-    borderBottomColor: Theme.border 
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb"
   },
   backBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
-  headerTitle: { flex: 1, fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, marginLeft: 12 },
-  timeBadge: { backgroundColor: Theme.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  headerTime: { fontSize: 13, fontFamily: Fonts.black, color: Theme.primary },
+  headerTitle: { fontSize: 18, fontFamily: Fonts.black, color: "#111827" },
+  headerTime: { fontSize: 13, fontFamily: Fonts.bold, color: Theme.primary },
   
   content: { padding: 16 },
   
-  mainCard: { 
-    backgroundColor: Theme.bgCard, 
-    borderRadius: 20, 
-    padding: 20, 
-    marginBottom: 16, 
-    borderWidth: 1, 
-    borderColor: Theme.border, 
-    ...Theme.shadowMd 
-  },
-  topRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    marginBottom: 20,
-    gap: 20,
-  },
-  staffBox: { flexDirection: "row", alignItems: "center", flex: 1 },
-  avatar: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 14, 
-    backgroundColor: Theme.primaryLight, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    marginRight: 12 
-  },
-  avatarText: { fontSize: 20, fontFamily: Fonts.black, color: Theme.primary },
-  staffName: { fontSize: 17, fontFamily: Fonts.black, color: Theme.textPrimary },
-  statusRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
-  statusText: { fontSize: 11, fontFamily: Fonts.bold },
-  hoursText: { fontSize: 11, fontFamily: Fonts.medium, color: Theme.textSecondary, marginLeft: 8 },
-
-  inputBox: { flex: 1, gap: 10, maxWidth: 300 },
-  inputWrapper: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    backgroundColor: Theme.bgInput, 
-    borderRadius: 10, 
-    paddingHorizontal: 12, 
-    height: 40, 
-    borderWidth: 1, 
-    borderColor: Theme.border 
-  },
-  input: { flex: 1, marginLeft: 8, fontSize: 14, fontFamily: Fonts.bold, color: Theme.textPrimary },
-
-  grid: { flexDirection: "row", gap: 12 },
-  gridBtn: { 
-    height: 80, 
-    borderRadius: 16, 
-    alignItems: "center", 
-    justifyContent: "center", 
-    gap: 6,
-    ...Theme.shadowSm 
-  },
-  btnLabel: { fontSize: 11, fontFamily: Fonts.black, textTransform: 'uppercase' },
-  btnDisabled: { backgroundColor: Theme.bgMuted, borderWidth: 1, borderColor: Theme.border },
-
-  historySection: { marginTop: 10 },
-  sectionTitle: { fontSize: 10, fontFamily: Fonts.black, color: Theme.textMuted, letterSpacing: 1, marginBottom: 10 },
-  historyCard: {
+  userCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Theme.bgCard,
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: Theme.primary,
+    justifyContent: "space-between",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  userName: { fontSize: 18, fontFamily: Fonts.black, color: "#111827" },
+  statusRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  statusText: { fontSize: 13, fontFamily: Fonts.bold },
+  hoursText: { fontSize: 13, fontFamily: Fonts.medium, color: "#6b7280" },
+  avatar: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
+    backgroundColor: "#ffedd5", 
+    alignItems: "center", 
+    justifyContent: "center" 
+  },
+  avatarText: { fontSize: 20, fontFamily: Fonts.black, color: "#9a3412" },
+
+  inputRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
+  inputField: { 
+    flex: 1, 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: "#fff", 
+    height: 56, 
+    borderRadius: 14, 
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: Theme.border,
+    borderColor: "#e5e7eb"
   },
-  historyIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Theme.primaryLight,
-    alignItems: "center",
+  textInput: { flex: 1, fontSize: 16, fontFamily: Fonts.bold, color: "#111827" },
+
+  grid: { flexDirection: "row", gap: 12, marginBottom: 24 },
+  actionBtn: { 
+    flex: 1, 
+    height: 100, 
+    borderRadius: 20, 
+    alignItems: "center", 
     justifyContent: "center",
-    marginRight: 10,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    overflow: 'hidden'
   },
-  historyAction: { fontSize: 13, fontFamily: Fonts.bold, color: Theme.textPrimary },
-  historyTime: { fontSize: 12, fontFamily: Fonts.medium, color: Theme.textSecondary },
+  btnText: { fontSize: 13, fontFamily: Fonts.black, textAlign: "center", includeFontPadding: false },
+
+  historySection: { 
+    backgroundColor: "#fff", 
+    borderRadius: 16, 
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 40,
+  },
+  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 12, fontFamily: Fonts.black, color: "#9ca3af", textTransform: "uppercase" },
+  historyRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center",
+    borderLeftWidth: 4,
+    paddingLeft: 12,
+    paddingVertical: 15,
+    marginBottom: 10,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+  },
+  historyDetailLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  historyIconBox: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  historyAction: { fontSize: 15, fontFamily: Fonts.bold, color: "#111827", includeFontPadding: false },
+  historyStatusText: { fontSize: 11, fontFamily: Fonts.medium, color: "#9ca3af", marginTop: 2 },
+  historyDetailRight: { alignItems: 'flex-end' },
+  historyTime: { fontSize: 14, fontFamily: Fonts.black, color: "#111827", includeFontPadding: false },
+  historyDate: { fontSize: 11, fontFamily: Fonts.medium, color: "#9ca3af", marginTop: 2 },
+  emptyText: { textAlign: "center", color: "#9ca3af", fontSize: 13, fontFamily: Fonts.medium, paddingVertical: 20 },
 
   loader: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(255,255,255,0.7)", alignItems: "center", justifyContent: "center" }
 });
