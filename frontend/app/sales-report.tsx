@@ -1520,115 +1520,45 @@ export default function SalesReport() {
                 onPress={() => setSelectedOrder(null)}
               />
               <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
+                <View style={[styles.modalHeader, { alignItems: 'flex-start' }]}>
                   <View style={{ flex: 1 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 10,
-                      }}
-                    >
-                      <Text style={styles.modalTitle}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Text style={[styles.modalTitle, { fontSize: SCREEN_W < 450 ? 14 : 16 }]}>
                         Order #{formatOrderId(selectedOrder)}
                       </Text>
-                      <View
-                        style={[
-                          styles.paidBadgeSmall,
-                          {
-                            backgroundColor: Theme.primary + "15",
-                            borderColor: Theme.primary + "30",
-                            paddingHorizontal: 8,
-                            paddingVertical: 3,
-                            borderRadius: 6,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: Theme.primary,
-                            fontFamily: Fonts.black,
-                            fontSize: 10,
-                          }}
-                        >
-                          {selectedOrder?.PayMode || "CASH"}
+                      <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary + '15', borderColor: Theme.primary + '30', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }]}>
+                        <Text style={{ color: Theme.primary, fontFamily: Fonts.black, fontSize: 9 }}>
+                          {selectedOrder?.PayMode || 'CASH'}
                         </Text>
                       </View>
                     </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginTop: 4,
-                        gap: 12,
-                      }}
-                    >
-                      <Text style={styles.modalSub}>
-                        {new Date(
-                          selectedOrder?.SettlementDate,
-                        ).toLocaleString()}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 6, gap: 10 }}>
+                      <Text style={[styles.modalSub, { fontSize: 10 }]}>
+                        {new Date(selectedOrder?.SettlementDate).toLocaleString()}
                       </Text>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <Ionicons
-                          name={
-                            selectedOrder?.OrderType === "TAKEAWAY"
-                              ? "bag-handle"
-                              : "restaurant"
-                          }
-                          size={12}
-                          color={Theme.textMuted}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons 
+                          name={selectedOrder?.OrderType === "TAKEAWAY" ? "bag-handle" : "restaurant"} 
+                          size={11} 
+                          color={Theme.textMuted} 
                         />
-                        <Text
-                          style={[
-                            styles.modalSub,
-                            {
-                              color: Theme.textPrimary,
-                              fontFamily: Fonts.bold,
-                            },
-                          ]}
-                        >
-                          {selectedOrder?.OrderType === "TAKEAWAY"
-                            ? "Takeaway"
+                        <Text style={[styles.modalSub, { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 10 }]}>
+                          {selectedOrder?.OrderType === "TAKEAWAY" 
+                            ? "Takeaway" 
                             : `Table ${selectedOrder?.TableNo || "N/A"}${selectedOrder?.Section ? ` • ${selectedOrder.Section}` : ""}`}
                         </Text>
                       </View>
                       {selectedOrder?.SER_NAME && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 4,
-                            backgroundColor: Theme.primaryLight,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                            borderRadius: 4,
-                          }}
-                        >
-                          <Ionicons
-                            name="person"
-                            size={10}
-                            color={Theme.primary}
-                          />
-                          <Text
-                            style={{
-                              color: Theme.primary,
-                              fontFamily: Fonts.bold,
-                              fontSize: 10,
-                            }}
-                          >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Theme.primaryLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Ionicons name="person" size={9} color={Theme.primary} />
+                          <Text style={{ color: Theme.primary, fontFamily: Fonts.bold, fontSize: 9 }}>
                             {selectedOrder.SER_NAME}
                           </Text>
                         </View>
                       )}
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => setSelectedOrder(null)}>
+                  <TouchableOpacity onPress={() => setSelectedOrder(null)} style={{ marginLeft: 10 }}>
                     <Ionicons
                       name="close"
                       size={24}
@@ -2928,11 +2858,11 @@ const styles = StyleSheet.create({
   },
   modalDismiss: { ...StyleSheet.absoluteFillObject },
   modalContent: {
-    width: "80%",
-    maxWidth: 400,
+    width: "92%",
+    maxWidth: 450,
     backgroundColor: Theme.bgCard,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 16,
     ...Theme.shadowLg,
     borderWidth: 1,
     borderColor: Theme.border,
