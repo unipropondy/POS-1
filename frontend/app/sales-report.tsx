@@ -1927,7 +1927,7 @@ export default function SalesReport() {
                     },
                   ]}
                 >
-                  <View style={[styles.modalHeader, { marginBottom: 8 }]}>
+                  <View style={[styles.modalHeader, { marginBottom: 8, paddingTop: 4 }]}>
                     <Text style={[styles.modalTitle, { fontSize: 14 }]}>
                       Select Date
                     </Text>
@@ -1935,7 +1935,7 @@ export default function SalesReport() {
                       <Ionicons
                         name="close"
                         size={18}
-                        color={Theme.textPrimary}
+                        color="#dc2626"
                       />
                     </TouchableOpacity>
                   </View>
