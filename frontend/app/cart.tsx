@@ -33,7 +33,7 @@ import { socket } from "../constants/socket";
 import { useCompanySettingsStore } from "../stores/companySettingsStore";
 
 const isItemSent = (item: any) => {
-  return item.sent === 1 || !!item.sentDate || (item.status && item.status !== 'NEW' && item.status !== 'VOIDED');
+  return item.sent === 1 || !!item.sentDate || (item.status && item.status !== 'NEW');
 };
 
 const CartItemCard = React.memo(
@@ -179,6 +179,7 @@ export default function CartScreen() {
 
   const [showCancelModal, setShowCancelModal] = React.useState(false);
   const [cancelPassword, setCancelPassword] = React.useState("");
+  const [voidQty, setVoidQty] = React.useState("1");
   const [editingItem, setEditingItem] = React.useState<CartItem | null>(null);
 
   const orderContext = useOrderContextStore((state: any) => state.currentOrder);
@@ -301,18 +302,56 @@ export default function CartScreen() {
   const [itemToVoid, setItemToVoid] = React.useState<any>(null);
 
   const handleCancelOrder = async () => {
-    const verifyRes = await fetch(`${API_URL}/api/auth/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: cancelPassword }) });
+    const verifyRes = await fetch(`${API_URL}/api/auth/verify`, { 
+      method: "POST", 
+      headers: { "Content-Type": "application/json" }, 
+      body: JSON.stringify({ password: cancelPassword }) 
+    });
     const verifyData = await verifyRes.json();
-    if (!verifyData.success) { showToast({ type: "error", message: "Incorrect Password" }); return; }
-    if (itemToVoid && activeOrder) {
-      voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
-      socket.emit("order_status_update", { orderId: activeOrder.orderId, action: "VOID", lineItemId: itemToVoid.lineItemId });
-      showToast({ type: "success", message: "Item Voided" });
+    
+    if (!verifyData.success) { 
+      showToast({ type: "error", message: "Incorrect Password" }); 
+      return; 
+    }
+
+    if (itemToVoid && orderContext?.tableId) {
+      try {
+        const res = await fetch(`${API_URL}/api/orders/remove-item`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tableId: orderContext.tableId,
+            itemId: itemToVoid.lineItemId,
+            qtyToVoid: parseInt(voidQty) || itemToVoid.qty,
+            userId: user?.userId
+          })
+        });
+
+        if (res.ok) {
+          // Sync stores
+          if (activeOrder) voidOrderItem(activeOrder.orderId, itemToVoid.lineItemId);
+          await useCartStore.getState().fetchCartFromDB(orderContext.tableId);
+          
+          showToast({ 
+            type: "success", 
+            message: "Item Voided",
+            subtitle: "Database and totals updated" 
+          });
+        }
+      } catch (err) {
+        console.error("Void Error:", err);
+        showToast({ type: "error", message: "Failed to void item" });
+      }
     } else {
       if (activeOrder) closeActiveOrder(activeOrder.orderId);
-      clearCart(); router.replace("/(tabs)/category");
+      clearCart(); 
+      router.replace("/(tabs)/category");
     }
-    setShowCancelModal(false); setCancelPassword(""); setItemToVoid(null);
+    
+    setShowCancelModal(false); 
+    setCancelPassword(""); 
+    setVoidQty("1");
+    setItemToVoid(null);
   };
 
   const handleHoldOrder = async () => {
@@ -335,7 +374,12 @@ export default function CartScreen() {
   const handlePlus = (lineItemId: string) => { const item = cart.find((i: any) => i.lineItemId === lineItemId); if (item) addToCartGlobal(item); };
   const handleMinus = (lineItemId: string) => removeFromCartGlobal(lineItemId);
   const handleEdit = (item: any) => setEditingItem(item);
-  const handleVoidItem = (item: any) => { setCancelPassword(""); setItemToVoid(item); setShowCancelModal(true); };
+  const handleVoidItem = (item: any) => { 
+    setCancelPassword(""); 
+    setVoidQty(String(item.qty || 1));
+    setItemToVoid(item); 
+    setShowCancelModal(true); 
+  };
 
   const handleCheckout = async () => {
     if (!orderContext) return;
@@ -529,7 +573,28 @@ export default function CartScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{itemToVoid ? "Void Item?" : "Cancel Order?"}</Text>
-            <Text style={{ fontSize: 14, color: Theme.textMuted, marginBottom: 16 }}>This action requires administrator privileges.</Text>
+            <Text style={{ fontSize: 13, color: Theme.textMuted, marginBottom: 12 }}>
+              This action requires administrator privileges.
+            </Text>
+
+            {itemToVoid && itemToVoid.qty > 1 && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, fontFamily: Fonts.bold, color: Theme.textSecondary, marginBottom: 6 }}>
+                  Qty to Void (max {itemToVoid.qty}):
+                </Text>
+                <TextInput 
+                  style={[styles.modalInput, { marginBottom: 0 }]} 
+                  keyboardType="numeric"
+                  value={voidQty} 
+                  onChangeText={setVoidQty}
+                  placeholder="Quantity" 
+                />
+              </View>
+            )}
+
+            <Text style={{ fontSize: 12, fontFamily: Fonts.bold, color: Theme.textSecondary, marginBottom: 6 }}>
+              Admin Password:
+            </Text>
             <TextInput 
               style={styles.modalInput} 
               secureTextEntry 

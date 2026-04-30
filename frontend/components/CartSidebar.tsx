@@ -55,7 +55,7 @@ const isItemSent = (item: any) => {
   return (
     item.sent === 1 || 
     !!item.sentDate || 
-    (item.status && item.status !== "NEW" && item.status !== "VOIDED")
+    (item.status && item.status !== "NEW")
   );
 };
 
