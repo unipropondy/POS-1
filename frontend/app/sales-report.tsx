@@ -2369,7 +2369,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  txOrderInfo: { flex: 1 },
+  txOrderInfo: { flex: 1.5 },
   txTitle: { color: Theme.textPrimary, fontFamily: Fonts.bold, fontSize: 14 },
   txSmall: {
     color: Theme.textSecondary,
@@ -2377,14 +2377,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
-  txTimeInfo: { flex: 1, alignItems: "center" },
+  txTimeInfo: { width: 140, alignItems: "center" },
   txDatetime: {
     color: Theme.textSecondary,
     fontFamily: Fonts.medium,
     fontSize: 12,
   },
-  txRightInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
-  txAmount: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 15 },
+  txRightInfo: { width: 130, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8 },
+  txAmount: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 15, minWidth: 60, textAlign: 'right' },
   voidTag: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#fecaca' },
   voidTagText: { color: '#dc2626', fontSize: 10, fontFamily: Fonts.black },
   paidBadgeSmall: {
