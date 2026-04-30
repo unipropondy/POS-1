@@ -251,6 +251,19 @@ export default function CartScreen() {
     return tables.find((t: any) => t.section === orderContext.section && t.tableNo === orderContext.tableNo);
   }, [orderContext, tables]);
 
+  const currentTableStatus = useMemo(() => {
+    if (!currentTableData) return "EMPTY";
+    const s = currentTableData.status;
+    if (typeof s === "number" || typeof (currentTableData as any).Status === "number") {
+      const val = typeof s === "number" ? s : (currentTableData as any).Status;
+      const statusMap: Record<number, string> = {
+        0: "EMPTY", 1: "SENT", 2: "BILL_REQUESTED", 3: "HOLD", 4: "LOCKED", 5: "SENT"
+      };
+      return statusMap[val] || "EMPTY";
+    }
+    return s || "EMPTY";
+  }, [currentTableData]);
+
   React.useEffect(() => {
     const tableId = orderContext?.tableId || currentTableData?.tableId;
     if (tableId) useCartStore.getState().fetchCartFromDB(tableId);
@@ -493,8 +506,12 @@ export default function CartScreen() {
                   <TouchableOpacity onPress={handleHoldOrder} style={[styles.holdBtn, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="pause" size={16} color="#FFF" /><Text style={styles.btnText}>HOLD</Text></TouchableOpacity>
                   <TouchableOpacity onPress={sendOrder} style={styles.sendBtn}><LinearGradient colors={["#10b981", "#059669"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="send" size={18} color="#FFF" /><Text style={styles.btnText}>SEND ORDER</Text></LinearGradient></TouchableOpacity>
                 </>
-              ) : (
+              ) : currentTableStatus === "SENT" ? (
                 <TouchableOpacity onPress={handleCheckout} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="receipt" size={18} color="#FFF" /><Text style={styles.btnText}>CHECKOUT</Text></LinearGradient></TouchableOpacity>
+              ) : currentTableStatus === "HOLD" || currentTableStatus === "BILL_REQUESTED" ? (
+                <TouchableOpacity onPress={() => router.push("/summary")} style={styles.sendBtn}><LinearGradient colors={[Theme.primary, Theme.primary]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="card-outline" size={18} color="#FFF" /><Text style={styles.btnText}>PROCEED TO PAY</Text></LinearGradient></TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => router.push("/summary")} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="receipt" size={18} color="#FFF" /><Text style={styles.btnText}>CHECKOUT</Text></LinearGradient></TouchableOpacity>
               )}
             </View>
           </View>
