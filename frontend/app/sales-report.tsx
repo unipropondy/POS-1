@@ -1,6 +1,22 @@
 import { API_URL } from "@/constants/Config";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  addDays,
+  addMonths,
+  endOfMonth,
+  endOfWeek,
+  format,
+  getMonth,
+  getYear,
+  isSameDay,
+  isSameMonth,
+  setMonth,
+  setYear,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -19,26 +35,10 @@ import {
 } from "react-native";
 import { PieChart } from "react-native-gifted-charts";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Fonts } from "../constants/Fonts";
-import { Theme } from "../constants/theme";
 import BillPrompt from "../components/BillPrompt";
 import UniversalPrinter from "../components/UniversalPrinter";
-import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  addDays, 
-  isSameMonth, 
-  isSameDay, 
-  setYear,
-  setMonth,
-  getYear,
-  getMonth,
-  subMonths,
-  addMonths
-} from 'date-fns';
+import { Fonts } from "../constants/Fonts";
+import { Theme } from "../constants/theme";
 
 type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM";
 type DetailReportType = "CATEGORY" | "DISH" | "SETTLEMENT";
@@ -48,7 +48,7 @@ export default function SalesReport() {
   const { width: SCREEN_W } = useWindowDimensions();
   const [sales, setSales] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
-  const todayDate = new Date().toLocaleDateString('en-CA');
+  const todayDate = new Date().toLocaleDateString("en-CA");
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("DAILY");
   const [, setLoading] = useState(true);
@@ -78,10 +78,14 @@ export default function SalesReport() {
   const [isReprinting, setIsReprinting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [viewDate, setViewDate] = useState(new Date(selectedDate));
-  const [selectionMode, setSelectionMode] = useState<"SINGLE" | "RANGE">("SINGLE");
+  const [selectionMode, setSelectionMode] = useState<"SINGLE" | "RANGE">(
+    "SINGLE",
+  );
   const [rangeStart, setRangeStart] = useState<string | null>(null);
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);
-  const [calendarView, setCalendarView] = useState<"DAYS" | "MONTHS" | "YEARS">("DAYS");
+  const [calendarView, setCalendarView] = useState<"DAYS" | "MONTHS" | "YEARS">(
+    "DAYS",
+  );
 
   useEffect(() => {
     const loadState = async () => {
@@ -150,7 +154,12 @@ export default function SalesReport() {
           t: Date.now().toString(),
         });
 
-        const endpoint = reportType === "CATEGORY" ? "category" : reportType === "DISH" ? "dish" : "settlement";
+        const endpoint =
+          reportType === "CATEGORY"
+            ? "category"
+            : reportType === "DISH"
+              ? "dish"
+              : "settlement";
         console.log("[SalesReport] Fetching report", {
           reportType,
           filterType: reportFilter,
@@ -175,7 +184,8 @@ export default function SalesReport() {
           setCategoryReport(
             Array.isArray(data)
               ? data.map((row: any) => ({
-                  CategoryName: row.categoryName || row.CategoryName || "Unmapped",
+                  CategoryName:
+                    row.categoryName || row.CategoryName || "Unmapped",
                   Sold: row.totalQty ?? row.totalQuantitySold ?? 0,
                   SalesAmount: row.totalAmount ?? row.totalSalesAmount ?? 0,
                 }))
@@ -188,8 +198,10 @@ export default function SalesReport() {
             Array.isArray(data)
               ? data.map((row: any) => ({
                   DishName: row.dishName || row.DishName || "Unknown Dish",
-                  CategoryName: row.categoryName || row.CategoryName || "Unmapped",
-                  SubCategoryName: row.subCategoryName || row.SubCategoryName || "Unmapped",
+                  CategoryName:
+                    row.categoryName || row.CategoryName || "Unmapped",
+                  SubCategoryName:
+                    row.subCategoryName || row.SubCategoryName || "Unmapped",
                   Sold: row.totalQty ?? row.quantitySold ?? 0,
                   Voided: row.voidQty ?? 0,
                   SalesAmount: row.totalAmount ?? row.totalSalesAmount ?? 0,
@@ -279,8 +291,8 @@ export default function SalesReport() {
         end.setTime(new Date(rangeEnd).getTime());
       }
 
-      const startStr = start.toLocaleDateString('en-CA');
-      const endStr = end.toLocaleDateString('en-CA');
+      const startStr = start.toLocaleDateString("en-CA");
+      const endStr = end.toLocaleDateString("en-CA");
       const url = `${API_URL}/api/sales/range?startDate=${startStr}&endDate=${endStr}`;
       const response = await fetch(url);
       const data = await response.json();
@@ -328,17 +340,25 @@ export default function SalesReport() {
   };
 
   const onDateChange = (event: any, selectedDateValue?: Date) => {
-    console.log("[SalesReport] onDateChange event:", event.type, selectedDateValue);
-    
+    console.log(
+      "[SalesReport] onDateChange event:",
+      event.type,
+      selectedDateValue,
+    );
+
     if (event.type === "set") {
       if (selectedDateValue) {
         const formattedDate = selectedDateValue.toISOString().split("T")[0];
         setSelectedDate(formattedDate);
       }
     }
-    
+
     // Close picker for Android and when dismissed
-    if (Platform.OS !== "ios" || event.type === "dismissed" || event.type === "set") {
+    if (
+      Platform.OS !== "ios" ||
+      event.type === "dismissed" ||
+      event.type === "set"
+    ) {
       setShowDatePicker(false);
     }
   };
@@ -546,18 +566,18 @@ export default function SalesReport() {
 
   const handleReprint = async () => {
     if (!selectedOrder || orderDetails.length === 0) return;
-    
+
     setIsReprinting(true);
     setShowPrintPrompt(false);
-    
+
     try {
-      const userId = await AsyncStorage.getItem("userId") || "1";
-      
-      const mappedItems = orderDetails.map(item => ({
+      const userId = (await AsyncStorage.getItem("userId")) || "1";
+
+      const mappedItems = orderDetails.map((item) => ({
         name: item.DishName,
         price: item.Price,
         qty: item.Qty,
-        modifiers: [] // Modifiers are not typically in the standard sales report detail view
+        modifiers: [], // Modifiers are not typically in the standard sales report detail view
       }));
 
       const saleData = {
@@ -572,9 +592,9 @@ export default function SalesReport() {
 
       const dummyDiscount = {
         applied: false,
-        type: 'fixed' as const,
+        type: "fixed" as const,
         value: 0,
-        amount: 0
+        amount: 0,
       };
 
       await UniversalPrinter.smartPrint(saleData, userId, {}, dummyDiscount);
@@ -606,7 +626,11 @@ export default function SalesReport() {
     }
 
     const isSettlement = detailReportType === "SETTLEMENT";
-    const rows = isSettlement ? settlementReport : detailReportType === "CATEGORY" ? categoryReport : dishReport;
+    const rows = isSettlement
+      ? settlementReport
+      : detailReportType === "CATEGORY"
+        ? categoryReport
+        : dishReport;
     const isDishReport = detailReportType === "DISH";
 
     return (
@@ -616,7 +640,11 @@ export default function SalesReport() {
           <View style={{ width: 62 }} />
           <View style={styles.reportTitleContainer}>
             <Text style={styles.cardTitle}>
-              {isSettlement ? "SETTLEMENT DETAILS REPORT" : isDishReport ? "DISH SALES REPORT" : "CATEGORY SALES REPORT"}
+              {isSettlement
+                ? "SETTLEMENT DETAILS REPORT"
+                : isDishReport
+                  ? "DISH SALES REPORT"
+                  : "CATEGORY SALES REPORT"}
             </Text>
             <Text style={styles.reportSubText}>
               {rows.length} rows for the selected period
@@ -624,7 +652,13 @@ export default function SalesReport() {
           </View>
           <View style={styles.reportHeaderActions}>
             <Ionicons
-              name={isSettlement ? "wallet-outline" : isDishReport ? "restaurant-outline" : "albums-outline"}
+              name={
+                isSettlement
+                  ? "wallet-outline"
+                  : isDishReport
+                    ? "restaurant-outline"
+                    : "albums-outline"
+              }
               size={18}
               color={Theme.primary}
             />
@@ -670,10 +704,18 @@ export default function SalesReport() {
                 <Text style={[styles.reportCell, styles.snoCell]}>S/N</Text>
                 {isSettlement ? (
                   <>
-                    <Text style={[styles.reportCell, styles.paymodeCell]}>Paymode</Text>
-                    <Text style={[styles.reportCell, styles.sysAmtCell]}>Sys Amt</Text>
-                    <Text style={[styles.reportCell, styles.manualAmtCell]}>Manual Amt</Text>
-                    <Text style={[styles.reportCell, styles.diffCell]}>Diff</Text>
+                    <Text style={[styles.reportCell, styles.paymodeCell]}>
+                      Paymode
+                    </Text>
+                    <Text style={[styles.reportCell, styles.sysAmtCell]}>
+                      Sys Amt
+                    </Text>
+                    <Text style={[styles.reportCell, styles.manualAmtCell]}>
+                      Manual Amt
+                    </Text>
+                    <Text style={[styles.reportCell, styles.diffCell]}>
+                      Diff
+                    </Text>
                     <Text style={[styles.reportCell, styles.qtyCell]}>Qty</Text>
                   </>
                 ) : (
@@ -689,18 +731,40 @@ export default function SalesReport() {
                       {isDishReport ? "Dish" : "Category"}
                     </Text>
                     {isDishReport && (
-                      <Text style={[styles.reportCell, styles.categoryNameCell]}>
+                      <Text
+                        style={[styles.reportCell, styles.categoryNameCell]}
+                      >
                         Category
                       </Text>
                     )}
                     {isDishReport && (
-                      <Text style={[styles.reportCell, styles.subCategoryNameCell]}>
+                      <Text
+                        style={[styles.reportCell, styles.subCategoryNameCell]}
+                      >
                         Subcategory
                       </Text>
                     )}
-                    <Text style={[styles.reportCell, styles.qtyCell, { textAlign: "center" }]}>QTY</Text>
-                    <Text style={[styles.reportCell, styles.qtyCell, { textAlign: "center", color: '#ef4444' }]}>VOID</Text>
-                    <Text style={[styles.reportCell, styles.amountCell]}>Sales</Text>
+                    <Text
+                      style={[
+                        styles.reportCell,
+                        styles.qtyCell,
+                        { textAlign: "center" },
+                      ]}
+                    >
+                      QTY
+                    </Text>
+                    <Text
+                      style={[
+                        styles.reportCell,
+                        styles.qtyCell,
+                        { textAlign: "center", color: "#ef4444" },
+                      ]}
+                    >
+                      VOID
+                    </Text>
+                    <Text style={[styles.reportCell, styles.amountCell]}>
+                      Sales
+                    </Text>
                   </>
                 )}
               </View>
@@ -723,19 +787,58 @@ export default function SalesReport() {
                   </Text>
                   {isSettlement ? (
                     <>
-                      <Text style={[styles.reportCell, styles.reportCellText, styles.paymodeCell, { textAlign: 'left' }]}>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.paymodeCell,
+                          { textAlign: "left" },
+                        ]}
+                      >
                         {row.Paymode}
                       </Text>
-                      <Text style={[styles.reportCell, styles.reportCellText, styles.sysAmtCell, { color: Theme.success }]}>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.sysAmtCell,
+                          { color: Theme.success },
+                        ]}
+                      >
                         {formatCurrency(row.SysAmount)}
                       </Text>
-                      <Text style={[styles.reportCell, styles.reportCellText, styles.manualAmtCell, { color: Theme.primary }]}>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.manualAmtCell,
+                          { color: Theme.primary },
+                        ]}
+                      >
                         {formatCurrency(row.ManualAmount)}
                       </Text>
-                      <Text style={[styles.reportCell, styles.reportCellText, styles.diffCell, { color: row.SortageOrExces < 0 ? '#dc2626' : Theme.textPrimary }]}>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.diffCell,
+                          {
+                            color:
+                              row.SortageOrExces < 0
+                                ? "#dc2626"
+                                : Theme.textPrimary,
+                          },
+                        ]}
+                      >
                         {formatCurrency(row.SortageOrExces)}
                       </Text>
-                      <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell]}>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.qtyCell,
+                        ]}
+                      >
                         {Number(row.ReceiptCount || 0).toFixed(0)}
                       </Text>
                     </>
@@ -786,7 +889,14 @@ export default function SalesReport() {
                       >
                         {Number(row.Sold || 0).toFixed(0)}
                       </Text>
-                      <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell, { color: '#dc2626' }]}>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.qtyCell,
+                          { color: "#dc2626" },
+                        ]}
+                      >
                         {Number(row.Voided || 0).toFixed(0)}
                       </Text>
                       <Text
@@ -942,9 +1052,14 @@ export default function SalesReport() {
                 style={styles.dateDisplay}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.dateText, selectionMode === "RANGE" && { fontSize: 13 }]}>
-                  {selectedFilter === "CUSTOM" && rangeStart && rangeEnd 
-                    ? `${format(new Date(rangeStart), "MMM d")} - ${format(new Date(rangeEnd), "MMM d, yyyy")}` 
+                <Text
+                  style={[
+                    styles.dateText,
+                    selectionMode === "RANGE" && { fontSize: 13 },
+                  ]}
+                >
+                  {selectedFilter === "CUSTOM" && rangeStart && rangeEnd
+                    ? `${format(new Date(rangeStart), "MMM d")} - ${format(new Date(rangeEnd), "MMM d, yyyy")}`
                     : selectedDate}
                 </Text>
                 <Ionicons
@@ -1348,27 +1463,33 @@ export default function SalesReport() {
                   />
                 </View>
                 <View style={styles.txOrderInfo}>
-                  <Text style={styles.txTitle}>
-                    {item.OrderType === "TAKEAWAY"
-                      ? "🛍️ Takeaway"
-                      : `🪑 Table ${item.TableNo || "N/A"}`}
+                  <Text style={styles.txTitle} numberOfLines={1}>
+                    {SCREEN_W < 450 
+                      ? `Order #${formatOrderId(item).split('-').pop()}` 
+                      : (item.OrderType === "TAKEAWAY" ? "🛍️ Takeaway" : `🪑 Table ${item.TableNo || "N/A"}`)
+                    }
                   </Text>
                   <Text style={styles.txSmall} numberOfLines={1}>
-                    Order #{formatOrderId(item)} {item.SER_NAME ? ` • ${item.SER_NAME}` : ""}
+                    {SCREEN_W < 450 
+                      ? `${item.OrderType === "TAKEAWAY" ? "🛍️" : "🪑 " + (item.TableNo || "N/A")} • ${new Date(item.SettlementDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : `Order #${formatOrderId(item)} ${item.SER_NAME ? ` • ${item.SER_NAME}` : ""}`
+                    }
                   </Text>
                 </View>
-                <View style={styles.txTimeInfo}>
-                  <Text style={styles.txDatetime}>
-                    {new Date(item.SettlementDate).toLocaleDateString([], {
-                      month: "short",
-                      day: "numeric",
-                    })}{" "}
-                    {new Date(item.SettlementDate).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </View>
+                {SCREEN_W >= 450 && (
+                  <View style={styles.txTimeInfo}>
+                    <Text style={styles.txDatetime}>
+                      {new Date(item.SettlementDate).toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      {new Date(item.SettlementDate).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.txRightInfo}>
                   {item.VoidAmount > 0 && (
                     <View style={styles.voidTag}>
@@ -1401,36 +1522,106 @@ export default function SalesReport() {
               <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
                       <Text style={styles.modalTitle}>
                         Order #{formatOrderId(selectedOrder)}
                       </Text>
-                      <View style={[styles.paidBadgeSmall, { backgroundColor: Theme.primary + '15', borderColor: Theme.primary + '30', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }]}>
-                        <Text style={{ color: Theme.primary, fontFamily: Fonts.black, fontSize: 10 }}>
-                          {selectedOrder?.PayMode || 'CASH'}
+                      <View
+                        style={[
+                          styles.paidBadgeSmall,
+                          {
+                            backgroundColor: Theme.primary + "15",
+                            borderColor: Theme.primary + "30",
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: 6,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: Theme.primary,
+                            fontFamily: Fonts.black,
+                            fontSize: 10,
+                          }}
+                        >
+                          {selectedOrder?.PayMode || "CASH"}
                         </Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 12 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: 4,
+                        gap: 12,
+                      }}
+                    >
                       <Text style={styles.modalSub}>
-                        {new Date(selectedOrder?.SettlementDate).toLocaleString()}
+                        {new Date(
+                          selectedOrder?.SettlementDate,
+                        ).toLocaleString()}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons 
-                          name={selectedOrder?.OrderType === "TAKEAWAY" ? "bag-handle" : "restaurant"} 
-                          size={12} 
-                          color={Theme.textMuted} 
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            selectedOrder?.OrderType === "TAKEAWAY"
+                              ? "bag-handle"
+                              : "restaurant"
+                          }
+                          size={12}
+                          color={Theme.textMuted}
                         />
-                        <Text style={[styles.modalSub, { color: Theme.textPrimary, fontFamily: Fonts.bold }]}>
-                          {selectedOrder?.OrderType === "TAKEAWAY" 
-                            ? "Takeaway" 
+                        <Text
+                          style={[
+                            styles.modalSub,
+                            {
+                              color: Theme.textPrimary,
+                              fontFamily: Fonts.bold,
+                            },
+                          ]}
+                        >
+                          {selectedOrder?.OrderType === "TAKEAWAY"
+                            ? "Takeaway"
                             : `Table ${selectedOrder?.TableNo || "N/A"}${selectedOrder?.Section ? ` • ${selectedOrder.Section}` : ""}`}
                         </Text>
                       </View>
                       {selectedOrder?.SER_NAME && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Theme.primaryLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                          <Ionicons name="person" size={10} color={Theme.primary} />
-                          <Text style={{ color: Theme.primary, fontFamily: Fonts.bold, fontSize: 10 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                            backgroundColor: Theme.primaryLight,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                          }}
+                        >
+                          <Ionicons
+                            name="person"
+                            size={10}
+                            color={Theme.primary}
+                          />
+                          <Text
+                            style={{
+                              color: Theme.primary,
+                              fontFamily: Fonts.bold,
+                              fontSize: 10,
+                            }}
+                          >
                             {selectedOrder.SER_NAME}
                           </Text>
                         </View>
@@ -1446,37 +1637,105 @@ export default function SalesReport() {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.modalDivider} />
-                <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  style={styles.itemsList}
+                  showsVerticalScrollIndicator={false}
+                >
                   {loadingDetails ? (
                     <View style={{ paddingVertical: 20 }}>
                       <ActivityIndicator color={Theme.primary} />
                     </View>
                   ) : (
                     orderDetails.map((item, idx) => (
-                      <View 
-                        key={idx} 
+                      <View
+                        key={idx}
                         style={[
-                          styles.orderItemRow, 
-                          idx !== orderDetails.length - 1 && { borderBottomWidth: 1, borderBottomColor: Theme.border + '30', paddingBottom: 12 },
-                          item.Status === 'VOIDED' && { backgroundColor: '#fff1f2', marginHorizontal: -12, paddingHorizontal: 12, borderRadius: 8, opacity: 0.8 }
+                          styles.orderItemRow,
+                          idx !== orderDetails.length - 1 && {
+                            borderBottomWidth: 1,
+                            borderBottomColor: Theme.border + "30",
+                            paddingBottom: 12,
+                          },
+                          item.Status === "VOIDED" && {
+                            backgroundColor: "#fff1f2",
+                            marginHorizontal: -12,
+                            paddingHorizontal: 12,
+                            borderRadius: 8,
+                            opacity: 0.8,
+                          },
                         ]}
                       >
-                        <View style={[styles.qtyBadgeSmall, { backgroundColor: item.Status === 'VOIDED' ? '#fecaca' : Theme.primary + '10' }]}>
-                          <Text style={[styles.orderItemQty, { width: 'auto', color: item.Status === 'VOIDED' ? '#991b1b' : Theme.primary }]}>{item.Qty}</Text>
+                        <View
+                          style={[
+                            styles.qtyBadgeSmall,
+                            {
+                              backgroundColor:
+                                item.Status === "VOIDED"
+                                  ? "#fecaca"
+                                  : Theme.primary + "10",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.orderItemQty,
+                              {
+                                width: "auto",
+                                color:
+                                  item.Status === "VOIDED"
+                                    ? "#991b1b"
+                                    : Theme.primary,
+                              },
+                            ]}
+                          >
+                            {item.Qty}
+                          </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text 
+                          <Text
                             numberOfLines={1}
-                            style={[styles.orderItemName, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: '#991b1b' }]}
+                            style={[
+                              styles.orderItemName,
+                              item.Status === "VOIDED" && {
+                                textDecorationLine: "line-through",
+                                color: "#991b1b",
+                              },
+                            ]}
                           >
                             {item.DishName}
-                            {item.Status === 'VOIDED' && (
-                              <Text style={{ color: '#dc2626', fontSize: 9, fontFamily: Fonts.black, textDecorationLine: 'none' }}> [VOID]</Text>
+                            {item.Status === "VOIDED" && (
+                              <Text
+                                style={{
+                                  color: "#dc2626",
+                                  fontSize: 9,
+                                  fontFamily: Fonts.black,
+                                  textDecorationLine: "none",
+                                }}
+                              >
+                                {" "}
+                                [VOID]
+                              </Text>
                             )}
                           </Text>
-                          <Text style={{ color: Theme.textMuted, fontSize: 10, fontFamily: Fonts.bold }}>UNIT: ${(item.Price || 0).toFixed(2)}</Text>
+                          <Text
+                            style={{
+                              color: Theme.textMuted,
+                              fontSize: 10,
+                              fontFamily: Fonts.bold,
+                            }}
+                          >
+                            UNIT: ${(item.Price || 0).toFixed(2)}
+                          </Text>
                         </View>
-                        <Text style={[styles.orderItemPrice, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: '#991b1b' }]}>
+                        <Text
+                          style={[
+                            styles.orderItemPrice,
+                            item.Status === "VOIDED" && {
+                              textDecorationLine: "line-through",
+                              color: "#991b1b",
+                            },
+                          ]}
+                        >
                           ${(item.Price * item.Qty).toFixed(2)}
                         </Text>
                       </View>
@@ -1484,33 +1743,87 @@ export default function SalesReport() {
                   )}
                 </ScrollView>
                 <View style={styles.modalDivider} />
-                <View style={[styles.totalRow, { backgroundColor: Theme.primary + '05', padding: 12, borderRadius: 12, marginBottom: 16 }]}>
+                <View
+                  style={[
+                    styles.totalRow,
+                    {
+                      backgroundColor: Theme.primary + "05",
+                      padding: 12,
+                      borderRadius: 12,
+                      marginBottom: 16,
+                    },
+                  ]}
+                >
                   <View>
-                    <Text style={[styles.totalLabel, { fontSize: 10, color: Theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }]}>Total Amount</Text>
+                    <Text
+                      style={[
+                        styles.totalLabel,
+                        {
+                          fontSize: 10,
+                          color: Theme.textSecondary,
+                          textTransform: "uppercase",
+                          letterSpacing: 1,
+                        },
+                      ]}
+                    >
+                      Total Amount
+                    </Text>
                     <Text style={[styles.totalValue, { fontSize: 22 }]}>
                       {formatCurrency(selectedOrder?.SysAmount)}
                     </Text>
                   </View>
-                  <View style={[styles.paidBadgeSmall, { paddingHorizontal: 6, paddingVertical: 2 }]}>
-                    <Ionicons name="checkmark-circle" size={14} color={Theme.success} />
-                    <Text style={{ color: Theme.success, fontFamily: Fonts.black, fontSize: 10, marginLeft: 4 }}>PAID</Text>
+                  <View
+                    style={[
+                      styles.paidBadgeSmall,
+                      { paddingHorizontal: 6, paddingVertical: 2 },
+                    ]}
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color={Theme.success}
+                    />
+                    <Text
+                      style={{
+                        color: Theme.success,
+                        fontFamily: Fonts.black,
+                        fontSize: 10,
+                        marginLeft: 4,
+                      }}
+                    >
+                      PAID
+                    </Text>
                   </View>
                 </View>
 
-                <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flexDirection: "row", gap: 12 }}>
                   <TouchableOpacity
                     onPress={() => setSelectedOrder(null)}
-                    style={[styles.premiumPrimaryBtn, { flex: 1, paddingVertical: 12 }]}
+                    style={[
+                      styles.premiumPrimaryBtn,
+                      { flex: 1, paddingVertical: 12 },
+                    ]}
                   >
-                    <Text style={[styles.premiumPrimaryBtnText, { fontSize: 14 }]}>CLOSE</Text>
+                    <Text
+                      style={[styles.premiumPrimaryBtnText, { fontSize: 14 }]}
+                    >
+                      CLOSE
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     onPress={() => setShowPrintPrompt(true)}
-                    style={[styles.premiumSecondaryBtn, { flex: 1.2, paddingVertical: 12 }]}
+                    style={[
+                      styles.premiumSecondaryBtn,
+                      { flex: 1.2, paddingVertical: 12 },
+                    ]}
                   >
                     <Ionicons name="print" size={16} color={Theme.primary} />
-                    <Text style={[styles.premiumSecondaryBtnText, { fontSize: 14 }]}>REPRINT</Text>
+                    <Text
+                      style={[styles.premiumSecondaryBtnText, { fontSize: 14 }]}
+                    >
+                      REPRINT
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1659,7 +1972,8 @@ export default function SalesReport() {
             t={{
               printBillReceipt: "Reprint Receipt?",
               totalAmount: "Total",
-              printBillMessage: "Would you like to reprint the receipt for this order?",
+              printBillMessage:
+                "Would you like to reprint the receipt for this order?",
               skipBill: "Cancel",
               printBill: "Print",
             }}
@@ -1669,62 +1983,137 @@ export default function SalesReport() {
           {showDatePicker && (
             <Modal transparent visible={showDatePicker} animationType="fade">
               <View style={styles.modalOverlay}>
-                <TouchableOpacity 
-                  style={styles.modalDismiss} 
-                  onPress={() => setShowDatePicker(false)} 
+                <TouchableOpacity
+                  style={styles.modalDismiss}
+                  onPress={() => setShowDatePicker(false)}
                 />
-                <View style={[styles.modalContent, { width: SCREEN_W > 600 ? 340 : '90%', maxWidth: 360, padding: 12 }]}>
+                <View
+                  style={[
+                    styles.modalContent,
+                    {
+                      width: SCREEN_W > 600 ? 340 : "90%",
+                      maxWidth: 360,
+                      padding: 12,
+                    },
+                  ]}
+                >
                   <View style={[styles.modalHeader, { marginBottom: 8 }]}>
-                    <Text style={[styles.modalTitle, { fontSize: 14 }]}>Select Date</Text>
+                    <Text style={[styles.modalTitle, { fontSize: 14 }]}>
+                      Select Date
+                    </Text>
                     <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Ionicons name="close" size={18} color={Theme.textPrimary} />
+                      <Ionicons
+                        name="close"
+                        size={18}
+                        color={Theme.textPrimary}
+                      />
                     </TouchableOpacity>
                   </View>
 
                   <View style={[styles.modeToggleBar, { marginBottom: 12 }]}>
-                    <TouchableOpacity 
-                      style={[styles.modeToggleBtn, selectionMode === 'SINGLE' && styles.activeModeToggleBtn]}
+                    <TouchableOpacity
+                      style={[
+                        styles.modeToggleBtn,
+                        selectionMode === "SINGLE" &&
+                          styles.activeModeToggleBtn,
+                      ]}
                       onPress={() => {
-                        setSelectionMode('SINGLE');
+                        setSelectionMode("SINGLE");
                         setRangeStart(null);
                         setRangeEnd(null);
                       }}
                     >
-                      <Text style={[styles.modeToggleText, selectionMode === 'SINGLE' && styles.activeModeToggleText]}>SINGLE</Text>
+                      <Text
+                        style={[
+                          styles.modeToggleText,
+                          selectionMode === "SINGLE" &&
+                            styles.activeModeToggleText,
+                        ]}
+                      >
+                        SINGLE
+                      </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.modeToggleBtn, selectionMode === 'RANGE' && styles.activeModeToggleBtn]}
-                      onPress={() => setSelectionMode('RANGE')}
+                    <TouchableOpacity
+                      style={[
+                        styles.modeToggleBtn,
+                        selectionMode === "RANGE" && styles.activeModeToggleBtn,
+                      ]}
+                      onPress={() => setSelectionMode("RANGE")}
                     >
-                      <Text style={[styles.modeToggleText, selectionMode === 'RANGE' && styles.activeModeToggleText]}>RANGE</Text>
+                      <Text
+                        style={[
+                          styles.modeToggleText,
+                          selectionMode === "RANGE" &&
+                            styles.activeModeToggleText,
+                        ]}
+                      >
+                        RANGE
+                      </Text>
                     </TouchableOpacity>
                   </View>
-                  
+
                   <View style={styles.customCalendar}>
                     {calendarView === "DAYS" ? (
                       <>
-                        <View style={[styles.calendarHeader, { marginBottom: 12 }]}>
-                          <TouchableOpacity 
-                            style={[styles.calendarNavBtn, { width: 30, height: 30 }]}
+                        <View
+                          style={[styles.calendarHeader, { marginBottom: 12 }]}
+                        >
+                          <TouchableOpacity
+                            style={[
+                              styles.calendarNavBtn,
+                              { width: 30, height: 30 },
+                            ]}
                             onPress={() => setViewDate(subMonths(viewDate, 1))}
                           >
-                            <Ionicons name="chevron-back" size={16} color={Theme.primary} />
+                            <Ionicons
+                              name="chevron-back"
+                              size={16}
+                              color={Theme.primary}
+                            />
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => setCalendarView("MONTHS")}>
-                            <Text style={[styles.calendarMonthText, { fontSize: 14 }]}>{format(viewDate, "MMMM yyyy")}</Text>
+                          <TouchableOpacity
+                            onPress={() => setCalendarView("MONTHS")}
+                          >
+                            <Text
+                              style={[
+                                styles.calendarMonthText,
+                                { fontSize: 14 },
+                              ]}
+                            >
+                              {format(viewDate, "MMMM yyyy")}
+                            </Text>
                           </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={[styles.calendarNavBtn, { width: 30, height: 30 }]}
+                          <TouchableOpacity
+                            style={[
+                              styles.calendarNavBtn,
+                              { width: 30, height: 30 },
+                            ]}
                             onPress={() => setViewDate(addMonths(viewDate, 1))}
                           >
-                            <Ionicons name="chevron-forward" size={16} color={Theme.primary} />
+                            <Ionicons
+                              name="chevron-forward"
+                              size={16}
+                              color={Theme.primary}
+                            />
                           </TouchableOpacity>
                         </View>
 
-                        <View style={[styles.calendarWeekRow, { marginBottom: 6 }]}>
-                          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
-                            <Text key={d} style={[styles.calendarWeekText, { fontSize: 11 }]}>{d}</Text>
-                          ))}
+                        <View
+                          style={[styles.calendarWeekRow, { marginBottom: 6 }]}
+                        >
+                          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
+                            (d) => (
+                              <Text
+                                key={d}
+                                style={[
+                                  styles.calendarWeekText,
+                                  { fontSize: 11 },
+                                ]}
+                              >
+                                {d}
+                              </Text>
+                            ),
+                          )}
                         </View>
 
                         {(() => {
@@ -1741,38 +2130,60 @@ export default function SalesReport() {
                             for (let i = 0; i < 7; i++) {
                               const currentDay = day;
                               const dateStr = format(currentDay, "yyyy-MM-dd");
-                              
-                              const isSelected = selectionMode === 'SINGLE' 
-                                ? isSameDay(currentDay, new Date(selectedDate))
-                                : (rangeStart === dateStr || rangeEnd === dateStr);
-                              
-                              const isInRange = selectionMode === 'RANGE' && rangeStart && rangeEnd && 
-                                new Date(dateStr) >= new Date(rangeStart) && 
+
+                              const isSelected =
+                                selectionMode === "SINGLE"
+                                  ? isSameDay(
+                                      currentDay,
+                                      new Date(selectedDate),
+                                    )
+                                  : rangeStart === dateStr ||
+                                    rangeEnd === dateStr;
+
+                              const isInRange =
+                                selectionMode === "RANGE" &&
+                                rangeStart &&
+                                rangeEnd &&
+                                new Date(dateStr) >= new Date(rangeStart) &&
                                 new Date(dateStr) <= new Date(rangeEnd);
 
-                              const isCurrentMonth = isSameMonth(currentDay, monthStart);
+                              const isCurrentMonth = isSameMonth(
+                                currentDay,
+                                monthStart,
+                              );
                               const isToday = isSameDay(currentDay, new Date());
-                              
+
                               days.push(
                                 <TouchableOpacity
                                   key={currentDay.toString()}
                                   style={[
                                     styles.calendarDay,
                                     isSelected && styles.selectedDay,
-                                    isInRange && !isSelected && styles.inRangeDay,
-                                    isToday && !isSelected && !isInRange && styles.todayDay
+                                    isInRange &&
+                                      !isSelected &&
+                                      styles.inRangeDay,
+                                    isToday &&
+                                      !isSelected &&
+                                      !isInRange &&
+                                      styles.todayDay,
                                   ]}
                                   onPress={() => {
-                                    if (selectionMode === 'SINGLE') {
+                                    if (selectionMode === "SINGLE") {
                                       setSelectedDate(dateStr);
                                       setSelectedFilter("DAILY");
                                       setShowDatePicker(false);
                                     } else {
-                                      if (!rangeStart || (rangeStart && rangeEnd)) {
+                                      if (
+                                        !rangeStart ||
+                                        (rangeStart && rangeEnd)
+                                      ) {
                                         setRangeStart(dateStr);
                                         setRangeEnd(null);
                                       } else {
-                                        if (new Date(dateStr) < new Date(rangeStart)) {
+                                        if (
+                                          new Date(dateStr) <
+                                          new Date(rangeStart)
+                                        ) {
                                           setRangeStart(dateStr);
                                           setRangeEnd(rangeStart);
                                         } else {
@@ -1782,23 +2193,31 @@ export default function SalesReport() {
                                     }
                                   }}
                                 >
-                                  <Text style={[
-                                    styles.calendarDayText,
-                                    { fontSize: 12 },
-                                    isSelected && styles.selectedDayText,
-                                    !isCurrentMonth && styles.otherMonthDayText,
-                                    isToday && !isSelected && !isInRange && { color: Theme.primary }
-                                  ]}>
+                                  <Text
+                                    style={[
+                                      styles.calendarDayText,
+                                      { fontSize: 12 },
+                                      isSelected && styles.selectedDayText,
+                                      !isCurrentMonth &&
+                                        styles.otherMonthDayText,
+                                      isToday &&
+                                        !isSelected &&
+                                        !isInRange && { color: Theme.primary },
+                                    ]}
+                                  >
                                     {format(currentDay, "d")}
                                   </Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity>,
                               );
                               day = addDays(day, 1);
                             }
                             rows.push(
-                              <View key={day.toString()} style={styles.calendarRow}>
+                              <View
+                                key={day.toString()}
+                                style={styles.calendarRow}
+                              >
                                 {days}
-                              </View>
+                              </View>,
                             );
                             days = [];
                           }
@@ -1809,21 +2228,50 @@ export default function SalesReport() {
                       <View style={styles.pickerGrid}>
                         <View style={styles.pickerHeader}>
                           <Text style={styles.pickerTitle}>Select Month</Text>
-                          <TouchableOpacity onPress={() => setCalendarView("YEARS")}>
-                            <Text style={styles.pickerSubtitle}>{getYear(viewDate)}</Text>
+                          <TouchableOpacity
+                            onPress={() => setCalendarView("YEARS")}
+                          >
+                            <Text style={styles.pickerSubtitle}>
+                              {getYear(viewDate)}
+                            </Text>
                           </TouchableOpacity>
                         </View>
                         <View style={styles.gridRow}>
-                          {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
-                            <TouchableOpacity 
-                              key={m} 
-                              style={[styles.pickerItem, getMonth(viewDate) === idx && styles.activePickerItem]}
+                          {[
+                            "Jan",
+                            "Feb",
+                            "Mar",
+                            "Apr",
+                            "May",
+                            "Jun",
+                            "Jul",
+                            "Aug",
+                            "Sep",
+                            "Oct",
+                            "Nov",
+                            "Dec",
+                          ].map((m, idx) => (
+                            <TouchableOpacity
+                              key={m}
+                              style={[
+                                styles.pickerItem,
+                                getMonth(viewDate) === idx &&
+                                  styles.activePickerItem,
+                              ]}
                               onPress={() => {
                                 setViewDate(setMonth(viewDate, idx));
                                 setCalendarView("DAYS");
                               }}
                             >
-                              <Text style={[styles.pickerItemText, getMonth(viewDate) === idx && styles.activePickerItemText]}>{m}</Text>
+                              <Text
+                                style={[
+                                  styles.pickerItemText,
+                                  getMonth(viewDate) === idx &&
+                                    styles.activePickerItemText,
+                                ]}
+                              >
+                                {m}
+                              </Text>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -1832,31 +2280,54 @@ export default function SalesReport() {
                       <View style={styles.pickerGrid}>
                         <View style={styles.pickerHeader}>
                           <Text style={styles.pickerTitle}>Select Year</Text>
-                          <TouchableOpacity onPress={() => setCalendarView("MONTHS")}>
-                            <Ionicons name="arrow-back" size={16} color={Theme.primary} />
+                          <TouchableOpacity
+                            onPress={() => setCalendarView("MONTHS")}
+                          >
+                            <Ionicons
+                              name="arrow-back"
+                              size={16}
+                              color={Theme.primary}
+                            />
                           </TouchableOpacity>
                         </View>
-                        <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                        <ScrollView
+                          style={{ maxHeight: 200 }}
+                          showsVerticalScrollIndicator={false}
+                        >
                           <View style={styles.gridRow}>
-                            {Array.from({ length: 11 }, (_, i) => 2020 + i).map(y => (
-                              <TouchableOpacity 
-                                key={y} 
-                                style={[styles.pickerItem, getYear(viewDate) === y && styles.activePickerItem]}
-                                onPress={() => {
-                                  setViewDate(setYear(viewDate, y));
-                                  setCalendarView("MONTHS");
-                                }}
-                              >
-                                <Text style={[styles.pickerItemText, getYear(viewDate) === y && styles.activePickerItemText]}>{y}</Text>
-                              </TouchableOpacity>
-                            ))}
+                            {Array.from({ length: 11 }, (_, i) => 2020 + i).map(
+                              (y) => (
+                                <TouchableOpacity
+                                  key={y}
+                                  style={[
+                                    styles.pickerItem,
+                                    getYear(viewDate) === y &&
+                                      styles.activePickerItem,
+                                  ]}
+                                  onPress={() => {
+                                    setViewDate(setYear(viewDate, y));
+                                    setCalendarView("MONTHS");
+                                  }}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.pickerItemText,
+                                      getYear(viewDate) === y &&
+                                        styles.activePickerItemText,
+                                    ]}
+                                  >
+                                    {y}
+                                  </Text>
+                                </TouchableOpacity>
+                              ),
+                            )}
                           </View>
                         </ScrollView>
                       </View>
                     )}
                   </View>
 
-                  {selectionMode === 'RANGE' && (
+                  {selectionMode === "RANGE" && (
                     <TouchableOpacity
                       onPress={() => {
                         if (rangeStart && rangeEnd) {
@@ -1865,9 +2336,21 @@ export default function SalesReport() {
                         }
                       }}
                       disabled={!rangeStart || !rangeEnd}
-                      style={[styles.premiumPrimaryBtn, { marginTop: 12, paddingVertical: 10, width: '100%', opacity: (!rangeStart || !rangeEnd) ? 0.5 : 1 }]}
+                      style={[
+                        styles.premiumPrimaryBtn,
+                        {
+                          marginTop: 12,
+                          paddingVertical: 10,
+                          width: "100%",
+                          opacity: !rangeStart || !rangeEnd ? 0.5 : 1,
+                        },
+                      ]}
                     >
-                      <Text style={[styles.premiumPrimaryBtnText, { fontSize: 12 }]}>APPLY RANGE</Text>
+                      <Text
+                        style={[styles.premiumPrimaryBtnText, { fontSize: 12 }]}
+                      >
+                        APPLY RANGE
+                      </Text>
                     </TouchableOpacity>
                   )}
 
@@ -1881,9 +2364,20 @@ export default function SalesReport() {
                       setRangeEnd(null);
                       setShowDatePicker(false);
                     }}
-                    style={[styles.premiumSecondaryBtn, { marginTop: selectionMode === 'RANGE' ? 6 : 10, paddingVertical: 10, width: '100%' }]}
+                    style={[
+                      styles.premiumSecondaryBtn,
+                      {
+                        marginTop: selectionMode === "RANGE" ? 6 : 10,
+                        paddingVertical: 10,
+                        width: "100%",
+                      },
+                    ]}
                   >
-                    <Text style={[styles.premiumSecondaryBtnText, { fontSize: 12 }]}>GO TO TODAY</Text>
+                    <Text
+                      style={[styles.premiumSecondaryBtnText, { fontSize: 12 }]}
+                    >
+                      GO TO TODAY
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2392,12 +2886,31 @@ const styles = StyleSheet.create({
     color: Theme.textSecondary,
     fontFamily: Fonts.medium,
     fontSize: 11,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  txRightInfo: { flex: 2.5, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6 },
-  txAmount: { color: Theme.textPrimary, fontFamily: Fonts.black, fontSize: 14, minWidth: 55, textAlign: 'right' },
-  voidTag: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#fecaca' },
-  voidTagText: { color: '#dc2626', fontSize: 10, fontFamily: Fonts.black },
+  txRightInfo: {
+    flex: 2.5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
+  },
+  txAmount: {
+    color: Theme.textPrimary,
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    minWidth: 55,
+    textAlign: "right",
+  },
+  voidTag: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  voidTagText: { color: "#dc2626", fontSize: 10, fontFamily: Fonts.black },
   paidBadgeSmall: {
     backgroundColor: Theme.success + "20",
     padding: 4,
@@ -2494,8 +3007,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     minWidth: 32,
   },
   premiumPrimaryBtn: {
@@ -2503,7 +3016,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: "center",
-    justifyContent: 'center',
+    justifyContent: "center",
     ...Theme.shadowMd,
   },
   premiumPrimaryBtnText: {
@@ -2513,15 +3026,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   premiumSecondaryBtn: {
-    backgroundColor: Theme.primary + '10',
+    backgroundColor: Theme.primary + "10",
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: "center",
-    justifyContent: 'center',
-    flexDirection: 'row',
+    justifyContent: "center",
+    flexDirection: "row",
     gap: 6,
     borderWidth: 1.5,
-    borderColor: Theme.primary + '20',
+    borderColor: Theme.primary + "20",
   },
   premiumSecondaryBtnText: {
     color: Theme.primary,
@@ -2611,7 +3124,7 @@ const styles = StyleSheet.create({
   resetBtn: { paddingVertical: 14, alignItems: "center" },
   resetText: { color: Theme.textMuted, fontFamily: Fonts.bold, fontSize: 12 },
   modeToggleBar: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: Theme.bgNav,
     borderRadius: 10,
     padding: 3,
@@ -2622,7 +3135,7 @@ const styles = StyleSheet.create({
   modeToggleBtn: {
     flex: 1,
     paddingVertical: 8,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 8,
   },
   activeModeToggleBtn: {
@@ -2638,7 +3151,7 @@ const styles = StyleSheet.create({
     color: Theme.primary,
   },
   inRangeDay: {
-    backgroundColor: Theme.primary + '20',
+    backgroundColor: Theme.primary + "20",
     borderRadius: 0,
   },
   customCalendar: {
@@ -2648,9 +3161,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
     paddingHorizontal: 5,
   },
@@ -2663,21 +3176,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.black,
     color: Theme.primary,
-    backgroundColor: Theme.primary + '10',
+    backgroundColor: Theme.primary + "10",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   gridRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   pickerItem: {
-    width: '30%',
+    width: "30%",
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 10,
     backgroundColor: Theme.bgNav,
     borderWidth: 1,
@@ -2693,13 +3206,13 @@ const styles = StyleSheet.create({
     color: Theme.textSecondary,
   },
   activePickerItemText: {
-    color: '#fff',
+    color: "#fff",
     fontFamily: Fonts.black,
   },
   calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
     paddingHorizontal: 10,
   },
@@ -2708,8 +3221,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: Theme.bgMuted,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: Theme.border,
   },
@@ -2719,25 +3232,25 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary,
   },
   calendarWeekRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 10,
   },
   calendarWeekText: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
     color: Theme.textMuted,
     fontFamily: Fonts.bold,
     fontSize: 12,
   },
   calendarRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 5,
   },
   calendarDay: {
     flex: 1,
     aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 8,
     margin: 1,
   },
@@ -2751,13 +3264,13 @@ const styles = StyleSheet.create({
     ...Theme.shadowSm,
   },
   selectedDayText: {
-    color: '#fff',
+    color: "#fff",
     fontFamily: Fonts.black,
   },
   todayDay: {
-    backgroundColor: Theme.primary + '10',
+    backgroundColor: Theme.primary + "10",
     borderWidth: 1,
-    borderColor: Theme.primary + '30',
+    borderColor: Theme.primary + "30",
   },
   otherMonthDay: {
     opacity: 0.3,
