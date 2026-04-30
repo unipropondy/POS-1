@@ -1039,28 +1039,6 @@ export default function SalesReport() {
                   Item Sales Report
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleReportPress("SETTLEMENT")}
-                style={[
-                  styles.reportSwitchBtn,
-                  detailReportType === "SETTLEMENT" && styles.activeReportSwitchBtn,
-                ]}
-              >
-                <Ionicons
-                  name="wallet-outline"
-                  size={16}
-                  color={detailReportType === "SETTLEMENT" ? "#fff" : Theme.primary}
-                />
-                <Text
-                  style={[
-                    styles.reportSwitchText,
-                    detailReportType === "SETTLEMENT" &&
-                      styles.activeReportSwitchText,
-                  ]}
-                >
-                  Settlement Report
-                </Text>
-              </TouchableOpacity>
             </View>
 
             {renderDetailReport()}
