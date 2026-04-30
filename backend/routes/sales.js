@@ -324,6 +324,8 @@ router.get("/day-end-summary", async (req, res) => {
     const start = startDate || today;
     const end = endDate || today;
     
+    console.log(`[DAY-END DEBUG] Fetching summary from ${start} to ${end}`);
+    
     const pool = await poolPromise;
 
     // A. Paymode Detail
@@ -344,24 +346,28 @@ router.get("/day-end-summary", async (req, res) => {
       `);
 
     const paymodes = paymodeRes.recordset;
+    console.log(`[DAY-END DEBUG] Found ${paymodes.length} paymode records`);
+
     const cashTotal = paymodes.filter(p => p.Paymode === 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
     const otherTotal = paymodes.filter(p => p.Paymode !== 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
 
-    // B. Sales Analysis
+    // B. Sales Analysis & Void Detail
     const analysisRes = await pool.request()
       .input("start", sql.VarChar, start)
       .input("end", sql.VarChar, end)
       .query(`
         SELECT 
-          SUM(ISNULL(TotalAmount, 0)) as TotalSales,
-          COUNT(DISTINCT SettlementID) as BillCount
+          SUM(ISNULL(SysAmount, 0)) as TotalSales,
+          COUNT(DISTINCT SettlementID) as BillCount,
+          SUM(ISNULL(VoidItemQty, 0)) as VoidQty,
+          SUM(ISNULL(VoidItemAmount, 0)) as VoidAmount
         FROM SettlementHeader
         WHERE CAST(LastSettlementDate AS DATE) >= @start
           AND CAST(LastSettlementDate AS DATE) <= @end
           AND ISNULL(IsCancelled, 0) = 0
       `);
 
-    const analysis = analysisRes.recordset[0] || { TotalSales: 0, BillCount: 0 };
+    const analysis = analysisRes.recordset[0] || { TotalSales: 0, BillCount: 0, VoidQty: 0, VoidAmount: 0 };
     const totalSales = analysis.TotalSales || 0;
     const billCount = analysis.BillCount || 0;
     const avgPerBill = billCount > 0 ? (totalSales / billCount) : 0;
@@ -377,6 +383,10 @@ router.get("/day-end-summary", async (req, res) => {
         totalSales,
         billCount,
         avgPerBill
+      },
+      voidDetail: {
+        voidQty: analysis.VoidQty || 0,
+        voidAmount: analysis.VoidAmount || 0
       }
     });
   } catch (err) {

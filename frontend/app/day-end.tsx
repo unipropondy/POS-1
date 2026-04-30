@@ -251,6 +251,23 @@ export default function DayEndScreen() {
             </View>
           </View>
 
+          {/* Void Detail Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="close-circle-outline" size={20} color="#ff4444" />
+              <Text style={styles.sectionTitle}>Void Detail</Text>
+            </View>
+            
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Void Item Qty</Text>
+              <Text style={[styles.analysisValue, { color: "#ff4444" }]}>{data?.voidDetail?.voidQty || 0}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Void Item Amount</Text>
+              <Text style={[styles.analysisValue, { color: "#ff4444" }]}>{formatCurrency(data?.voidDetail?.voidAmount || 0)}</Text>
+            </View>
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
