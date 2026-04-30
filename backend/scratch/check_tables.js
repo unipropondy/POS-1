@@ -4,18 +4,15 @@ const sql = require("mssql");
 async function check() {
     try {
         const pool = await poolPromise;
-        const tables = ['SettlementHeader', 'SettlementDetail', 'SettlementTotalSales'];
+        const tables = ['SettlementDetail', 'SettlementTotalSales'];
         
         for (const table of tables) {
             const res = await pool.request().query(`
-                SELECT 
-                    OBJECT_NAME(parent_id) as TableName,
-                    name as TriggerName,
-                    OBJECT_DEFINITION(object_id) as TriggerDefinition
-                FROM sys.triggers
-                WHERE parent_id = OBJECT_ID('${table}')
+                SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = '${table}'
             `);
-            console.log(`\nTriggers for ${table}:`);
+            console.log(`\nColumns for ${table}:`);
             console.table(res.recordset);
         }
         process.exit(0);
