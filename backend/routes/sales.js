@@ -361,9 +361,6 @@ router.get("/day-end-summary", async (req, res) => {
     const paymodes = paymodeRes.recordset;
     console.log(`[DAY-END DEBUG] Found ${paymodes.length} paymode records`);
 
-    const cashTotal = paymodes.filter(p => p.Paymode === 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
-    const otherTotal = paymodes.filter(p => p.Paymode !== 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
-
     // B. Detailed Sales Analysis & Void Detail
     const analysisRes = await pool.request()
       .input("start", sql.VarChar, start)
@@ -376,7 +373,7 @@ router.get("/day-end-summary", async (req, res) => {
           SUM(ISNULL(DiscountAmount, 0)) as TotalDiscount,
           SUM(ISNULL(ServiceCharge, 0)) as TotalServiceCharge,
           SUM(ISNULL(RoundedBy, 0)) as TotalRoundOff,
-          SUM(ISNULL(InvoiceCount, 0)) as TotalBills,
+          COUNT(SettlementID) as TotalBills,
           SUM(ISNULL(VoidItemQty, 0)) as VoidQty,
           SUM(ISNULL(VoidItemAmount, 0)) as VoidAmount,
           MAX(TerminalCode) as TerminalCode,
@@ -393,6 +390,33 @@ router.get("/day-end-summary", async (req, res) => {
     };
 
     const totalSales = analysis.TotalSales || 0;
+    const detailTotal = paymodes.reduce((acc, curr) => acc + curr.Amount, 0);
+    const diff = totalSales - detailTotal;
+
+    // If there's a discrepancy, add an 'Unrecorded' entry to balance the report
+    if (diff > 0.01) {
+      const unrecordedCountRes = await pool.request()
+        .input("start", sql.VarChar, start)
+        .input("end", sql.VarChar, end)
+        .query(`
+          SELECT COUNT(*) as count 
+          FROM SettlementHeader sh 
+          WHERE CAST(LastSettlementDate AS DATE) >= @start 
+            AND CAST(LastSettlementDate AS DATE) <= @end 
+            AND ISNULL(IsCancelled, 0) = 0
+            AND NOT EXISTS (SELECT 1 FROM SettlementDetail sd WHERE sd.SettlementId = sh.SettlementID)
+        `);
+      
+      paymodes.push({
+        Paymode: "UNSPECIFIED",
+        Amount: diff,
+        Count: unrecordedCountRes.recordset[0]?.count || 0
+      });
+    }
+
+    const cashTotal = paymodes.filter(p => p.Paymode === 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
+    const otherTotal = paymodes.filter(p => p.Paymode !== 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
+
     const billCount = analysis.TotalBills || 0;
     
     res.json({
