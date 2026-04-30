@@ -17,6 +17,7 @@ import { Theme } from "@/constants/theme";
 import { Fonts } from "@/constants/Fonts";
 import { API_URL } from "@/constants/Config";
 import { useAuthStore } from "@/stores/authStore";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { 
   format, 
   startOfMonth, 
@@ -41,7 +42,17 @@ export default function DayEndScreen() {
 
   useEffect(() => {
     fetchDaySummary();
-  }, [dateRange]);
+    
+    // Auto-update date if the day changes while the app is open
+    const interval = setInterval(() => {
+      const now = new Date().toISOString().split("T")[0];
+      if (now !== dateRange.start && selectedFilter === "DAILY") {
+        setDateRange({ start: now, end: now });
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [dateRange, selectedFilter]);
 
   const fetchDaySummary = async () => {
     setLoading(true);
@@ -56,6 +67,23 @@ export default function DayEndScreen() {
       Alert.alert("Error", "Failed to fetch summary");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+
+  const onDateChange = (event: any, selectedDate?: Date, type: "start" | "end" = "start") => {
+    if (type === "start") {
+      setShowStartPicker(false);
+      if (selectedDate) {
+        setDateRange(prev => ({ ...prev, start: format(selectedDate, "yyyy-MM-dd") }));
+      }
+    } else {
+      setShowEndPicker(false);
+      if (selectedDate) {
+        setDateRange(prev => ({ ...prev, end: format(selectedDate, "yyyy-MM-dd") }));
+      }
     }
   };
 
@@ -139,7 +167,7 @@ export default function DayEndScreen() {
 
         <View style={styles.filterContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const).map((f) => (
+            {(["DAILY", "WEEKLY", "MONTHLY", "YEARLY", "CUSTOM"] as const).map((f) => (
               <TouchableOpacity
                 key={f}
                 style={[styles.filterBtn, selectedFilter === f && styles.filterBtnActive]}
@@ -151,6 +179,20 @@ export default function DayEndScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          {selectedFilter === "CUSTOM" && (
+            <View style={styles.customDateContainer}>
+              <TouchableOpacity style={styles.dateInput} onPress={() => setShowStartPicker(true)}>
+                <Text style={styles.dateInputLabel}>From:</Text>
+                <Text style={styles.dateInputValue}>{dateRange.start}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.dateInput} onPress={() => setShowEndPicker(true)}>
+                <Text style={styles.dateInputLabel}>To:</Text>
+                <Text style={styles.dateInputValue}>{dateRange.end}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.dateDisplay}>
             <Ionicons name="calendar-outline" size={16} color={Theme.textSecondary} />
             <Text style={styles.dateDisplayText}>
@@ -160,6 +202,21 @@ export default function DayEndScreen() {
               }
             </Text>
           </View>
+
+          {showStartPicker && (
+            <DateTimePicker
+              value={new Date(dateRange.start)}
+              mode="date"
+              onChange={(e: any, d?: Date) => onDateChange(e, d, "start")}
+            />
+          )}
+          {showEndPicker && (
+            <DateTimePicker
+              value={new Date(dateRange.end)}
+              mode="date"
+              onChange={(e: any, d?: Date) => onDateChange(e, d, "end")}
+            />
+          )}
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
@@ -330,6 +387,32 @@ const styles = StyleSheet.create({
   },
   filterBtnTextActive: {
     color: "#fff",
+  },
+  customDateContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  dateInput: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.bgMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  dateInputLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Theme.textMuted,
+  },
+  dateInputValue: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    color: Theme.textPrimary,
   },
   dateDisplay: {
     flexDirection: "row",
