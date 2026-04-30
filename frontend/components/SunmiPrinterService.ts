@@ -282,6 +282,13 @@ class SunmiPrinterService {
         await this.divider('-');
       }
       
+      // ============ ROUND OFF ============
+      if (saleData.roundOff && saleData.roundOff !== 0) {
+        const roLabel = saleData.roundOff > 0 ? '+Round Off:' : 'Round Off:';
+        await this.twoCols(roLabel, `${symbol}${saleData.roundOff.toFixed(2)}`);
+        await this.divider('-');
+      }
+      
       // ============ GRAND TOTAL ============
       await this.twoCols('GRAND TOTAL:', `${symbol}${subtotal.toFixed(2)}`);
       await this.doubleDivider('=');

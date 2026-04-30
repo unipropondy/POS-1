@@ -355,6 +355,10 @@ private static async printThermalReceipt(
       text += `[R]ORIGINAL: ${symbol}${originalTotal.toFixed(2)}\n`;
       text += `[R]DISCOUNT: -${symbol}${discountInfo.amount.toFixed(2)}\n`;
     }
+    if (saleData.roundOff && saleData.roundOff !== 0) {
+      const roSign = saleData.roundOff > 0 ? '+' : '';
+      text += `[R]ROUND OFF: ${roSign}${symbol}${saleData.roundOff.toFixed(2)}\n`;
+    }
     text += `[R]TOTAL: ${symbol}${saleData.total.toFixed(2)}\n`;
     text += '[C]================================\n';
     text += '[C]THANK YOU! COME AGAIN!\n\n\n';

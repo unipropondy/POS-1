@@ -191,6 +191,7 @@ export default function SalesReport() {
                   CategoryName: row.categoryName || row.CategoryName || "Unmapped",
                   SubCategoryName: row.subCategoryName || row.SubCategoryName || "Unmapped",
                   Sold: row.totalQty ?? row.quantitySold ?? 0,
+                  Voided: row.voidQty ?? 0,
                   SalesAmount: row.totalAmount ?? row.totalSalesAmount ?? 0,
                 }))
               : [],
@@ -697,18 +698,9 @@ export default function SalesReport() {
                         Subcategory
                       </Text>
                     )}
-                    <Text
-                      style={[
-                        styles.reportCell,
-                        styles.qtyCell,
-                        { textAlign: "center" },
-                      ]}
-                    >
-                      QTY
-                    </Text>
-                    <Text style={[styles.reportCell, styles.amountCell]}>
-                      Sales
-                    </Text>
+                    <Text style={[styles.reportCell, styles.qtyCell, { textAlign: "center" }]}>QTY</Text>
+                    <Text style={[styles.reportCell, styles.qtyCell, { textAlign: "center", color: '#ef4444' }]}>VOID</Text>
+                    <Text style={[styles.reportCell, styles.amountCell]}>Sales</Text>
                   </>
                 )}
               </View>
@@ -793,6 +785,9 @@ export default function SalesReport() {
                         ]}
                       >
                         {Number(row.Sold || 0).toFixed(0)}
+                      </Text>
+                      <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell, { color: '#dc2626' }]}>
+                        {Number(row.Voided || 0).toFixed(0)}
                       </Text>
                       <Text
                         style={[
@@ -1459,14 +1454,19 @@ export default function SalesReport() {
                   ) : (
                     orderDetails.map((item, idx) => (
                       <View key={idx} style={[styles.orderItemRow, idx !== orderDetails.length - 1 && { borderBottomWidth: 1, borderBottomColor: Theme.border + '50', paddingBottom: 12 }]}>
-                        <View style={[styles.qtyBadgeSmall, { backgroundColor: Theme.primary + '10' }]}>
-                          <Text style={[styles.orderItemQty, { width: 'auto' }]}>{item.Qty}</Text>
+                        <View style={[styles.qtyBadgeSmall, { backgroundColor: item.Status === 'VOIDED' ? '#fee2e2' : Theme.primary + '10' }]}>
+                          <Text style={[styles.orderItemQty, { width: 'auto', color: item.Status === 'VOIDED' ? '#dc2626' : Theme.primary }]}>{item.Qty}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.orderItemName}>{item.DishName}</Text>
+                          <Text style={[styles.orderItemName, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: Theme.textMuted }]}>
+                            {item.DishName}
+                            {item.Status === 'VOIDED' && (
+                              <Text style={{ color: '#dc2626', fontSize: 10, fontFamily: Fonts.bold }}> (VOIDED)</Text>
+                            )}
+                          </Text>
                           <Text style={{ color: Theme.textMuted, fontSize: 10, fontFamily: Fonts.bold }}>UNIT: ${(item.Price || 0).toFixed(2)}</Text>
                         </View>
-                        <Text style={styles.orderItemPrice}>
+                        <Text style={[styles.orderItemPrice, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: Theme.textMuted }]}>
                           ${(item.Price * item.Qty).toFixed(2)}
                         </Text>
                       </View>

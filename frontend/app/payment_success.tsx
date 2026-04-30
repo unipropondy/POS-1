@@ -39,6 +39,7 @@ export default function PaymentSuccess() {
   const method = String(params.method ?? "");
   const discountInfoRaw = String(params.discountInfo ?? "{}");
   const itemsRaw = String(params.items ?? "[]");
+  const roundOff = String(params.roundOff ?? "0");
 
   const [promptVisible, setPromptVisible] = React.useState(true);
 
@@ -78,6 +79,7 @@ export default function PaymentSuccess() {
         cashPaid: parseFloat(paid) || 0,
         change: parseFloat(change) || 0,
         items: items,
+        roundOff: parseFloat(roundOff) || 0,
         date: new Date().toISOString(),
       };
 

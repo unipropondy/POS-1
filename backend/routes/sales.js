@@ -270,8 +270,9 @@ router.get("/dish", async (req, res) => {
             ISNULL(NULLIF(LTRIM(RTRIM(sid.DishName)), ''), ISNULL(d.Name, 'Unknown')) AS dishName,
             ISNULL(NULLIF(LTRIM(RTRIM(sid.CategoryName)), ''), ISNULL(cm.CategoryName, 'Unmapped')) AS categoryName,
             ISNULL(NULLIF(LTRIM(RTRIM(sid.SubCategoryName)), ''), ISNULL(dg.DishGroupName, 'Unmapped')) AS subCategoryName,
-            SUM(CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3))) AS totalQty,
-            SUM(CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2))) AS totalAmount
+            SUM(CASE WHEN ISNULL(sid.Status, 'NORMAL') <> 'VOIDED' THEN CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3)) ELSE 0 END) AS totalQty,
+            SUM(CASE WHEN ISNULL(sid.Status, 'NORMAL') = 'VOIDED' THEN CAST(ISNULL(sid.Qty, 0) AS decimal(18, 3)) ELSE 0 END) AS voidQty,
+            SUM(CASE WHEN ISNULL(sid.Status, 'NORMAL') <> 'VOIDED' THEN CAST(ISNULL(sid.Qty, 0) * ISNULL(sid.Price, 0) AS decimal(18, 2)) ELSE 0 END) AS totalAmount
           FROM SettlementHeader sh
           INNER JOIN SettlementItemDetail sid ON sh.SettlementID = sid.SettlementID
           LEFT JOIN DishMaster d ON (sid.DishId IS NOT NULL AND sid.DishId = d.DishId)
@@ -280,7 +281,6 @@ router.get("/dish", async (req, res) => {
           LEFT JOIN CategoryMaster cm ON COALESCE(sid.CategoryId, dg.CategoryId) = cm.CategoryId
           WHERE ${appDateWhereSql}
             AND ISNULL(sh.IsCancelled, 0) = 0
-            AND ISNULL(sid.Qty, 0) > 0
           GROUP BY 
             ISNULL(NULLIF(LTRIM(RTRIM(sid.DishName)), ''), ISNULL(d.Name, 'Unknown')), 
             ISNULL(NULLIF(LTRIM(RTRIM(sid.CategoryName)), ''), ISNULL(cm.CategoryName, 'Unmapped')), 
@@ -297,14 +297,14 @@ router.get("/dish", async (req, res) => {
           WHERE ${legacyDateWhereSql}
           GROUP BY DishId, CategoryId, DishGroupId
         )
-        SELECT dishName, categoryName, subCategoryName, SUM(totalQty) AS totalQty, SUM(totalAmount) AS totalAmount
+        SELECT dishName, categoryName, subCategoryName, SUM(totalQty) AS totalQty, SUM(voidQty) AS voidQty, SUM(totalAmount) AS totalAmount
         FROM (
-          SELECT * FROM AppReport
+          SELECT dishName, categoryName, subCategoryName, totalQty, voidQty, totalAmount FROM AppReport
           UNION ALL
-          SELECT * FROM LegacyReport
+          SELECT dishName, categoryName, subCategoryName, totalQty, 0 AS voidQty, totalAmount FROM LegacyReport
         ) ReportRows
         GROUP BY dishName, categoryName, subCategoryName
-        HAVING SUM(totalQty) > 0 OR SUM(totalAmount) > 0
+        HAVING SUM(totalQty) > 0 OR SUM(totalAmount) > 0 OR SUM(voidQty) > 0
         ORDER BY totalAmount DESC, totalQty DESC, dishName ASC
       `);
 
@@ -545,7 +545,7 @@ router.post("/save", async (req, res) => {
     const pool = await poolPromise;
     const {
       totalAmount, paymentMethod, items, subTotal, taxAmount,
-      discountAmount, discountType, orderId, orderType, tableNo, section, memberId, cashierId, tableId,
+      discountAmount, discountType, roundOff, orderId, orderType, tableNo, section, memberId, cashierId, tableId,
       serverId, serverName
     } = req.body;
 
@@ -652,14 +652,15 @@ router.post("/save", async (req, res) => {
       .input("SER_NAME", sql.NVarChar(255), req.body.serverName || null)
       .input("VoidItemQty", sql.Int, voidQty)
       .input("VoidItemAmount", sql.Money, voidAmount)
+      .input("RoundedBy", sql.Money, roundOff || 0)
       .query(`
-        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, SER_NAME, VoidItemQty, VoidItemAmount)
-        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @SER_NAME, @VoidItemQty, @VoidItemAmount)
+        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, SER_NAME, VoidItemQty, VoidItemAmount, RoundedBy)
+        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @SER_NAME, @VoidItemQty, @VoidItemAmount, @RoundedBy)
       `);
 
     // 3. Insert SettlementTotalSales
     const normalizedPayMode = normalizePayMode(paymentMethod);
-    const receiptCount = Array.isArray(items) ? items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0) : 0;
+    const receiptCount = Array.isArray(items) ? items.filter(i => i.status !== "VOIDED").reduce((sum, item) => sum + (Number(item.qty) || 0), 0) : 0;
 
       console.log(`[SAVE SALE] Step 3: Inserting Settlement Tables (ID: ${settlementId})...`);
       
@@ -732,9 +733,10 @@ router.post("/save", async (req, res) => {
             .input("SubCategoryName", sql.NVarChar(255), meta.DishGroupName || "Unmapped")
             .input("Qty", sql.Int, item.qty || 1)
             .input("Price", sql.Decimal(18, 2), item.price || 0)
+            .input("Status", sql.NVarChar(50), item.status || "NORMAL")
             .input("OrderDateTime", sql.DateTime, new Date()).query(`
-              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, SubCategoryId, CategoryId, DishName, Qty, Price, OrderDateTime, CategoryName, SubCategoryName)
-              VALUES (@SettlementID, @DishId, @DishGroupId, @SubCategoryId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime, @CategoryName, @SubCategoryName)
+              INSERT INTO SettlementItemDetail (SettlementID, DishId, DishGroupId, SubCategoryId, CategoryId, DishName, Qty, Price, OrderDateTime, CategoryName, SubCategoryName, Status)
+              VALUES (@SettlementID, @DishId, @DishGroupId, @SubCategoryId, @CategoryId, @DishName, @Qty, @Price, @OrderDateTime, @CategoryName, @SubCategoryName, @Status)
             `);
         }
       }

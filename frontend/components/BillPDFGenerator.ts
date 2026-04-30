@@ -648,6 +648,12 @@ private static escapeHtml(str: string): string {
               <span>${currencySymbol}${gstAmount.toFixed(2)}</span>
             </div>
             ` : ''}
+            ${saleData.roundOff && saleData.roundOff !== 0 ? `
+            <div class="total-row">
+              <span>Round Off:</span>
+              <span>${saleData.roundOff > 0 ? '+' : ''}${currencySymbol}${saleData.roundOff.toFixed(2)}</span>
+            </div>
+            ` : ''}
             <div class="grand-total">
               <span>${hasGST ? 'GRAND TOTAL (incl GST):' : 'GRAND TOTAL:'}</span>
               <span>${currencySymbol}${finalTotal.toFixed(2)}</span>
