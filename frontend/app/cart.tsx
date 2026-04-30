@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
+  ActivityIndicator,
   SectionList,
   StyleSheet,
   Text,
@@ -186,6 +187,7 @@ export default function CartScreen() {
   const removeFromCartGlobal = useCartStore((state: any) => state.removeFromCartGlobal);
   const addToCartGlobal = useCartStore((state: any) => state.addToCartGlobal);
   const clearCart = useCartStore((state: any) => state.clearCart);
+  const pendingSync = useCartStore((state: any) => state.pendingSync);
 
   const settings = useCompanySettingsStore((state: any) => state.settings);
   const currencySymbol = settings?.currencySymbol || "$";
@@ -249,6 +251,19 @@ export default function CartScreen() {
     return tables.find((t: any) => t.section === orderContext.section && t.tableNo === orderContext.tableNo);
   }, [orderContext, tables]);
 
+  const currentTableStatus = useMemo(() => {
+    if (!currentTableData) return "EMPTY";
+    const s = currentTableData.status;
+    if (typeof s === "number" || typeof (currentTableData as any).Status === "number") {
+      const val = typeof s === "number" ? s : (currentTableData as any).Status;
+      const statusMap: Record<number, string> = {
+        0: "EMPTY", 1: "SENT", 2: "BILL_REQUESTED", 3: "HOLD", 4: "LOCKED", 5: "SENT"
+      };
+      return statusMap[val] || "EMPTY";
+    }
+    return s || "EMPTY";
+  }, [currentTableData]);
+
   React.useEffect(() => {
     const tableId = orderContext?.tableId || currentTableData?.tableId;
     if (tableId) useCartStore.getState().fetchCartFromDB(tableId);
@@ -263,6 +278,23 @@ export default function CartScreen() {
     socket.on("cart_updated", handleCartUpdate);
     return () => { socket.off("cart_updated", handleCartUpdate); };
   }, [orderContext?.tableId, currentTableData?.tableId]);
+
+  // ✅ Sync official Order ID from DB whenever table changes (Same as Sidebar)
+  React.useEffect(() => {
+    const tableId = orderContext?.tableId || currentTableData?.tableId;
+    if (tableId) {
+      fetch(`${API_URL}/api/tables/${tableId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.table?.CurrentOrderId) {
+            useCartStore.getState().setTableOrderId(tableId, data.table.CurrentOrderId);
+          }
+        })
+        .catch(err => console.error("Cart ID sync error:", err));
+    }
+  }, [orderContext?.tableId, currentTableData?.tableId]);
+
+  const tableOrderIds = useCartStore((state: any) => state.tableOrderIds);
 
   if (!orderContext) return <View style={styles.center}><Text style={styles.emptyText}>No Active Order Context</Text></View>;
 
@@ -305,29 +337,113 @@ export default function CartScreen() {
   const handleEdit = (item: any) => setEditingItem(item);
   const handleVoidItem = (item: any) => { setCancelPassword(""); setItemToVoid(item); setShowCancelModal(true); };
 
+  const handleCheckout = async () => {
+    if (!orderContext) return;
+    if (orderContext.orderType === "DINE_IN") {
+      const tableId = orderContext.tableId || currentTableData?.tableId;
+      if (!tableId) return;
+
+      const checkRes = await fetch(`${API_URL}/api/orders/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableId }),
+      });
+      const checkData = await checkRes.json();
+      const serverStartTime = checkData.StartTime || checkData.startTime;
+
+      updateTableStatus(
+        tableId,
+        orderContext.section!,
+        orderContext.tableNo!,
+        activeOrder?.orderId || "PAYMENT",
+        "BILL_REQUESTED",
+        serverStartTime,
+        undefined,
+        payableAmount,
+      );
+
+      socket.emit("order_status_update", {
+        orderId: activeOrder?.orderId || "PAYMENT",
+        action: "CLOSE",
+      });
+
+      router.replace(`/(tabs)/category?section=${orderContext.section}`);
+    } else {
+      router.push("/summary");
+    }
+  };
+
   const sendOrder = async () => {
-    const context = orderContext; if (!context || cart.length === 0) return;
+    const context = orderContext;
+    if (!context || cart.length === 0) return;
+    
     let targetOrderId = activeOrder?.orderId;
+    
+    // 🟢 OPTIMISTIC UI: Update status and notify kitchen immediately
+    appendOrder(targetOrderId || "NEW", context, cart);
+    markItemsSent(targetOrderId || "NEW");
+
     if (context.orderType === "DINE_IN") {
       const tableId = context.tableId || currentTableData?.tableId;
       if (tableId) {
-        appendOrder(targetOrderId || "NEW", context, cart);
-        markItemsSent(targetOrderId || "NEW");
-        const sendRes = await (await fetch(`${API_URL}/api/orders/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tableId, userId: user?.userId }) })).json();
-        if (sendRes.success) {
-          updateTableStatus(tableId, context.section!, context.tableNo!, sendRes.currentOrderId || targetOrderId, 'SENT', sendRes.StartTime, undefined, payableAmount);
-          socket.emit("new_order", { orderId: sendRes.currentOrderId || targetOrderId, context, items: cart, createdAt: Date.now() });
+        try {
+          const sendRes = await (await fetch(`${API_URL}/api/orders/send`, { 
+            method: "POST", 
+            headers: { "Content-Type": "application/json" }, 
+            body: JSON.stringify({ tableId, userId: user?.userId }) 
+          })).json();
+
+          if (sendRes.success) {
+            const officialOrderId = sendRes.currentOrderId || sendRes.CurrentOrderId || targetOrderId;
+            
+            if (officialOrderId) {
+              useCartStore.getState().setTableOrderId(tableId, officialOrderId);
+              useActiveOrdersStore.getState().updateOrderId(targetOrderId || "NEW", officialOrderId);
+              
+              updateTableStatus(tableId, context.section!, context.tableNo!, officialOrderId, 'SENT', sendRes.StartTime, undefined, payableAmount);
+              socket.emit("new_order", { orderId: officialOrderId, context, items: cart, createdAt: Date.now() });
+              
+              showToast({
+                type: "success",
+                message: "Order Sent",
+                subtitle: `Kitchen notified. Order #${officialOrderId}`,
+              });
+              
+              await useCartStore.getState().fetchCartFromDB(tableId);
+            }
+          }
+          router.replace(`/(tabs)/category?section=${context.section}`);
+        } catch (err) {
+          console.error("Send Order Error:", err);
         }
-        clearCart(); router.replace(`/(tabs)/category?section=${context.section}`);
       }
     } else {
-      appendOrder("NEW_TAKEAWAY", context, cart); markItemsSent("NEW_TAKEAWAY");
-      const sendRes = await (await fetch(`${API_URL}/api/orders/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderType: "TAKEAWAY", userId: user?.userId }) })).json();
-      if (sendRes.success) {
-        updateTableStatus("", "TAKEAWAY", context.takeawayNo!, sendRes.currentOrderId, 'SENT', sendRes.StartTime, undefined, payableAmount);
-        socket.emit("new_order", { orderId: sendRes.currentOrderId, context, items: cart, createdAt: Date.now() });
+      try {
+        const sendRes = await (await fetch(`${API_URL}/api/orders/send`, { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({ orderType: "TAKEAWAY", userId: user?.userId }) 
+        })).json();
+
+        if (sendRes.success) {
+          const officialOrderId = sendRes.currentOrderId || sendRes.CurrentOrderId;
+          if (officialOrderId) {
+            useActiveOrdersStore.getState().updateOrderId("NEW_TAKEAWAY", officialOrderId);
+            updateTableStatus("", "TAKEAWAY", context.takeawayNo!, officialOrderId, 'SENT', sendRes.StartTime, undefined, payableAmount);
+            socket.emit("new_order", { orderId: officialOrderId, context, items: cart, createdAt: Date.now() });
+            
+            showToast({
+              type: "success",
+              message: "Order Sent",
+              subtitle: `Takeaway notified. Order #${officialOrderId}`,
+            });
+          }
+        }
+        clearCart();
+        router.replace(`/(tabs)/category?section=TAKEAWAY`);
+      } catch (err) {
+        console.error("Takeaway Send Error:", err);
       }
-      clearCart(); router.replace(`/(tabs)/category?section=TAKEAWAY`);
     }
   };
 
@@ -340,7 +456,20 @@ export default function CartScreen() {
             <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, isLandscape && !isTablet && { width: 32, height: 32 }]}><Ionicons name="chevron-back" size={isLandscape && !isTablet ? 18 : 22} color="#FFF" /></TouchableOpacity>
             <View>
               <Text style={[styles.headerTitle, isTablet && { fontSize: 24 }, isLandscape && !isTablet && { fontSize: 18 }]}>{orderContext.orderType === "DINE_IN" ? `Table ${orderContext.tableNo}` : `Takeaway #${orderContext.takeawayNo}`}</Text>
-              <Text style={[styles.headerSub, isLandscape && !isTablet && { fontSize: 10 }]}>{orderContext.orderType === "DINE_IN" ? orderContext.section?.replace("_", "-") : "Standard Queue"}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.headerSub, isLandscape && !isTablet && { fontSize: 10 }]}>{orderContext.orderType === "DINE_IN" ? orderContext.section?.replace("_", "-") : "Standard Queue"}</Text>
+                {orderContext.tableId && tableOrderIds[orderContext.tableId] && (
+                  <Text style={[styles.headerSub, { color: '#fbbf24' }, isLandscape && !isTablet && { fontSize: 10 }]}>
+                    • ID: {tableOrderIds[orderContext.tableId]}
+                  </Text>
+                )}
+                {pendingSync && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <ActivityIndicator size="small" color="#fbbf24" />
+                    <Text style={{ fontSize: 10, color: '#fbbf24', fontFamily: Fonts.bold }}>Syncing...</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
           <TouchableOpacity style={[styles.clearBtn, isLandscape && !isTablet && { padding: 6 }]} onPress={() => clearCart()}><Text style={[styles.clearText, isLandscape && !isTablet && { fontSize: 10 }]}>Clear All</Text></TouchableOpacity>
@@ -375,8 +504,12 @@ export default function CartScreen() {
               {unsentCount > 0 ? (
                 <>
                   <TouchableOpacity onPress={handleHoldOrder} style={[styles.holdBtn, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="pause" size={16} color="#FFF" /><Text style={styles.btnText}>HOLD</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={sendOrder} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="send" size={18} color="#FFF" /><Text style={styles.btnText}>SEND ORDER</Text></LinearGradient></TouchableOpacity>
+                  <TouchableOpacity onPress={sendOrder} style={styles.sendBtn}><LinearGradient colors={["#10b981", "#059669"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="send" size={18} color="#FFF" /><Text style={styles.btnText}>SEND ORDER</Text></LinearGradient></TouchableOpacity>
                 </>
+              ) : currentTableStatus === "SENT" ? (
+                <TouchableOpacity onPress={handleCheckout} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="receipt" size={18} color="#FFF" /><Text style={styles.btnText}>CHECKOUT</Text></LinearGradient></TouchableOpacity>
+              ) : currentTableStatus === "HOLD" || currentTableStatus === "BILL_REQUESTED" ? (
+                <TouchableOpacity onPress={() => router.push("/summary")} style={styles.sendBtn}><LinearGradient colors={[Theme.primary, Theme.primary]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="card-outline" size={18} color="#FFF" /><Text style={styles.btnText}>PROCEED TO PAY</Text></LinearGradient></TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={() => router.push("/summary")} style={styles.sendBtn}><LinearGradient colors={["#f59e0b", "#f97316"]} style={[styles.btnGradient, isLandscape && !isTablet && { paddingVertical: 8 }]}><Ionicons name="receipt" size={18} color="#FFF" /><Text style={styles.btnText}>CHECKOUT</Text></LinearGradient></TouchableOpacity>
               )}
