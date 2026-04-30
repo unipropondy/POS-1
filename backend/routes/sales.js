@@ -317,13 +317,19 @@ router.get("/dish", async (req, res) => {
 // 5. Get Day End Summary
 router.get("/day-end-summary", async (req, res) => {
   try {
-    const { date } = req.query;
-    const targetDate = date || new Date().toISOString().split("T")[0];
+    const { startDate, endDate } = req.query;
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Default to today if no dates provided
+    const start = startDate || today;
+    const end = endDate || today;
+    
     const pool = await poolPromise;
 
     // A. Paymode Detail
     const paymodeRes = await pool.request()
-      .input("date", sql.VarChar, targetDate)
+      .input("start", sql.VarChar, start)
+      .input("end", sql.VarChar, end)
       .query(`
         SELECT 
           sd.Paymode,
@@ -331,20 +337,27 @@ router.get("/day-end-summary", async (req, res) => {
           CAST(SUM(ISNULL(sd.ReceiptCount, 0)) AS INT) as Count
         FROM SettlementHeader sh
         INNER JOIN SettlementDetail sd ON sh.SettlementID = sd.SettlementId
-        WHERE CAST(sh.LastSettlementDate AS DATE) = @date
+        WHERE CAST(sh.LastSettlementDate AS DATE) >= @start
+          AND CAST(sh.LastSettlementDate AS DATE) <= @end
           AND ISNULL(sh.IsCancelled, 0) = 0
         GROUP BY sd.Paymode
       `);
 
+    const paymodes = paymodeRes.recordset;
+    const cashTotal = paymodes.filter(p => p.Paymode === 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
+    const otherTotal = paymodes.filter(p => p.Paymode !== 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
+
     // B. Sales Analysis
     const analysisRes = await pool.request()
-      .input("date", sql.VarChar, targetDate)
+      .input("start", sql.VarChar, start)
+      .input("end", sql.VarChar, end)
       .query(`
         SELECT 
           SUM(ISNULL(TotalAmount, 0)) as TotalSales,
           COUNT(DISTINCT SettlementID) as BillCount
         FROM SettlementHeader
-        WHERE CAST(LastSettlementDate AS DATE) = @date
+        WHERE CAST(LastSettlementDate AS DATE) >= @start
+          AND CAST(LastSettlementDate AS DATE) <= @end
           AND ISNULL(IsCancelled, 0) = 0
       `);
 
@@ -355,7 +368,11 @@ router.get("/day-end-summary", async (req, res) => {
 
     res.json({
       success: true,
-      paymodeDetail: paymodeRes.recordset,
+      paymodeDetail: paymodes,
+      settlementDetail: {
+        cashTotal,
+        otherTotal
+      },
       salesAnalysis: {
         totalSales,
         billCount,

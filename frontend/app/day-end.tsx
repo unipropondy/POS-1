@@ -17,30 +17,73 @@ import { Theme } from "@/constants/theme";
 import { Fonts } from "@/constants/Fonts";
 import { API_URL } from "@/constants/Config";
 import { useAuthStore } from "@/stores/authStore";
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  startOfYear, 
+  endOfYear,
+  subDays 
+} from "date-fns";
 
 export default function DayEndScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [selectedFilter, setSelectedFilter] = useState<"DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM">("DAILY");
+  const [dateRange, setDateRange] = useState({
+    start: new Date().toISOString().split("T")[0],
+    end: new Date().toISOString().split("T")[0],
+  });
 
   useEffect(() => {
     fetchDaySummary();
-  }, []);
+  }, [dateRange]);
 
   const fetchDaySummary = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/sales/day-end-summary`);
+      const res = await fetch(`${API_URL}/api/sales/day-end-summary?startDate=${dateRange.start}&endDate=${dateRange.end}`);
       const json = await res.json();
       if (json.success) {
         setData(json);
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to fetch day summary");
+      Alert.alert("Error", "Failed to fetch summary");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (filter: typeof selectedFilter) => {
+    setSelectedFilter(filter);
+    const today = new Date();
+    let start = today;
+    let end = today;
+
+    if (filter === "DAILY") {
+      start = today;
+      end = today;
+    } else if (filter === "WEEKLY") {
+      start = startOfWeek(today);
+      end = endOfWeek(today);
+    } else if (filter === "MONTHLY") {
+      start = startOfMonth(today);
+      end = endOfMonth(today);
+    } else if (filter === "YEARLY") {
+      start = startOfYear(today);
+      end = endOfYear(today);
+    }
+
+    if (filter !== "CUSTOM") {
+      setDateRange({
+        start: format(start, "yyyy-MM-dd"),
+        end: format(end, "yyyy-MM-dd"),
+      });
     }
   };
 
@@ -94,6 +137,31 @@ export default function DayEndScreen() {
           <View style={{ width: 44 }} />
         </View>
 
+        <View style={styles.filterContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const).map((f) => (
+              <TouchableOpacity
+                key={f}
+                style={[styles.filterBtn, selectedFilter === f && styles.filterBtnActive]}
+                onPress={() => handleFilterChange(f)}
+              >
+                <Text style={[styles.filterBtnText, selectedFilter === f && styles.filterBtnTextActive]}>
+                  {f}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <View style={styles.dateDisplay}>
+            <Ionicons name="calendar-outline" size={16} color={Theme.textSecondary} />
+            <Text style={styles.dateDisplayText}>
+              {dateRange.start === dateRange.end 
+                ? format(new Date(dateRange.start), "dd MMM yyyy")
+                : `${format(new Date(dateRange.start), "dd MMM")} - ${format(new Date(dateRange.end), "dd MMM yyyy")}`
+              }
+            </Text>
+          </View>
+        </View>
+
         <ScrollView contentContainerStyle={styles.content}>
           {/* Main Stats Cards */}
           <View style={styles.statsGrid}>
@@ -145,6 +213,23 @@ export default function DayEndScreen() {
             </View>
           </View>
 
+          {/* Settlement Detail Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="bank-outline" size={20} color={Theme.primary} />
+              <Text style={styles.sectionTitle}>Settlement Detail</Text>
+            </View>
+            
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Cash Total</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(data?.settlementDetail?.cashTotal || 0)}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Other Total</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(data?.settlementDetail?.otherTotal || 0)}</Text>
+            </View>
+          </View>
+
           {/* Analysis Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
@@ -166,14 +251,7 @@ export default function DayEndScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={handleDayEnd}>
-            <MaterialCommunityIcons name="printer" size={24} color="#fff" />
-            <Text style={styles.actionBtnText}>Print & Close Day</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.infoText}>
-            Generating the Day End report will finalize all daily records. Ensure all tables are cleared before proceeding.
-          </Text>
+          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -204,6 +282,49 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: Fonts.black,
     color: Theme.textPrimary,
+  },
+  filterContainer: {
+    backgroundColor: Theme.bgCard,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.border,
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  filterBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Theme.bgMuted,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  filterBtnActive: {
+    backgroundColor: Theme.primary,
+    borderColor: Theme.primary,
+  },
+  filterBtnText: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+  },
+  filterBtnTextActive: {
+    color: "#fff",
+  },
+  dateDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  dateDisplayText: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
   },
   content: {
     padding: 16,
