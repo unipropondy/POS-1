@@ -330,7 +330,7 @@ router.get("/settlement", async (req, res) => {
           SUM(ISNULL(sd.SysAmount, 0)) as SysAmount,
           SUM(ISNULL(sd.ManualAmount, 0)) as ManualAmount,
           SUM(ISNULL(sd.SortageOrExces, 0)) as SortageOrExces,
-          SUM(ISNULL(sd.ReceiptCount, 0)) as ReceiptCount
+          CAST(SUM(ISNULL(sd.ReceiptCount, 0)) AS INT) as ReceiptCount
         FROM SettlementHeader sh
         INNER JOIN SettlementDetail sd ON sh.SettlementID = sd.SettlementId
         WHERE ${dateWhereSql}

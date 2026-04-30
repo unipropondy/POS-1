@@ -23,7 +23,6 @@ import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import BillPrompt from "../components/BillPrompt";
 import UniversalPrinter from "../components/UniversalPrinter";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { 
   format, 
   startOfMonth, 
@@ -36,7 +35,9 @@ import {
   setYear,
   setMonth,
   getYear,
-  getMonth
+  getMonth,
+  subMonths,
+  addMonths
 } from 'date-fns';
 
 type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM";
@@ -735,7 +736,7 @@ export default function SalesReport() {
                         {formatCurrency(row.SortageOrExces)}
                       </Text>
                       <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell]}>
-                        {row.ReceiptCount}
+                        {Number(row.ReceiptCount || 0).toFixed(0)}
                       </Text>
                     </>
                   ) : (
