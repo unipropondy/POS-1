@@ -359,6 +359,7 @@ export default function Category() {
   const canAccessTimeEntry = useAuthStore((s: any) => s.canAccessTimeEntry);
   const canAccessLockTables = useAuthStore((s: any) => s.canAccessLockTables);
   const canAccessKDS = useAuthStore((s: any) => s.canAccessKDS);
+  const canAccessDayEnd = useAuthStore((s: any) => s.canAccessDayEnd);
 
   // 🔔 Real-time sync listener for table status
   useEffect(() => {
@@ -1148,6 +1149,30 @@ export default function Category() {
                     />
                   </View>
                   <Text style={styles.menuItemText}>Sales Report</Text>
+                </TouchableOpacity>
+              )}
+
+              {canAccessDayEnd() && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setIsMenuVisible(false);
+                    router.push("/day-end");
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.menuIconContainer,
+                      { backgroundColor: Theme.warning + "10" },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="calendar-clock"
+                      size={18}
+                      color={Theme.warning}
+                    />
+                  </View>
+                  <Text style={styles.menuItemText}>Day End</Text>
                 </TouchableOpacity>
               )}
 

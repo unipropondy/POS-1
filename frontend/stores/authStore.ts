@@ -78,6 +78,7 @@ type AuthState = {
   canAccessKDS: () => boolean;
   canAccessHeldOrders: () => boolean;
   canVoidOrder: () => boolean;
+  canAccessDayEnd: () => boolean;
 
   // Role helpers
   isAdmin: () => boolean;
@@ -126,6 +127,7 @@ export const useAuthStore = create<AuthState>()(
       canAccessKDS:         () => get().can(FORM_CODES.KDS),
       canAccessHeldOrders:  () => get().can(FORM_CODES.HELD_ORDERS),
       canVoidOrder:         () => get().can(FORM_CODES.VOID_ORDER),
+      canAccessDayEnd:      () => get().can(FORM_CODES.DAILY_END),
 
       /* ─── Role helpers ─── */
       isAdmin:      () => get().user?.role === "ADMIN",
