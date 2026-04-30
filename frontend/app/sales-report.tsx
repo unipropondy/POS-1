@@ -456,6 +456,14 @@ export default function SalesReport() {
       PayNow: filtered
         .filter((s: any) => s.PayMode === "PAYNOW")
         .reduce((acc: number, s: any) => acc + s.SysAmount, 0),
+      TotalVoids: filtered.reduce(
+        (acc: number, s: any) => acc + (s.VoidQty || 0),
+        0,
+      ),
+      TotalVoidAmount: filtered.reduce(
+        (acc: number, s: any) => acc + (s.VoidAmount || 0),
+        0,
+      ),
     };
   }, [filteredSales]);
 
@@ -989,6 +997,12 @@ export default function SalesReport() {
                 "fast-food-outline",
                 "#ec4899",
               )}
+              {renderMetricTile(
+                "Total Voids",
+                `${filteredMetrics.TotalVoids} (${formatCurrency(filteredMetrics.TotalVoidAmount)})`,
+                "trash-outline",
+                "#ef4444",
+              )}
             </View>
 
             <View style={styles.reportSwitchRow}>
@@ -1364,6 +1378,11 @@ export default function SalesReport() {
                   <Text style={styles.txAmount}>
                     {formatCurrency(item.SysAmount)}
                   </Text>
+                  {item.VoidAmount > 0 && (
+                    <Text style={{ color: "#dc2626", fontSize: 10, fontFamily: Fonts.bold }}>
+                      VOID: {formatCurrency(item.VoidAmount)}
+                    </Text>
+                  )}
                   <View style={styles.paidBadgeSmall}>
                     <Ionicons
                       name="checkmark"

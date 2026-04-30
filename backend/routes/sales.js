@@ -129,7 +129,9 @@ router.get("/all", async (req, res) => {
       ${normalizeReportPayModeSql("sts.PayMode")} as PayMode,
       ISNULL(NULLIF(sts.SysAmount, 0), ISNULL(sh.SysAmount, 0)) as SysAmount,
       ISNULL(NULLIF(sts.ManualAmount, 0), ISNULL(sh.ManualAmount, 0)) as ManualAmount,
-      ISNULL(sts.ReceiptCount, 0) as ReceiptCount
+      ISNULL(sts.ReceiptCount, 0) as ReceiptCount,
+      ISNULL(sh.VoidItemQty, 0) as VoidQty,
+      ISNULL(sh.VoidItemAmount, 0) as VoidAmount
       FROM SettlementHeader sh
       LEFT JOIN SettlementTotalSales sts ON sh.SettlementID = sts.SettlementID
       WHERE ISNULL(sh.IsCancelled, 0) = 0 AND (sts.SettlementID IS NOT NULL OR sh.SysAmount > 0)
@@ -616,6 +618,19 @@ router.post("/save", async (req, res) => {
         console.log(`[SAVE SALE] Using EXISTING ID: ${displayOrderId} (Seq: ${dailySequence})`);
     }
 
+    // 2.5 Fetch Voided Items for Reporting
+    let voidQty = 0;
+    let voidAmount = 0;
+    if (tableId) {
+        const cleanTableId = String(tableId).replace(/^\{|\}$/g, "").trim();
+        const voidRes = await transaction.request()
+            .input("cid", sql.NVarChar(128), cleanTableId)
+            .query("SELECT SUM(Quantity) as VQty, SUM(Quantity * Cost) as VAmt FROM CartItems WHERE CartId = @cid AND Status = 'VOIDED'");
+        voidQty = voidRes.recordset[0]?.VQty || 0;
+        voidAmount = voidRes.recordset[0]?.VAmt || 0;
+        console.log(`[SAVE SALE] Voids found: Qty=${voidQty}, Amt=${voidAmount}`);
+    }
+
     const headerResult = await transaction.request()
       .input("SettlementID", sql.UniqueIdentifier, settlementId)
       .input("LastSettlementDate", sql.DateTime, now)
@@ -635,9 +650,11 @@ router.post("/save", async (req, res) => {
       .input("CreatedBy", sql.UniqueIdentifier, sanitizeGuid(cashierId))
       .input("CreatedOn", sql.DateTime, now)
       .input("SER_NAME", sql.NVarChar(255), req.body.serverName || null)
+      .input("VoidItemQty", sql.Int, voidQty)
+      .input("VoidItemAmount", sql.Money, voidAmount)
       .query(`
-        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, SER_NAME)
-        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @SER_NAME)
+        INSERT INTO SettlementHeader (SettlementID, LastSettlementDate, SubTotal, TotalTax, DiscountAmount, DiscountType, BillNo, OrderType, TableNo, Section, MemberId, CashierID, BusinessUnitId, SysAmount, ManualAmount, CreatedBy, CreatedOn, SER_NAME, VoidItemQty, VoidItemAmount)
+        VALUES (@SettlementID, @LastSettlementDate, @SubTotal, @TotalTax, @DiscountAmount, @DiscountType, @BillNo, @OrderType, @TableNo, @Section, @MemberId, @CashierID, @BusinessUnitId, @SysAmount, @ManualAmount, @CreatedBy, @CreatedOn, @SER_NAME, @VoidItemQty, @VoidItemAmount)
       `);
 
     // 3. Insert SettlementTotalSales
