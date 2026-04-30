@@ -1,13 +1,12 @@
 import { API_URL } from "@/constants/Config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useState, useCallback } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   RefreshControl,
   SafeAreaView,
@@ -18,24 +17,10 @@ import {
   TouchableOpacity,
   View,
   StatusBar,
+  Animated,
 } from "react-native";
 import { Theme } from "../constants/theme";
 import { Fonts } from "../constants/Fonts";
-
-interface TodaySummary {
-  clockedIn: boolean;
-  shiftCompleted: boolean;
-  clockInTime: string | null;
-  clockOutTime: string | null;
-  totalHours: number;
-  totalBreakMinutes: number;
-  netHours: number;
-  isOnBreak: boolean;
-  canClockIn: boolean;
-  canClockOut: boolean;
-  canStartBreak: boolean;
-  canEndBreak: boolean;
-}
 
 export default function TimeEntryScreen() {
   const [userName, setUserName] = useState("");
@@ -49,30 +34,37 @@ export default function TimeEntryScreen() {
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // --- CLOCK ---
+  // Animation values for hover/press effect
+  const btnScales: { [key: number]: Animated.Value } = {
+    0: useRef(new Animated.Value(1)).current,
+    1: useRef(new Animated.Value(1)).current,
+    3: useRef(new Animated.Value(1)).current,
+    4: useRef(new Animated.Value(1)).current,
+  };
+
+  const handlePressIn = (id: number) => {
+    Animated.spring(btnScales[id], { toValue: 0.96, useNativeDriver: true }).start();
+  };
+  const handlePressOut = (id: number) => {
+    Animated.spring(btnScales[id], { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
+  };
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // --- INITIAL LOAD ---
   useEffect(() => {
     loadSavedCredentials();
   }, []);
 
-  // --- AUTO-FETCH SUMMARY ---
   useEffect(() => {
-    if (userId) {
-      fetchTodaySummary();
-    }
+    if (userId) fetchTodaySummary();
   }, [userId]);
 
-  // --- INSTANT STAFF NAME FETCH ---
   useEffect(() => {
     if (userName.length > 0) {
-      const delayFetch = setTimeout(() => {
-        fetchStaffName(userName);
-      }, 500);
+      const delayFetch = setTimeout(() => fetchStaffName(userName), 500);
       return () => clearTimeout(delayFetch);
     } else {
       setStaffName("");
@@ -86,9 +78,7 @@ export default function TimeEntryScreen() {
       const savedUserId = await AsyncStorage.getItem("lastUserId");
       if (savedUser) setUserName(savedUser);
       if (savedUserId) setUserId(savedUserId);
-    } catch (error) {
-      console.error("Error loading credentials:", error);
-    }
+    } catch (_) {}
   };
 
   const fetchStaffName = async (name: string) => {
@@ -118,12 +108,8 @@ export default function TimeEntryScreen() {
     try {
       const response = await fetch(`${API_URL}/api/attendance/today/${id}`);
       const data = await response.json();
-      if (response.ok) {
-        setTodayLogs(data);
-      }
-    } catch (error) {
-      console.error("Error fetching today logs:", error);
-    }
+      if (response.ok) setTodayLogs(data);
+    } catch (_) {}
   };
 
   const fetchTodaySummary = async () => {
@@ -135,17 +121,14 @@ export default function TimeEntryScreen() {
         setTodaySummary(data.summary);
         await fetchTodayLogs(userId);
       }
-    } catch (error) {
-      console.error("Error fetching summary:", error);
-    }
+    } catch (_) {}
   };
 
   const handleAction = async (status: number) => {
     if (!userId || !password) {
-      Alert.alert("Error", "Please enter User ID and Password");
+      Alert.alert("Error", "Enter ID & Password");
       return;
     }
-
     setIsLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/attendance/save`, {
@@ -153,524 +136,254 @@ export default function TimeEntryScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, status, userName, password }),
       });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Action failed");
-
-      if (status !== 1) { // Clear password for any action other than Login (optional preference)
-        setPassword("");
-      }
-
+      if (!res.ok) throw new Error(data.message || "Failed");
+      if (status !== 1) setPassword("");
       Alert.alert("Success", data.message);
       await fetchTodaySummary();
-      
-      if (status === 0) { // OUT -> Clear all as per "close session" requirement
-        setUserName("");
-        setPassword("");
-        setStaffName("");
-        setUserId("");
-        setTodaySummary(null);
-        setTodayLogs([]);
+      if (status === 0) {
+        setUserName(""); setPassword(""); setStaffName(""); setUserId("");
+        setTodaySummary(null); setTodayLogs([]);
       }
-    } catch (error: any) {
-      Alert.alert("Error", error.message);
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchTodaySummary();
-    setRefreshing(false);
-  };
-
-  const getStatusText = () => {
-    const status = todaySummary?.lastStatus;
-    if (status === 1) return "Active (In)";
-    if (status === 3) return "On Break";
-    if (status === 4) return "Active (Back from Break)";
-    return "Out / Inactive";
-  };
-
-  // Logic Rules based on lastStatus
   const lastStatus = todaySummary?.lastStatus;
   const canLogin = (lastStatus === 0 || lastStatus === null || !userId);
   const canOut = (lastStatus === 1 || lastStatus === 4);
   const canBreakIn = (lastStatus === 1 || lastStatus === 4);
   const canBreakOut = (lastStatus === 3);
 
-  const renderLogsTable = () => {
-    if (todayLogs.length === 0) return null;
-
-    return (
-      <View style={styles.logsContainer}>
-        <View style={styles.logsHeaderContainer}>
-          <Text style={styles.logsTitle}>TODAY'S ACTIVITY</Text>
-        </View>
-        <View style={styles.tableWrapper}>
-          <View style={styles.tableHead}>
-            <Text style={[styles.tableCell, styles.tableHeadText, styles.colSn]}>#</Text>
-            <Text style={[styles.tableCell, styles.tableHeadText, styles.colAction]}>ACTION</Text>
-            <Text style={[styles.tableCell, styles.tableHeadText, styles.colTime]}>TIME</Text>
-          </View>
-          {todayLogs.map((log, idx) => (
-            <View key={idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowAlt]}>
-              <Text style={[styles.tableCell, styles.tableDataTextSno, styles.colSn]}>{todayLogs.length - idx}</Text>
-              <Text style={[styles.tableCell, styles.tableDataText, styles.colAction, { color: log.status === 0 ? Theme.danger : (log.status === 3 ? Theme.warning : Theme.success) }]}>
-                {log.ActionName}
-              </Text>
-              <Text style={[styles.tableCell, styles.tableDataText, styles.colTime]}>
-                {new Date(log.ClockinTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
+  const getStatus = () => {
+    switch (lastStatus) {
+      case 1: return { text: "ACTIVE", color: Theme.success };
+      case 3: return { text: "BREAK", color: Theme.warning };
+      case 4: return { text: "ACTIVE", color: Theme.info };
+      default: return { text: "OFF", color: Theme.textMuted };
+    }
   };
 
-
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={Theme.bgNav} />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={20} color={Theme.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Staff Attendance</Text>
+        <View style={styles.timeBadge}>
+          <Text style={styles.headerTime}>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+        </View>
+      </View>
+
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.primary} />}
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchTodaySummary} tintColor={Theme.primary} />}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtnHeader}>
-              <Ionicons name="arrow-back" size={24} color={Theme.textPrimary} />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.title}>TIME <Text style={styles.titleSpan}>ENTRY</Text></Text>
-              <Text style={styles.timeText}>{currentTime.toLocaleTimeString()}</Text>
-            </View>
-          </View>
-
-          {/* User Display Badge */}
-          {staffName.length > 0 && (
-            <View style={styles.staffNameBadge}>
-              <Ionicons name="person-circle-outline" size={16} color={Theme.primary} />
-              <Text style={styles.staffNameText}>User: {staffName}</Text>
-            </View>
-          )}
-
-          {/* Login Card */}
-          <View style={styles.card}>
-            <View style={styles.loginRow}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>User ID</Text>
+          {/* Main Control Panel (Swapped Layout) */}
+          <View style={styles.mainCard}>
+            <View style={styles.topRow}>
+              {/* Inputs on the LEFT */}
+              <View style={styles.inputBox}>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="person-outline" size={18} color={Theme.textMuted} />
+                  <Ionicons name="person-outline" size={14} color={Theme.textMuted} />
                   <TextInput
-                    style={styles.textInput}
+                    style={styles.input}
                     value={userName}
                     onChangeText={setUserName}
-                    placeholder="Enter ID"
+                    placeholder="User ID"
                     placeholderTextColor={Theme.textMuted}
                     autoCapitalize="none"
                   />
                 </View>
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Password</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed-outline" size={18} color={Theme.textMuted} />
+                  <Ionicons name="lock-closed-outline" size={14} color={Theme.textMuted} />
                   <TextInput
-                    style={styles.textInput}
+                    style={styles.input}
                     value={password}
                     onChangeText={setPassword}
-                    placeholder="••••••"
+                    placeholder="PIN"
                     placeholderTextColor={Theme.textMuted}
                     secureTextEntry
                     autoCapitalize="none"
                   />
                 </View>
               </View>
-              <TouchableOpacity 
-                style={[styles.primaryBtn, !canLogin && styles.btnDisabled]} 
-                onPress={() => handleAction(1)}
-                disabled={!canLogin}
-              >
-                <Ionicons name="log-in-outline" size={20} color="#fff" />
-                <Text style={styles.primaryBtnText}>Login</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Status Card */}
-          <View style={styles.card}>
-            <View style={styles.statusSection}>
-              <View style={styles.statusMain}>
-                <View style={[styles.statusIndicator, { backgroundColor: lastStatus === 3 ? Theme.warning : (lastStatus === 1 || lastStatus === 4 ? Theme.success : Theme.textMuted) }]} />
-                <View>
-                  <Text style={styles.statusTitle}>Current Status</Text>
-                  <Text style={[styles.statusValue, { color: lastStatus === 3 ? Theme.warning : (lastStatus === 1 || lastStatus === 4 ? Theme.success : Theme.textSecondary) }]}>
-                    {getStatusText()}
-                  </Text>
+              {/* Staff Info on the RIGHT */}
+              <View style={styles.staffBox}>
+                <View style={{ alignItems: 'flex-end', marginRight: 12 }}>
+                  <Text style={styles.staffName}>{staffName || "Select Staff"}</Text>
+                  <View style={styles.statusRow}>
+                    {todaySummary && <Text style={[styles.hoursText, { marginRight: 8 }]}>{todaySummary.netHours.toFixed(2)}h Today</Text>}
+                    <Text style={[styles.statusText, { color: getStatus().color }]}>{getStatus().text}</Text>
+                    <View style={[styles.statusDot, { backgroundColor: getStatus().color, marginLeft: 6, marginRight: 0 }]} />
+                  </View>
+                </View>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{staffName ? staffName.charAt(0) : "?"}</Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                style={[styles.outBtn, !canOut && styles.btnDisabled]} 
-                onPress={() => handleAction(0)}
-                disabled={!canOut}
-              >
-                <Ionicons name="power-outline" size={18} color={canOut ? Theme.danger : Theme.textMuted} />
-                <Text style={[styles.outBtnText, { color: canOut ? Theme.danger : Theme.textMuted }]}>OUT</Text>
-              </TouchableOpacity>
+            </View>
+
+            {/* High Contrast Action Grid */}
+            <View style={styles.grid}>
+              {[
+                { id: 1, label: "CLOCK IN", icon: "enter", color: "#10b981", active: canLogin },
+                { id: 3, label: "BREAK IN", icon: "cafe", color: "#f59e0b", active: canBreakIn },
+                { id: 4, label: "BREAK OUT", icon: "play", color: "#3b82f6", active: canBreakOut },
+                { id: 0, label: "CLOCK OUT", icon: "power", color: "#ef4444", active: canOut },
+              ].map((btn) => (
+                <Animated.View key={btn.id} style={{ flex: 1, transform: [{ scale: btnScales[btn.id] }] }}>
+                  <TouchableOpacity
+                    disabled={!btn.active}
+                    onPressIn={() => handlePressIn(btn.id)}
+                    onPressOut={() => handlePressOut(btn.id)}
+                    onPress={() => handleAction(btn.id)}
+                    style={[
+                      styles.gridBtn, 
+                      btn.active ? { backgroundColor: btn.color } : styles.btnDisabled
+                    ]}
+                  >
+                    <Ionicons name={btn.icon as any} size={24} color={btn.active ? "#fff" : Theme.textMuted} />
+                    <Text style={[styles.btnLabel, { color: btn.active ? "#fff" : Theme.textMuted }]}>{btn.label}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
             </View>
           </View>
 
-          {/* Action Row */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={[styles.actionBtn, !canBreakIn && styles.btnDisabled, { backgroundColor: Theme.successBg, borderColor: Theme.successBorder }]} 
-              onPress={() => handleAction(3)}
-              disabled={!canBreakIn}
-            >
-              <Ionicons name="cafe-outline" size={22} color={Theme.success} />
-              <Text style={[styles.actionBtnText, { color: Theme.success }]}>Break In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionBtn, !canBreakOut && styles.btnDisabled, { backgroundColor: Theme.dangerBg, borderColor: Theme.dangerBorder }]} 
-              onPress={() => handleAction(4)}
-              disabled={!canBreakOut}
-            >
-              <Ionicons name="play-outline" size={22} color={Theme.danger} />
-              <Text style={[styles.actionBtnText, { color: Theme.danger }]}>Break Out</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Metric Summary */}
-          {todaySummary && (
-            <View style={styles.metricCard}>
-              <View style={styles.metricIconWrap}>
-                <Ionicons name="time-outline" size={24} color={Theme.primary} />
-              </View>
-              <View>
-                <Text style={styles.metricLabel}>TOTAL WORKED TODAY</Text>
-                <Text style={styles.metricValue}>{todaySummary.netHours.toFixed(2)} HOURS</Text>
-              </View>
+          {/* Minimalist Logs */}
+          {todayLogs.length > 0 && (
+            <View style={styles.historySection}>
+              <Text style={styles.sectionTitle}>RECENT RECORDS</Text>
+              {todayLogs.slice(0, 3).map((log, i) => (
+                <View key={i} style={styles.historyCard}>
+                  <View style={styles.historyIcon}>
+                    <Ionicons name="time-outline" size={14} color={Theme.primary} />
+                  </View>
+                  <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.historyAction}>{log.ActionName}</Text>
+                    <Text style={styles.historyTime}>{new Date(log.ClockinTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
-
-          {renderLogsTable()}
-
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {isLoading && (
-        <View style={styles.loaderOverlay}>
-          <ActivityIndicator size="large" color={Theme.primary} />
-        </View>
-      )}
+      {isLoading && <View style={styles.loader}><ActivityIndicator color={Theme.primary} /></View>}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Theme.bgMain },
-  container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 60 },
+  container: { flex: 1, backgroundColor: Theme.bgMain },
   header: { 
+    flexDirection: "row", 
     alignItems: "center", 
-    marginTop: 10,
-    marginBottom: 30,
-    position: 'relative',
-    height: 60,
-    justifyContent: 'center',
+    paddingHorizontal: 20, 
+    paddingVertical: 12, 
+    backgroundColor: Theme.bgCard, 
+    borderBottomWidth: 1, 
+    borderBottomColor: Theme.border 
   },
-  headerTitleContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  backBtn: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  headerTitle: { flex: 1, fontSize: 18, fontFamily: Fonts.black, color: Theme.textPrimary, marginLeft: 12 },
+  timeBadge: { backgroundColor: Theme.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  headerTime: { fontSize: 13, fontFamily: Fonts.black, color: Theme.primary },
+  
+  content: { padding: 16 },
+  
+  mainCard: { 
+    backgroundColor: Theme.bgCard, 
+    borderRadius: 20, 
+    padding: 20, 
+    marginBottom: 16, 
+    borderWidth: 1, 
+    borderColor: Theme.border, 
+    ...Theme.shadowMd 
   },
-  backBtnHeader: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: Theme.bgCard,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Theme.border,
-    ...Theme.shadowSm,
-    zIndex: 10,
-  },
-  waiterBtnHeader: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    paddingHorizontal: 12,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: Theme.bgCard,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Theme.border,
-    gap: 6,
-    ...Theme.shadowSm,
-    zIndex: 10,
-  },
-  waiterBtnText: {
-    fontFamily: Fonts.black,
-    fontSize: 12,
-    color: Theme.primary,
-    textTransform: 'uppercase',
-  },
-  title: { alignSelf: 'center', fontFamily: Fonts.black, fontSize: 32, color: Theme.textPrimary, letterSpacing: 0.5 },
-  titleSpan: { color: Theme.primary },
-  timeText: { fontFamily: Fonts.bold, fontSize: 16, color: Theme.textSecondary, marginTop: 4, letterSpacing: 1 },
-
-  staffNameBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'center',
-    backgroundColor: Theme.primaryLight,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: Theme.primaryBorder,
-  },
-  staffNameText: {
-    fontFamily: Fonts.black,
-    fontSize: 14,
-    color: Theme.primary,
-  },
-
-  card: {
-    backgroundColor: Theme.bgCard,
-    borderRadius: 24,
-    padding: 20,
+  topRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    ...Theme.shadowMd,
-  },
-  loginRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 12,
-  },
-  inputGroup: {
-    flex: 1,
-  },
-  inputLabel: {
-    fontFamily: Fonts.black,
-    fontSize: 11,
-    color: Theme.textPrimary,
-    marginBottom: 8,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.bgInput,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    height: 52,
-  },
-  textInput: {
-    flex: 1,
-    fontFamily: Fonts.bold,
-    fontSize: 16,
-    color: Theme.textPrimary,
-    marginLeft: 10,
-  },
-  primaryBtn: {
-    backgroundColor: Theme.primary,
-    height: 52,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    ...Theme.shadowMd,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontFamily: Fonts.black,
-    fontSize: 16,
-  },
-
-  statusSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statusMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  statusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  statusTitle: {
-    fontFamily: Fonts.bold,
-    fontSize: 13,
-    color: Theme.textMuted,
-    marginBottom: 2,
-  },
-  statusValue: {
-    fontFamily: Fonts.black,
-    fontSize: 18,
-  },
-  outBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: Theme.bgMuted,
-    borderWidth: 1,
-    borderColor: Theme.border,
-  },
-  outBtnText: {
-    fontFamily: Fonts.black,
-    fontSize: 14,
-  },
-
-  actionRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 64,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    borderWidth: 2,
-    ...Theme.shadowSm,
-  },
-  actionBtnText: {
-    fontFamily: Fonts.black,
-    fontSize: 16,
-    letterSpacing: 0.5,
-  },
-
-  metricCard: {
-    backgroundColor: Theme.bgCard,
-    borderRadius: 24,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 20,
-    marginBottom: 30,
-    borderWidth: 1,
-    color: Theme.textPrimary,
-    borderColor: Theme.border,
-    ...Theme.shadowMd,
   },
-  metricIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    backgroundColor: Theme.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Theme.primaryBorder,
+  staffBox: { flexDirection: "row", alignItems: "center", flex: 1 },
+  avatar: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 14, 
+    backgroundColor: Theme.primaryLight, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    marginRight: 12 
   },
-  metricLabel: {
-    fontFamily: Fonts.black,
-    fontSize: 12,
-    color: Theme.textMuted,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontFamily: Fonts.black,
-    fontSize: 22,
-    color: Theme.textPrimary,
-  },
+  avatarText: { fontSize: 20, fontFamily: Fonts.black, color: Theme.primary },
+  staffName: { fontSize: 17, fontFamily: Fonts.black, color: Theme.textPrimary },
+  statusRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  statusText: { fontSize: 11, fontFamily: Fonts.bold },
+  hoursText: { fontSize: 11, fontFamily: Fonts.medium, color: Theme.textSecondary, marginLeft: 8 },
 
-  logsContainer: {
-    width: '100%',
+  inputBox: { flex: 1, gap: 10, maxWidth: 300 },
+  inputWrapper: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: Theme.bgInput, 
+    borderRadius: 10, 
+    paddingHorizontal: 12, 
+    height: 40, 
+    borderWidth: 1, 
+    borderColor: Theme.border 
   },
-  logsHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    gap: 10,
+  input: { flex: 1, marginLeft: 8, fontSize: 14, fontFamily: Fonts.bold, color: Theme.textPrimary },
+
+  grid: { flexDirection: "row", gap: 12 },
+  gridBtn: { 
+    height: 80, 
+    borderRadius: 16, 
+    alignItems: "center", 
+    justifyContent: "center", 
+    gap: 6,
+    ...Theme.shadowSm 
   },
-  logsTitle: {
-    fontFamily: Fonts.black,
-    fontSize: 14,
-    color: Theme.textSecondary,
-    letterSpacing: 2,
-  },
-  tableWrapper: {
+  btnLabel: { fontSize: 11, fontFamily: Fonts.black, textTransform: 'uppercase' },
+  btnDisabled: { backgroundColor: Theme.bgMuted, borderWidth: 1, borderColor: Theme.border },
+
+  historySection: { marginTop: 10 },
+  sectionTitle: { fontSize: 10, fontFamily: Fonts.black, color: Theme.textMuted, letterSpacing: 1, marginBottom: 10 },
+  historyCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Theme.bgCard,
-    borderRadius: 24,
-    overflow: 'hidden',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: Theme.primary,
     borderWidth: 1,
     borderColor: Theme.border,
-    ...Theme.shadowMd,
   },
-  tableHead: {
-    flexDirection: 'row',
+  historyIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: Theme.primaryLight,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.primaryBorder,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.border,
-  },
-  tableRowAlt: {
-    backgroundColor: Theme.bgMain,
-  },
-  tableCell: {
-    paddingVertical: 18,
-    paddingHorizontal: 10,
-    textAlign: 'center',
-  },
-  tableHeadText: {
-    fontFamily: Fonts.black,
-    fontSize: 11,
-    color: Theme.primaryDark,
-    textTransform: 'uppercase',
-  },
-  tableDataText: {
-    fontFamily: Fonts.bold,
-    fontSize: 15,
-    color: Theme.textPrimary,
-  },
-  tableDataTextSno: {
-    fontFamily: Fonts.medium,
-    fontSize: 13,
-    color: Theme.textMuted,
-  },
-  colSn: { width: 60 },
-  colAction: { flex: 1 },
-  colTime: { width: 120 },
+  historyAction: { fontSize: 13, fontFamily: Fonts.bold, color: Theme.textPrimary },
+  historyTime: { fontSize: 12, fontFamily: Fonts.medium, color: Theme.textSecondary },
 
-  btnDisabled: { opacity: 0.3 },
-  loaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  loader: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(255,255,255,0.7)", alignItems: "center", justifyContent: "center" }
 });
