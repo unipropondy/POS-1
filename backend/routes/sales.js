@@ -370,14 +370,17 @@ router.get("/day-end-summary", async (req, res) => {
       .input("end", sql.VarChar, end)
       .query(`
         SELECT 
+          SUM(ISNULL(SubTotal, 0)) as BaseSales,
           SUM(ISNULL(SysAmount, 0)) as TotalSales,
           SUM(ISNULL(TotalTax, 0)) as TotalTax,
           SUM(ISNULL(DiscountAmount, 0)) as TotalDiscount,
           SUM(ISNULL(ServiceCharge, 0)) as TotalServiceCharge,
           SUM(ISNULL(RoundedBy, 0)) as TotalRoundOff,
-          COUNT(DISTINCT SettlementID) as BillCount,
+          SUM(ISNULL(InvoiceCount, 0)) as TotalBills,
           SUM(ISNULL(VoidItemQty, 0)) as VoidQty,
-          SUM(ISNULL(VoidItemAmount, 0)) as VoidAmount
+          SUM(ISNULL(VoidItemAmount, 0)) as VoidAmount,
+          MAX(TerminalCode) as TerminalCode,
+          MAX(RefNo) as RefNo
         FROM SettlementHeader
         WHERE CAST(LastSettlementDate AS DATE) >= @start
           AND CAST(LastSettlementDate AS DATE) <= @end
@@ -385,29 +388,31 @@ router.get("/day-end-summary", async (req, res) => {
       `);
 
     const analysis = analysisRes.recordset[0] || { 
-      TotalSales: 0, TotalTax: 0, TotalDiscount: 0, TotalServiceCharge: 0, 
-      TotalRoundOff: 0, BillCount: 0, VoidQty: 0, VoidAmount: 0 
+      BaseSales: 0, TotalSales: 0, TotalTax: 0, TotalDiscount: 0, TotalServiceCharge: 0, 
+      TotalRoundOff: 0, TotalBills: 0, VoidQty: 0, VoidAmount: 0, TerminalCode: "", RefNo: ""
     };
 
     const totalSales = analysis.TotalSales || 0;
-    const billCount = analysis.BillCount || 0;
-    const netTotal = totalSales + (analysis.TotalRoundOff || 0);
-
+    const billCount = analysis.TotalBills || 0;
+    
     res.json({
       success: true,
       orgInfo,
+      terminalCode: analysis.TerminalCode,
+      refNo: analysis.RefNo,
       paymodeDetail: paymodes,
       settlementDetail: {
         cashTotal,
         otherTotal
       },
       salesAnalysis: {
+        baseSales: analysis.BaseSales || 0,
         totalSales,
         totalTax: analysis.TotalTax || 0,
         totalDiscount: analysis.TotalDiscount || 0,
         totalServiceCharge: analysis.TotalServiceCharge || 0,
         roundOff: analysis.TotalRoundOff || 0,
-        netTotal,
+        netTotal: totalSales, // SysAmount is already the net total in this DB
         billCount,
         avgPerBill: billCount > 0 ? (totalSales / billCount) : 0
       },

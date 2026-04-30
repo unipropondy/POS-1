@@ -161,7 +161,16 @@ export default function DayEndScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={Theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Day End Report</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.headerTitle}>Day End Report</Text>
+            {(data?.terminalCode || data?.refNo) && (
+              <Text style={styles.headerSubtitle}>
+                {data.terminalCode ? `Terminal: ${data.terminalCode}` : ""}
+                {data.terminalCode && data.refNo ? "  •  " : ""}
+                {data.refNo ? `Ref: ${data.refNo}` : ""}
+              </Text>
+            )}
+          </View>
           <View style={{ width: 44 }} />
         </View>
 
@@ -376,6 +385,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: Fonts.black,
     color: Theme.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+    textTransform: 'uppercase',
+    marginTop: -2,
   },
   filterContainer: {
     backgroundColor: Theme.bgCard,
