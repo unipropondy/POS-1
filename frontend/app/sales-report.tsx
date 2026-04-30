@@ -23,8 +23,23 @@ import { Fonts } from "../constants/Fonts";
 import { Theme } from "../constants/theme";
 import BillPrompt from "../components/BillPrompt";
 import UniversalPrinter from "../components/UniversalPrinter";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  addDays, 
+  isSameMonth, 
+  isSameDay, 
+  setYear,
+  setMonth,
+  getYear,
+  getMonth
+} from 'date-fns';
 
-type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM";
 type DetailReportType = "CATEGORY" | "DISH";
 
 export default function SalesReport() {
@@ -59,6 +74,12 @@ export default function SalesReport() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [showPrintPrompt, setShowPrintPrompt] = useState(false);
   const [isReprinting, setIsReprinting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [viewDate, setViewDate] = useState(new Date(selectedDate));
+  const [selectionMode, setSelectionMode] = useState<"SINGLE" | "RANGE">("SINGLE");
+  const [rangeStart, setRangeStart] = useState<string | null>(null);
+  const [rangeEnd, setRangeEnd] = useState<string | null>(null);
+  const [calendarView, setCalendarView] = useState<"DAYS" | "MONTHS" | "YEARS">("DAYS");
 
   useEffect(() => {
     const loadState = async () => {
@@ -233,6 +254,9 @@ export default function SalesReport() {
       } else if (selectedFilter === "YEARLY") {
         start.setMonth(0, 1);
         end.setMonth(11, 31);
+      } else if (selectedFilter === "CUSTOM" && rangeStart && rangeEnd) {
+        start.setTime(new Date(rangeStart).getTime());
+        end.setTime(new Date(rangeEnd).getTime());
       }
 
       const startStr = start.toLocaleDateString('en-CA');
@@ -281,6 +305,22 @@ export default function SalesReport() {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
     setSelectedDate(newDate.toISOString().split("T")[0]);
+  };
+
+  const onDateChange = (event: any, selectedDateValue?: Date) => {
+    console.log("[SalesReport] onDateChange event:", event.type, selectedDateValue);
+    
+    if (event.type === "set") {
+      if (selectedDateValue) {
+        const formattedDate = selectedDateValue.toISOString().split("T")[0];
+        setSelectedDate(formattedDate);
+      }
+    }
+    
+    // Close picker for Android and when dismissed
+    if (Platform.OS !== "ios" || event.type === "dismissed" || event.type === "set") {
+      setShowDatePicker(false);
+    }
   };
 
   const filteredSales = useMemo(() => {
@@ -333,6 +373,15 @@ export default function SalesReport() {
         if (!s.SettlementDate) return false;
         const saleDate = new Date(s.SettlementDate);
         return saleDate >= firstDay && saleDate <= lastDay;
+      });
+    } else if (selectedFilter === "CUSTOM" && rangeStart && rangeEnd) {
+      const start = new Date(rangeStart);
+      const end = new Date(rangeEnd);
+      end.setHours(23, 59, 59, 999);
+      dateScopedSales = sales.filter((s) => {
+        if (!s.SettlementDate) return false;
+        const saleDate = new Date(s.SettlementDate);
+        return saleDate >= start && saleDate <= end;
       });
     }
 
@@ -827,9 +876,26 @@ export default function SalesReport() {
                   color={Theme.textPrimary}
                 />
               </TouchableOpacity>
-              <View style={styles.dateDisplay}>
-                <Text style={styles.dateText}>{selectedDate}</Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  console.log("[SalesReport] Opening DatePicker");
+                  setShowDatePicker(true);
+                }}
+                style={styles.dateDisplay}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateText, selectionMode === "RANGE" && { fontSize: 13 }]}>
+                  {selectedFilter === "CUSTOM" && rangeStart && rangeEnd 
+                    ? `${format(new Date(rangeStart), "MMM d")} - ${format(new Date(rangeEnd), "MMM d, yyyy")}` 
+                    : selectedDate}
+                </Text>
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={Theme.primary}
+                  style={{ marginLeft: 8 }}
+                />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => changeDate(1)}
                 style={styles.navBtn}
@@ -1515,6 +1581,230 @@ export default function SalesReport() {
             }}
             total={String(selectedOrder?.SysAmount || 0)}
           />
+
+          {showDatePicker && (
+            <Modal transparent visible={showDatePicker} animationType="fade">
+              <View style={styles.modalOverlay}>
+                <TouchableOpacity 
+                  style={styles.modalDismiss} 
+                  onPress={() => setShowDatePicker(false)} 
+                />
+                <View style={[styles.modalContent, { width: SCREEN_W > 600 ? 340 : '90%', maxWidth: 360, padding: 12 }]}>
+                  <View style={[styles.modalHeader, { marginBottom: 8 }]}>
+                    <Text style={[styles.modalTitle, { fontSize: 14 }]}>Select Date</Text>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Ionicons name="close" size={18} color={Theme.textPrimary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={[styles.modeToggleBar, { marginBottom: 12 }]}>
+                    <TouchableOpacity 
+                      style={[styles.modeToggleBtn, selectionMode === 'SINGLE' && styles.activeModeToggleBtn]}
+                      onPress={() => {
+                        setSelectionMode('SINGLE');
+                        setRangeStart(null);
+                        setRangeEnd(null);
+                      }}
+                    >
+                      <Text style={[styles.modeToggleText, selectionMode === 'SINGLE' && styles.activeModeToggleText]}>SINGLE</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.modeToggleBtn, selectionMode === 'RANGE' && styles.activeModeToggleBtn]}
+                      onPress={() => setSelectionMode('RANGE')}
+                    >
+                      <Text style={[styles.modeToggleText, selectionMode === 'RANGE' && styles.activeModeToggleText]}>RANGE</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <View style={styles.customCalendar}>
+                    {calendarView === "DAYS" ? (
+                      <>
+                        <View style={[styles.calendarHeader, { marginBottom: 12 }]}>
+                          <TouchableOpacity 
+                            style={[styles.calendarNavBtn, { width: 30, height: 30 }]}
+                            onPress={() => setViewDate(subMonths(viewDate, 1))}
+                          >
+                            <Ionicons name="chevron-back" size={16} color={Theme.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => setCalendarView("MONTHS")}>
+                            <Text style={[styles.calendarMonthText, { fontSize: 14 }]}>{format(viewDate, "MMMM yyyy")}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.calendarNavBtn, { width: 30, height: 30 }]}
+                            onPress={() => setViewDate(addMonths(viewDate, 1))}
+                          >
+                            <Ionicons name="chevron-forward" size={16} color={Theme.primary} />
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={[styles.calendarWeekRow, { marginBottom: 6 }]}>
+                          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
+                            <Text key={d} style={[styles.calendarWeekText, { fontSize: 11 }]}>{d}</Text>
+                          ))}
+                        </View>
+
+                        {(() => {
+                          const monthStart = startOfMonth(viewDate);
+                          const monthEnd = endOfMonth(monthStart);
+                          const startDate = startOfWeek(monthStart);
+                          const endDate = endOfWeek(monthEnd);
+
+                          const rows = [];
+                          let days = [];
+                          let day = startDate;
+
+                          while (day <= endDate) {
+                            for (let i = 0; i < 7; i++) {
+                              const currentDay = day;
+                              const dateStr = format(currentDay, "yyyy-MM-dd");
+                              
+                              const isSelected = selectionMode === 'SINGLE' 
+                                ? isSameDay(currentDay, new Date(selectedDate))
+                                : (rangeStart === dateStr || rangeEnd === dateStr);
+                              
+                              const isInRange = selectionMode === 'RANGE' && rangeStart && rangeEnd && 
+                                new Date(dateStr) >= new Date(rangeStart) && 
+                                new Date(dateStr) <= new Date(rangeEnd);
+
+                              const isCurrentMonth = isSameMonth(currentDay, monthStart);
+                              const isToday = isSameDay(currentDay, new Date());
+                              
+                              days.push(
+                                <TouchableOpacity
+                                  key={currentDay.toString()}
+                                  style={[
+                                    styles.calendarDay,
+                                    isSelected && styles.selectedDay,
+                                    isInRange && !isSelected && styles.inRangeDay,
+                                    isToday && !isSelected && !isInRange && styles.todayDay
+                                  ]}
+                                  onPress={() => {
+                                    if (selectionMode === 'SINGLE') {
+                                      setSelectedDate(dateStr);
+                                      setSelectedFilter("DAILY");
+                                      setShowDatePicker(false);
+                                    } else {
+                                      if (!rangeStart || (rangeStart && rangeEnd)) {
+                                        setRangeStart(dateStr);
+                                        setRangeEnd(null);
+                                      } else {
+                                        if (new Date(dateStr) < new Date(rangeStart)) {
+                                          setRangeStart(dateStr);
+                                          setRangeEnd(rangeStart);
+                                        } else {
+                                          setRangeEnd(dateStr);
+                                        }
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <Text style={[
+                                    styles.calendarDayText,
+                                    { fontSize: 12 },
+                                    isSelected && styles.selectedDayText,
+                                    !isCurrentMonth && styles.otherMonthDayText,
+                                    isToday && !isSelected && !isInRange && { color: Theme.primary }
+                                  ]}>
+                                    {format(currentDay, "d")}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                              day = addDays(day, 1);
+                            }
+                            rows.push(
+                              <View key={day.toString()} style={styles.calendarRow}>
+                                {days}
+                              </View>
+                            );
+                            days = [];
+                          }
+                          return rows;
+                        })()}
+                      </>
+                    ) : calendarView === "MONTHS" ? (
+                      <View style={styles.pickerGrid}>
+                        <View style={styles.pickerHeader}>
+                          <Text style={styles.pickerTitle}>Select Month</Text>
+                          <TouchableOpacity onPress={() => setCalendarView("YEARS")}>
+                            <Text style={styles.pickerSubtitle}>{getYear(viewDate)}</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.gridRow}>
+                          {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => (
+                            <TouchableOpacity 
+                              key={m} 
+                              style={[styles.pickerItem, getMonth(viewDate) === idx && styles.activePickerItem]}
+                              onPress={() => {
+                                setViewDate(setMonth(viewDate, idx));
+                                setCalendarView("DAYS");
+                              }}
+                            >
+                              <Text style={[styles.pickerItemText, getMonth(viewDate) === idx && styles.activePickerItemText]}>{m}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.pickerGrid}>
+                        <View style={styles.pickerHeader}>
+                          <Text style={styles.pickerTitle}>Select Year</Text>
+                          <TouchableOpacity onPress={() => setCalendarView("MONTHS")}>
+                            <Ionicons name="arrow-back" size={16} color={Theme.primary} />
+                          </TouchableOpacity>
+                        </View>
+                        <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                          <View style={styles.gridRow}>
+                            {Array.from({ length: 11 }, (_, i) => 2020 + i).map(y => (
+                              <TouchableOpacity 
+                                key={y} 
+                                style={[styles.pickerItem, getYear(viewDate) === y && styles.activePickerItem]}
+                                onPress={() => {
+                                  setViewDate(setYear(viewDate, y));
+                                  setCalendarView("MONTHS");
+                                }}
+                              >
+                                <Text style={[styles.pickerItemText, getYear(viewDate) === y && styles.activePickerItemText]}>{y}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  {selectionMode === 'RANGE' && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (rangeStart && rangeEnd) {
+                          setSelectedFilter("CUSTOM");
+                          setShowDatePicker(false);
+                        }
+                      }}
+                      disabled={!rangeStart || !rangeEnd}
+                      style={[styles.premiumPrimaryBtn, { marginTop: 12, paddingVertical: 10, width: '100%', opacity: (!rangeStart || !rangeEnd) ? 0.5 : 1 }]}
+                    >
+                      <Text style={[styles.premiumPrimaryBtnText, { fontSize: 12 }]}>APPLY RANGE</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      const todayStr = format(new Date(), "yyyy-MM-dd");
+                      setSelectedDate(todayStr);
+                      setSelectedFilter("DAILY");
+                      setSelectionMode("SINGLE");
+                      setRangeStart(null);
+                      setRangeEnd(null);
+                      setShowDatePicker(false);
+                    }}
+                    style={[styles.premiumSecondaryBtn, { marginTop: selectionMode === 'RANGE' ? 6 : 10, paddingVertical: 10, width: '100%' }]}
+                  >
+                    <Text style={[styles.premiumSecondaryBtnText, { fontSize: 12 }]}>GO TO TODAY</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -1643,6 +1933,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -2212,4 +2503,159 @@ const styles = StyleSheet.create({
   applyText: { color: "#fff", fontFamily: Fonts.black, fontSize: 14 },
   resetBtn: { paddingVertical: 14, alignItems: "center" },
   resetText: { color: Theme.textMuted, fontFamily: Fonts.bold, fontSize: 12 },
+  modeToggleBar: {
+    flexDirection: 'row',
+    backgroundColor: Theme.bgNav,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeModeToggleBtn: {
+    backgroundColor: Theme.bgCard,
+    ...Theme.shadowSm,
+  },
+  modeToggleText: {
+    fontSize: 10,
+    fontFamily: Fonts.black,
+    color: Theme.textMuted,
+  },
+  activeModeToggleText: {
+    color: Theme.primary,
+  },
+  inRangeDay: {
+    backgroundColor: Theme.primary + '20',
+    borderRadius: 0,
+  },
+  customCalendar: {
+    paddingTop: 5,
+  },
+  pickerGrid: {
+    paddingVertical: 10,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 5,
+  },
+  pickerTitle: {
+    fontSize: 14,
+    fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+  },
+  pickerSubtitle: {
+    fontSize: 14,
+    fontFamily: Fonts.black,
+    color: Theme.primary,
+    backgroundColor: Theme.primary + '10',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  pickerItem: {
+    width: '30%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: Theme.bgNav,
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  activePickerItem: {
+    backgroundColor: Theme.primary,
+    borderColor: Theme.primary,
+  },
+  pickerItemText: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+  },
+  activePickerItemText: {
+    color: '#fff',
+    fontFamily: Fonts.black,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  calendarNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Theme.bgMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.border,
+  },
+  calendarMonthText: {
+    fontSize: 16,
+    fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+  },
+  calendarWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  calendarWeekText: {
+    flex: 1,
+    textAlign: 'center',
+    color: Theme.textMuted,
+    fontFamily: Fonts.bold,
+    fontSize: 12,
+  },
+  calendarRow: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  calendarDay: {
+    flex: 1,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    margin: 1,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Theme.textPrimary,
+  },
+  selectedDay: {
+    backgroundColor: Theme.primary,
+    ...Theme.shadowSm,
+  },
+  selectedDayText: {
+    color: '#fff',
+    fontFamily: Fonts.black,
+  },
+  todayDay: {
+    backgroundColor: Theme.primary + '10',
+    borderWidth: 1,
+    borderColor: Theme.primary + '30',
+  },
+  otherMonthDay: {
+    opacity: 0.3,
+  },
+  otherMonthDayText: {
+    color: Theme.textMuted,
+  },
 });
