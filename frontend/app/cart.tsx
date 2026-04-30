@@ -472,7 +472,9 @@ export default function CartScreen() {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={[styles.clearBtn, isLandscape && !isTablet && { padding: 6 }]} onPress={() => clearCart()}><Text style={[styles.clearText, isLandscape && !isTablet && { fontSize: 10 }]}>Clear All</Text></TouchableOpacity>
+          {unsentCount > 0 && (
+            <TouchableOpacity style={[styles.clearBtn, isLandscape && !isTablet && { padding: 6 }]} onPress={() => clearCart()}><Text style={[styles.clearText, isLandscape && !isTablet && { fontSize: 10 }]}>Clear Unsent</Text></TouchableOpacity>
+          )}
         </LinearGradient>
 
         <SectionList

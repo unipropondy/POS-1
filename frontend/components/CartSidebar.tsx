@@ -51,6 +51,14 @@ const formatSectionGlobal = (sec: string) => {
   return s;
 };
 
+const isItemSent = (item: any) => {
+  return (
+    item.sent === 1 || 
+    !!item.sentDate || 
+    (item.status && item.status !== "NEW" && item.status !== "VOIDED")
+  );
+};
+
 interface CartSidebarProps {
   width?: DimensionValue;
 }
@@ -119,7 +127,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
 
 
   const unsentCount = useMemo(() => {
-    return cart.filter((i: any) => !i.status || i.status === "NEW").length;
+    return cart.filter((i: any) => !isItemSent(i)).length;
   }, [cart]);
 
   const displayItems = useMemo(() => {
@@ -415,7 +423,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
   );
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
-    const isSent = "status" in item && item.status === "SENT";
+    const isSent = isItemSent(item);
     const isVoided = "status" in item && item.status === "VOIDED";
     const isExpanded = expandedItemId === item.lineItemId;
 
@@ -546,7 +554,7 @@ export default function CartSidebar({ width = 400 }: CartSidebarProps) {
           )}
         </View>
 
-        {cart.length > 0 && (
+        {unsentCount > 0 && (
           <TouchableOpacity
             style={[
               styles.clearBtn,
