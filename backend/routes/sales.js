@@ -328,7 +328,20 @@ router.get("/day-end-summary", async (req, res) => {
     
     const pool = await poolPromise;
 
-    // A. Paymode Detail
+    // 0. Organization Info
+    const orgRes = await pool.request().query(`
+      SELECT TOP 1
+        Name,
+        Address1_Line1,
+        Address1_Line2,
+        Address1_City,
+        Address1_PostalCode,
+        Address1_Telephone1
+      FROM Organization
+    `);
+    const orgInfo = orgRes.recordset[0] || {};
+
+    // A. Paymode Detail (Aggregate all settlements in range)
     const paymodeRes = await pool.request()
       .input("start", sql.VarChar, start)
       .input("end", sql.VarChar, end)
@@ -351,13 +364,17 @@ router.get("/day-end-summary", async (req, res) => {
     const cashTotal = paymodes.filter(p => p.Paymode === 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
     const otherTotal = paymodes.filter(p => p.Paymode !== 'CASH').reduce((acc, curr) => acc + curr.Amount, 0);
 
-    // B. Sales Analysis & Void Detail
+    // B. Detailed Sales Analysis & Void Detail
     const analysisRes = await pool.request()
       .input("start", sql.VarChar, start)
       .input("end", sql.VarChar, end)
       .query(`
         SELECT 
           SUM(ISNULL(SysAmount, 0)) as TotalSales,
+          SUM(ISNULL(TotalTax, 0)) as TotalTax,
+          SUM(ISNULL(DiscountAmount, 0)) as TotalDiscount,
+          SUM(ISNULL(ServiceCharge, 0)) as TotalServiceCharge,
+          SUM(ISNULL(RoundedBy, 0)) as TotalRoundOff,
           COUNT(DISTINCT SettlementID) as BillCount,
           SUM(ISNULL(VoidItemQty, 0)) as VoidQty,
           SUM(ISNULL(VoidItemAmount, 0)) as VoidAmount
@@ -367,13 +384,18 @@ router.get("/day-end-summary", async (req, res) => {
           AND ISNULL(IsCancelled, 0) = 0
       `);
 
-    const analysis = analysisRes.recordset[0] || { TotalSales: 0, BillCount: 0, VoidQty: 0, VoidAmount: 0 };
+    const analysis = analysisRes.recordset[0] || { 
+      TotalSales: 0, TotalTax: 0, TotalDiscount: 0, TotalServiceCharge: 0, 
+      TotalRoundOff: 0, BillCount: 0, VoidQty: 0, VoidAmount: 0 
+    };
+
     const totalSales = analysis.TotalSales || 0;
     const billCount = analysis.BillCount || 0;
-    const avgPerBill = billCount > 0 ? (totalSales / billCount) : 0;
+    const netTotal = totalSales + (analysis.TotalRoundOff || 0);
 
     res.json({
       success: true,
+      orgInfo,
       paymodeDetail: paymodes,
       settlementDetail: {
         cashTotal,
@@ -381,8 +403,13 @@ router.get("/day-end-summary", async (req, res) => {
       },
       salesAnalysis: {
         totalSales,
+        totalTax: analysis.TotalTax || 0,
+        totalDiscount: analysis.TotalDiscount || 0,
+        totalServiceCharge: analysis.TotalServiceCharge || 0,
+        roundOff: analysis.TotalRoundOff || 0,
+        netTotal,
         billCount,
-        avgPerBill
+        avgPerBill: billCount > 0 ? (totalSales / billCount) : 0
       },
       voidDetail: {
         voidQty: analysis.VoidQty || 0,
@@ -393,9 +420,6 @@ router.get("/day-end-summary", async (req, res) => {
     console.error("[DAY-END SUMMARY ERROR]", err);
     res.status(500).json({ success: false, error: err.message });
   }
-});
-
-router.get("/settlement", async (req, res) => {
   try {
     res.set("Cache-Control", "no-store");
     const pool = await poolPromise;

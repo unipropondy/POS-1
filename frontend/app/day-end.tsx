@@ -299,6 +299,26 @@ export default function DayEndScreen() {
               <Text style={styles.analysisValue}>{formatCurrency(analysis?.totalSales || 0)}</Text>
             </View>
             <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Total Tax</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(analysis?.totalTax || 0)}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Discount</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(analysis?.totalDiscount || 0)}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Service Charge</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(analysis?.totalServiceCharge || 0)}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Round Off</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(analysis?.roundOff || 0)}</Text>
+            </View>
+            <View style={[styles.analysisRow, { borderTopWidth: 1, borderTopColor: Theme.border, paddingTop: 8, marginTop: 4 }]}>
+              <Text style={[styles.analysisLabel, { fontFamily: Fonts.black, color: Theme.primary }]}>Net Total</Text>
+              <Text style={[styles.analysisValue, { fontFamily: Fonts.black, color: Theme.primary }]}>{formatCurrency(analysis?.netTotal || 0)}</Text>
+            </View>
+            <View style={[styles.analysisRow, { marginTop: 12 }]}>
               <Text style={styles.analysisLabel}>No of Bills</Text>
               <Text style={styles.analysisValue}>{analysis?.billCount || 0}</Text>
             </View>
