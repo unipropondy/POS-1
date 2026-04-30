@@ -1453,20 +1453,30 @@ export default function SalesReport() {
                     </View>
                   ) : (
                     orderDetails.map((item, idx) => (
-                      <View key={idx} style={[styles.orderItemRow, idx !== orderDetails.length - 1 && { borderBottomWidth: 1, borderBottomColor: Theme.border + '50', paddingBottom: 12 }]}>
-                        <View style={[styles.qtyBadgeSmall, { backgroundColor: item.Status === 'VOIDED' ? '#fee2e2' : Theme.primary + '10' }]}>
-                          <Text style={[styles.orderItemQty, { width: 'auto', color: item.Status === 'VOIDED' ? '#dc2626' : Theme.primary }]}>{item.Qty}</Text>
+                      <View 
+                        key={idx} 
+                        style={[
+                          styles.orderItemRow, 
+                          idx !== orderDetails.length - 1 && { borderBottomWidth: 1, borderBottomColor: Theme.border + '30', paddingBottom: 12 },
+                          item.Status === 'VOIDED' && { backgroundColor: '#fff1f2', marginHorizontal: -12, paddingHorizontal: 12, borderRadius: 8, opacity: 0.8 }
+                        ]}
+                      >
+                        <View style={[styles.qtyBadgeSmall, { backgroundColor: item.Status === 'VOIDED' ? '#fecaca' : Theme.primary + '10' }]}>
+                          <Text style={[styles.orderItemQty, { width: 'auto', color: item.Status === 'VOIDED' ? '#991b1b' : Theme.primary }]}>{item.Qty}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.orderItemName, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: Theme.textMuted }]}>
+                          <Text 
+                            numberOfLines={1}
+                            style={[styles.orderItemName, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: '#991b1b' }]}
+                          >
                             {item.DishName}
                             {item.Status === 'VOIDED' && (
-                              <Text style={{ color: '#dc2626', fontSize: 10, fontFamily: Fonts.bold }}> (VOIDED)</Text>
+                              <Text style={{ color: '#dc2626', fontSize: 9, fontFamily: Fonts.black, textDecorationLine: 'none' }}> [VOID]</Text>
                             )}
                           </Text>
                           <Text style={{ color: Theme.textMuted, fontSize: 10, fontFamily: Fonts.bold }}>UNIT: ${(item.Price || 0).toFixed(2)}</Text>
                         </View>
-                        <Text style={[styles.orderItemPrice, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: Theme.textMuted }]}>
+                        <Text style={[styles.orderItemPrice, item.Status === 'VOIDED' && { textDecorationLine: 'line-through', color: '#991b1b' }]}>
                           ${(item.Price * item.Qty).toFixed(2)}
                         </Text>
                       </View>
