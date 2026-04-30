@@ -169,7 +169,8 @@ export default function PaymentScreen() {
   const { settings } = usePaymentSettingsStore();
 
   const finalItems = useMemo(() => {
-    return splitItems || cart;
+    const baseItems = splitItems || cart;
+    return baseItems.filter((i: any) => (i as any).status !== "VOIDED");
   }, [splitItems, cart]);
 
   useEffect(() => {
@@ -311,8 +312,6 @@ export default function PaymentScreen() {
   const subtotal = useMemo(
     () =>
       finalItems.reduce((sum: number, item: any) => {
-        const isVoided = "status" in item && (item as any).status === "VOIDED";
-        if (isVoided) return sum;
         return sum + (item.price || 0) * (item.qty || 0);
       }, 0),
     [finalItems],
@@ -365,14 +364,12 @@ export default function PaymentScreen() {
         orderType: context?.orderType === "DINE_IN" ? "DINE-IN" : context?.orderType || "DINE-IN",
         tableNo: context?.orderType === "TAKEAWAY" ? context?.takeawayNo : context?.tableNo,
         section: context?.section,
-        items: finalItems
-          .filter((item: any) => (item as any).status !== "VOIDED")
-          .map((item: any) => ({
-            dishId: item.id,
-            name: item.name,
-            qty: item.qty,
-            price: item.price,
-          })),
+        items: finalItems.map((item: any) => ({
+          dishId: item.id,
+          name: item.name,
+          qty: item.qty,
+          price: item.price,
+        })),
         subTotal: subtotal,
         taxAmount: tax,
         discountAmount: discountAmount,
@@ -533,20 +530,13 @@ export default function PaymentScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    const isVoided = item.status === "VOIDED";
     return (
       <View style={styles.itemRow}>
-        <Text style={[styles.itemQty, isVoided && styles.textVoided]}>
-          {item.qty}x
-        </Text>
-        <Text
-          style={[styles.itemName, isVoided && styles.textVoided]}
-          numberOfLines={1}
-        >
+        <Text style={styles.itemQty}>{item.qty}x</Text>
+        <Text style={styles.itemName} numberOfLines={1}>
           {item.name}
-          {isVoided && " (VOIDED)"}
         </Text>
-        <Text style={[styles.itemPrice, isVoided && styles.textVoided]}>
+        <Text style={styles.itemPrice}>
           {currencySymbol}{(item.price * item.qty).toFixed(2)}
         </Text>
       </View>

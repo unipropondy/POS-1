@@ -342,7 +342,8 @@ private static async printThermalReceipt(
     text += `[L]Date: ${new Date().toLocaleDateString()}\n`;
     text += '[L]--------------------------------\n';
     
-    saleData.items?.forEach((item: any) => {
+    const printItems = (saleData.items || []).filter((i: any) => i.status !== 'VOIDED');
+    printItems.forEach((item: any) => {
       const name = (item.name || '').substring(0, 18).padEnd(18);
       const qty = (item.quantity || 1).toString().padStart(3);
       const total = `${symbol}${(item.price * item.quantity).toFixed(2)}`.padStart(10);

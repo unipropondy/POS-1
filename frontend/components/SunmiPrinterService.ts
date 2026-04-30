@@ -231,7 +231,8 @@ class SunmiPrinterService {
       await this.divider('-');
       
       // Items loop
-      for (const item of saleData.items || []) {
+      const printItems = (saleData.items || []).filter((i: any) => i.status !== 'VOIDED');
+      for (const item of printItems) {
         const itemName = (item.name || '').substring(0, 12);
         const qty = (item.qty || item.quantity || 1).toString();
         const itemPrice = parseFloat(String(item.price || 0)) || 0;

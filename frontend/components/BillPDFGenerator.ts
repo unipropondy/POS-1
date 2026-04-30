@@ -306,7 +306,9 @@ private static escapeHtml(str: string): string {
     const showCompanyLogo = company.showCompanyLogo !== false;
     const showHalalLogo = company.showHalalLogo !== false;
     
-    const itemsHTML = (saleData.items || []).map((item: any) => `
+    const itemsHTML = (saleData.items || [])
+        .filter((item: any) => item.status !== 'VOIDED')
+        .map((item: any) => `
         <tr>
             <td class="item-name">
                 ${item.name}
