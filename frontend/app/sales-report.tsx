@@ -40,7 +40,7 @@ import {
 } from 'date-fns';
 
 type FilterType = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "CUSTOM";
-type DetailReportType = "CATEGORY" | "DISH";
+type DetailReportType = "CATEGORY" | "DISH" | "SETTLEMENT";
 
 export default function SalesReport() {
   const router = useRouter();
@@ -71,6 +71,7 @@ export default function SalesReport() {
     useState<DetailReportType | null>(null);
   const [categoryReport, setCategoryReport] = useState<any[]>([]);
   const [dishReport, setDishReport] = useState<any[]>([]);
+  const [settlementReport, setSettlementReport] = useState<any[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showPrintPrompt, setShowPrintPrompt] = useState(false);
   const [isReprinting, setIsReprinting] = useState(false);
@@ -148,7 +149,7 @@ export default function SalesReport() {
           t: Date.now().toString(),
         });
 
-        const endpoint = reportType === "CATEGORY" ? "category" : "dish";
+        const endpoint = reportType === "CATEGORY" ? "category" : reportType === "DISH" ? "dish" : "settlement";
         console.log("[SalesReport] Fetching report", {
           reportType,
           filterType: reportFilter,
@@ -180,7 +181,8 @@ export default function SalesReport() {
               : [],
           );
           setDishReport([]);
-        } else {
+          setSettlementReport([]);
+        } else if (reportType === "DISH") {
           setDishReport(
             Array.isArray(data)
               ? data.map((row: any) => ({
@@ -193,11 +195,27 @@ export default function SalesReport() {
               : [],
           );
           setCategoryReport([]);
+          setSettlementReport([]);
+        } else {
+          setSettlementReport(
+            Array.isArray(data)
+              ? data.map((row: any) => ({
+                  Paymode: row.Paymode || "Unknown",
+                  SysAmount: row.SysAmount ?? 0,
+                  ManualAmount: row.ManualAmount ?? 0,
+                  SortageOrExces: row.SortageOrExces ?? 0,
+                  ReceiptCount: row.ReceiptCount ?? 0,
+                }))
+              : [],
+          );
+          setCategoryReport([]);
+          setDishReport([]);
         }
       } catch (error) {
         console.error("Detail report fetch error:", error);
         setCategoryReport([]);
         setDishReport([]);
+        setSettlementReport([]);
       } finally {
         setLoadingReport(false);
       }
@@ -577,7 +595,8 @@ export default function SalesReport() {
       return null;
     }
 
-    const rows = detailReportType === "CATEGORY" ? categoryReport : dishReport;
+    const isSettlement = detailReportType === "SETTLEMENT";
+    const rows = isSettlement ? settlementReport : detailReportType === "CATEGORY" ? categoryReport : dishReport;
     const isDishReport = detailReportType === "DISH";
 
     return (
@@ -587,7 +606,7 @@ export default function SalesReport() {
           <View style={{ width: 62 }} />
           <View style={styles.reportTitleContainer}>
             <Text style={styles.cardTitle}>
-              {isDishReport ? "DISH SALES REPORT" : "CATEGORY SALES REPORT"}
+              {isSettlement ? "SETTLEMENT DETAILS REPORT" : isDishReport ? "DISH SALES REPORT" : "CATEGORY SALES REPORT"}
             </Text>
             <Text style={styles.reportSubText}>
               {rows.length} rows for the selected period
@@ -595,7 +614,7 @@ export default function SalesReport() {
           </View>
           <View style={styles.reportHeaderActions}>
             <Ionicons
-              name={isDishReport ? "restaurant-outline" : "albums-outline"}
+              name={isSettlement ? "wallet-outline" : isDishReport ? "restaurant-outline" : "albums-outline"}
               size={18}
               color={Theme.primary}
             />
@@ -607,6 +626,7 @@ export default function SalesReport() {
                 setDetailReportType(null);
                 setCategoryReport([]);
                 setDishReport([]);
+                setSettlementReport([]);
               }}
               style={styles.reportCloseBtn}
             >
@@ -638,42 +658,54 @@ export default function SalesReport() {
             <View style={styles.reportTable}>
               <View style={styles.reportTableHeader}>
                 <Text style={[styles.reportCell, styles.snoCell]}>S/N</Text>
-                <Text
-                  style={[
-                    styles.reportCell,
-                    isDishReport
-                      ? styles.dishNameCell
-                      : styles.categoryNameCell,
-                  ]}
-                >
-                  {isDishReport ? "Dish" : "Category"}
-                </Text>
-                {isDishReport && (
-                  <Text style={[styles.reportCell, styles.categoryNameCell]}>
-                    Category
-                  </Text>
+                {isSettlement ? (
+                  <>
+                    <Text style={[styles.reportCell, styles.paymodeCell]}>Paymode</Text>
+                    <Text style={[styles.reportCell, styles.sysAmtCell]}>Sys Amt</Text>
+                    <Text style={[styles.reportCell, styles.manualAmtCell]}>Manual Amt</Text>
+                    <Text style={[styles.reportCell, styles.diffCell]}>Diff</Text>
+                    <Text style={[styles.reportCell, styles.qtyCell]}>Qty</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text
+                      style={[
+                        styles.reportCell,
+                        isDishReport
+                          ? styles.dishNameCell
+                          : styles.categoryNameCell,
+                      ]}
+                    >
+                      {isDishReport ? "Dish" : "Category"}
+                    </Text>
+                    {isDishReport && (
+                      <Text style={[styles.reportCell, styles.categoryNameCell]}>
+                        Category
+                      </Text>
+                    )}
+                    {isDishReport && (
+                      <Text style={[styles.reportCell, styles.subCategoryNameCell]}>
+                        Subcategory
+                      </Text>
+                    )}
+                    <Text
+                      style={[
+                        styles.reportCell,
+                        styles.qtyCell,
+                        { textAlign: "center" },
+                      ]}
+                    >
+                      QTY
+                    </Text>
+                    <Text style={[styles.reportCell, styles.amountCell]}>
+                      Sales
+                    </Text>
+                  </>
                 )}
-                {isDishReport && (
-                  <Text style={[styles.reportCell, styles.subCategoryNameCell]}>
-                    Subcategory
-                  </Text>
-                )}
-                <Text
-                  style={[
-                    styles.reportCell,
-                    styles.qtyCell,
-                    { textAlign: "center" },
-                  ]}
-                >
-                  QTY
-                </Text>
-                <Text style={[styles.reportCell, styles.amountCell]}>
-                  Sales
-                </Text>
               </View>
-              {rows.slice(0, 50).map((row, idx) => (
+              {rows.slice(0, 100).map((row, idx) => (
                 <View
-                  key={`${detailReportType}-${row.DishId || row.CategoryId || idx}`}
+                  key={`${detailReportType}-${idx}`}
                   style={[
                     styles.reportTableRow,
                     idx % 2 === 0 && styles.reportTableRowAlt,
@@ -688,61 +720,83 @@ export default function SalesReport() {
                   >
                     {idx + 1}
                   </Text>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.reportCell,
-                      styles.reportCellText,
-                      isDishReport
-                        ? styles.dishNameCell
-                        : styles.categoryNameCell,
-                    ]}
-                  >
-                    {isDishReport ? row.DishName : row.CategoryName}
-                  </Text>
-                  {isDishReport && (
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.reportCell,
-                        styles.reportCellText,
-                        styles.categoryNameCell,
-                      ]}
-                    >
-                      {row.CategoryName || "Unmapped"}
-                    </Text>
+                  {isSettlement ? (
+                    <>
+                      <Text style={[styles.reportCell, styles.reportCellText, styles.paymodeCell, { textAlign: 'left' }]}>
+                        {row.Paymode}
+                      </Text>
+                      <Text style={[styles.reportCell, styles.reportCellText, styles.sysAmtCell, { color: Theme.success }]}>
+                        {formatCurrency(row.SysAmount)}
+                      </Text>
+                      <Text style={[styles.reportCell, styles.reportCellText, styles.manualAmtCell, { color: Theme.primary }]}>
+                        {formatCurrency(row.ManualAmount)}
+                      </Text>
+                      <Text style={[styles.reportCell, styles.reportCellText, styles.diffCell, { color: row.SortageOrExces < 0 ? '#dc2626' : Theme.textPrimary }]}>
+                        {formatCurrency(row.SortageOrExces)}
+                      </Text>
+                      <Text style={[styles.reportCell, styles.reportCellText, styles.qtyCell]}>
+                        {row.ReceiptCount}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          isDishReport
+                            ? styles.dishNameCell
+                            : styles.categoryNameCell,
+                        ]}
+                      >
+                        {isDishReport ? row.DishName : row.CategoryName}
+                      </Text>
+                      {isDishReport && (
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.reportCell,
+                            styles.reportCellText,
+                            styles.categoryNameCell,
+                          ]}
+                        >
+                          {row.CategoryName || "Unmapped"}
+                        </Text>
+                      )}
+                      {isDishReport && (
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.reportCell,
+                            styles.reportCellText,
+                            styles.subCategoryNameCell,
+                          ]}
+                        >
+                          {row.SubCategoryName || "Unmapped"}
+                        </Text>
+                      )}
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.qtyCell,
+                        ]}
+                      >
+                        {Number(row.Sold || 0).toFixed(0)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.reportCell,
+                          styles.reportCellText,
+                          styles.amountCell,
+                          { color: Theme.success, fontWeight: "bold" },
+                        ]}
+                      >
+                        {formatCurrency(Number(row.SalesAmount || 0))}
+                      </Text>
+                    </>
                   )}
-                  {isDishReport && (
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.reportCell,
-                        styles.reportCellText,
-                        styles.subCategoryNameCell,
-                      ]}
-                    >
-                      {row.SubCategoryName || "Unmapped"}
-                    </Text>
-                  )}
-                  <Text
-                    style={[
-                      styles.reportCell,
-                      styles.reportCellText,
-                      styles.qtyCell,
-                    ]}
-                  >
-                    {Number(row.Sold || 0).toFixed(0)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.reportCell,
-                      styles.reportCellText,
-                      styles.amountCell,
-                      { color: Theme.success, fontWeight: "bold" },
-                    ]}
-                  >
-                    {formatCurrency(Number(row.SalesAmount || 0))}
-                  </Text>
                 </View>
               ))}
             </View>
@@ -982,6 +1036,28 @@ export default function SalesReport() {
                   ]}
                 >
                   Item Sales Report
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleReportPress("SETTLEMENT")}
+                style={[
+                  styles.reportSwitchBtn,
+                  detailReportType === "SETTLEMENT" && styles.activeReportSwitchBtn,
+                ]}
+              >
+                <Ionicons
+                  name="wallet-outline"
+                  size={16}
+                  color={detailReportType === "SETTLEMENT" ? "#fff" : Theme.primary}
+                />
+                <Text
+                  style={[
+                    styles.reportSwitchText,
+                    detailReportType === "SETTLEMENT" &&
+                      styles.activeReportSwitchText,
+                  ]}
+                >
+                  Settlement Report
                 </Text>
               </TouchableOpacity>
             </View>
@@ -2115,6 +2191,26 @@ const styles = StyleSheet.create({
   amountCell: {
     width: 100,
     textAlign: "center",
+    flexShrink: 0,
+  },
+  paymodeCell: {
+    minWidth: 100,
+    flex: 1,
+    textAlign: "left",
+  },
+  sysAmtCell: {
+    width: 90,
+    textAlign: "right",
+    flexShrink: 0,
+  },
+  manualAmtCell: {
+    width: 90,
+    textAlign: "right",
+    flexShrink: 0,
+  },
+  diffCell: {
+    width: 80,
+    textAlign: "right",
     flexShrink: 0,
   },
   chartsScrollContent: {

@@ -314,6 +314,39 @@ router.get("/dish", async (req, res) => {
   }
 });
 
+router.get("/settlement", async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    const pool = await poolPromise;
+    const filter = normalizeReportFilter(req.query.filter);
+    const date = req.query.date;
+    const dateWhereSql = getReportDateWhereSql(filter, "sh.LastSettlementDate", date);
+    
+    console.log(`[REPORT API] type=settlement filter=${filter} date=${date || 'today'}`);
+
+    const result = await pool.request().query(`
+        SELECT 
+          sd.Paymode,
+          SUM(ISNULL(sd.SysAmount, 0)) as SysAmount,
+          SUM(ISNULL(sd.ManualAmount, 0)) as ManualAmount,
+          SUM(ISNULL(sd.SortageOrExces, 0)) as SortageOrExces,
+          SUM(ISNULL(sd.ReceiptCount, 0)) as ReceiptCount
+        FROM SettlementHeader sh
+        INNER JOIN SettlementDetail sd ON sh.SettlementID = sd.SettlementId
+        WHERE ${dateWhereSql}
+          AND ISNULL(sh.IsCancelled, 0) = 0
+        GROUP BY sd.Paymode
+        ORDER BY SysAmount DESC
+      `);
+
+    console.log(`[REPORT API] type=settlement filter=${filter} rows=${result.recordset.length}`);
+    res.json(result.recordset || []);
+  } catch (err) {
+    console.error("[REPORT API] settlement error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/daily/:date", async (req, res) => {
   try {
     const pool = await poolPromise;
