@@ -314,6 +314,60 @@ router.get("/dish", async (req, res) => {
   }
 });
 
+// 5. Get Day End Summary
+router.get("/day-end-summary", async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const pool = await poolPromise;
+
+    // A. Paymode Detail
+    const paymodeRes = await pool.request()
+      .input("date", sql.VarChar, targetDate)
+      .query(`
+        SELECT 
+          sd.Paymode,
+          SUM(ISNULL(sd.SysAmount, 0)) as Amount,
+          CAST(SUM(ISNULL(sd.ReceiptCount, 0)) AS INT) as Count
+        FROM SettlementHeader sh
+        INNER JOIN SettlementDetail sd ON sh.SettlementID = sd.SettlementId
+        WHERE CAST(sh.LastSettlementDate AS DATE) = @date
+          AND ISNULL(sh.IsCancelled, 0) = 0
+        GROUP BY sd.Paymode
+      `);
+
+    // B. Sales Analysis
+    const analysisRes = await pool.request()
+      .input("date", sql.VarChar, targetDate)
+      .query(`
+        SELECT 
+          SUM(ISNULL(TotalAmount, 0)) as TotalSales,
+          COUNT(DISTINCT SettlementID) as BillCount
+        FROM SettlementHeader
+        WHERE CAST(LastSettlementDate AS DATE) = @date
+          AND ISNULL(IsCancelled, 0) = 0
+      `);
+
+    const analysis = analysisRes.recordset[0] || { TotalSales: 0, BillCount: 0 };
+    const totalSales = analysis.TotalSales || 0;
+    const billCount = analysis.BillCount || 0;
+    const avgPerBill = billCount > 0 ? (totalSales / billCount) : 0;
+
+    res.json({
+      success: true,
+      paymodeDetail: paymodeRes.recordset,
+      salesAnalysis: {
+        totalSales,
+        billCount,
+        avgPerBill
+      }
+    });
+  } catch (err) {
+    console.error("[DAY-END SUMMARY ERROR]", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get("/settlement", async (req, res) => {
   try {
     res.set("Cache-Control", "no-store");

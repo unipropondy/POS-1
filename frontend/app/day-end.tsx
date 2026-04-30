@@ -22,55 +22,65 @@ export default function DayEndScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<any>(null);
+  const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    // Fetch today's summary
-    fetchTodaySummary();
+    fetchDaySummary();
   }, []);
 
-  const fetchTodaySummary = async () => {
+  const fetchDaySummary = async () => {
     setLoading(true);
     try {
-      // Placeholder for actual API call
-      // const res = await fetch(`${API_URL}/api/sales/today-summary`);
-      // const data = await res.json();
-      // setSummary(data);
-      
-      // Dummy data for now
-      setSummary({
-        totalSales: 1250.50,
-        orderCount: 45,
-        cashPayments: 850.00,
-        cardPayments: 400.50,
-        startTime: new Date().setHours(9, 0, 0),
-        endTime: new Date().getTime(),
-      });
+      const res = await fetch(`${API_URL}/api/sales/day-end-summary`);
+      const json = await res.json();
+      if (json.success) {
+        setData(json);
+      }
     } catch (err) {
       console.error(err);
+      Alert.alert("Error", "Failed to fetch day summary");
     } finally {
       setLoading(false);
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+    }).format(amount);
+  };
+
   const handleDayEnd = () => {
     Alert.alert(
       "Confirm Day End",
-      "Are you sure you want to close the day? This will generate a final report and log you out.",
+      "Are you sure you want to close the day? This will finalize all transactions and prepare for the next business day.",
       [
         { text: "Cancel", style: "cancel" },
         { 
           text: "Confirm", 
           style: "destructive",
           onPress: () => {
-            // Logic for Day End
-            Alert.alert("Success", "Day ended successfully. Printing report...");
+            // Logic for Day End would go here (e.g. archiving or resetting)
+            Alert.alert("Success", "Day ended successfully. Report generated.");
             router.replace("/");
           }
         }
       ]
     );
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={Theme.primary} />
+        <Text style={{ marginTop: 10, fontFamily: Fonts.medium, color: Theme.textSecondary }}>Fetching Summary...</Text>
+      </View>
+    );
+  }
+
+  const analysis = data?.salesAnalysis;
+  const paymodes = data?.paymodeDetail || [];
 
   return (
     <View style={styles.container}>
@@ -80,48 +90,89 @@ export default function DayEndScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color={Theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Day End</Text>
+          <Text style={styles.headerTitle}>Day End Report</Text>
           <View style={{ width: 44 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.summaryCard}>
-            <View style={styles.cardHeader}>
-              <MaterialCommunityIcons name="calendar-clock" size={24} color={Theme.primary} />
-              <Text style={styles.cardTitle}>Today's Summary</Text>
+          {/* Main Stats Cards */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Total Sales</Text>
+              <Text style={styles.statValue}>{formatCurrency(analysis?.totalSales || 0)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Total Bills</Text>
+              <Text style={styles.statValue}>{analysis?.billCount || 0}</Text>
+            </View>
+          </View>
+
+          {/* Paymode Detail Table */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="credit-card-outline" size={20} color={Theme.primary} />
+              <Text style={styles.sectionTitle}>Paymode Detail</Text>
+            </View>
+            
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderText, { flex: 2 }]}>Particulars</Text>
+              <Text style={[styles.tableHeaderText, { flex: 1, textAlign: "center" }]}>Qty</Text>
+              <Text style={[styles.tableHeaderText, { flex: 1.5, textAlign: "right" }]}>Amount</Text>
             </View>
 
-            {loading ? (
-              <ActivityIndicator size="large" color={Theme.primary} style={{ marginVertical: 40 }} />
+            {paymodes.length > 0 ? (
+              paymodes.map((pm: any, idx: number) => (
+                <View key={idx} style={styles.tableRow}>
+                  <Text style={[styles.tableCellText, { flex: 2, fontFamily: Fonts.bold }]}>{pm.Paymode}</Text>
+                  <Text style={[styles.tableCellText, { flex: 1, textAlign: "center" }]}>{pm.Count}</Text>
+                  <Text style={[styles.tableCellText, { flex: 1.5, textAlign: "right", color: Theme.success }]}>
+                    {formatCurrency(pm.Amount)}
+                  </Text>
+                </View>
+              ))
             ) : (
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Total Sales</Text>
-                  <Text style={styles.statValue}>${summary?.totalSales.toFixed(2)}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Orders</Text>
-                  <Text style={styles.statValue}>{summary?.orderCount}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Cash</Text>
-                  <Text style={[styles.statValue, { color: Theme.success }]}>${summary?.cashPayments.toFixed(2)}</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Card/Online</Text>
-                  <Text style={[styles.statValue, { color: Theme.info }]}>${summary?.cardPayments.toFixed(2)}</Text>
-                </View>
-              </View>
+              <Text style={styles.emptyText}>No transactions yet</Text>
             )}
+            
+            <View style={styles.tableFooter}>
+              <Text style={[styles.footerText, { flex: 2 }]}>Total</Text>
+              <Text style={[styles.footerText, { flex: 1, textAlign: "center" }]}>
+                {paymodes.reduce((acc: number, curr: any) => acc + curr.Count, 0)}
+              </Text>
+              <Text style={[styles.footerText, { flex: 1.5, textAlign: "right" }]}>
+                {formatCurrency(paymodes.reduce((acc: number, curr: any) => acc + curr.Amount, 0))}
+              </Text>
+            </View>
+          </View>
+
+          {/* Analysis Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="chart-line" size={20} color={Theme.primary} />
+              <Text style={styles.sectionTitle}>Analysis</Text>
+            </View>
+            
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Sales Amount</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(analysis?.totalSales || 0)}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>No of Bills</Text>
+              <Text style={styles.analysisValue}>{analysis?.billCount || 0}</Text>
+            </View>
+            <View style={styles.analysisRow}>
+              <Text style={styles.analysisLabel}>Avg/Bill</Text>
+              <Text style={styles.analysisValue}>{formatCurrency(analysis?.avgPerBill || 0)}</Text>
+            </View>
           </View>
 
           <TouchableOpacity style={styles.actionBtn} onPress={handleDayEnd}>
-            <MaterialCommunityIcons name="check-circle-outline" size={24} color="#fff" />
-            <Text style={styles.actionBtnText}>Perform Day End</Text>
+            <MaterialCommunityIcons name="printer" size={24} color="#fff" />
+            <Text style={styles.actionBtnText}>Print & Close Day</Text>
           </TouchableOpacity>
 
           <Text style={styles.infoText}>
-            Performing Day End will finalize all transactions for today and prepare the system for the next business day.
+            Generating the Day End report will finalize all daily records. Ensure all tables are cleared before proceeding.
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -155,49 +206,99 @@ const styles = StyleSheet.create({
     color: Theme.textPrimary,
   },
   content: {
-    padding: 20,
-  },
-  summaryCard: {
-    backgroundColor: Theme.bgCard,
-    borderRadius: 20,
-    padding: 20,
-    ...Theme.shadowMd,
-    marginBottom: 30,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.border,
-    paddingBottom: 15,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: Theme.textPrimary,
+    padding: 16,
+    gap: 20,
   },
   statsGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 15,
+    gap: 12,
   },
   statItem: {
-    width: "47%",
-    backgroundColor: Theme.bgMuted,
-    padding: 15,
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: Theme.bgCard,
+    padding: 16,
+    borderRadius: 16,
+    ...Theme.shadowSm,
   },
   statLabel: {
     fontSize: 12,
     fontFamily: Fonts.medium,
     color: Theme.textSecondary,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   statValue: {
     fontSize: 18,
     fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+  },
+  sectionCard: {
+    backgroundColor: Theme.bgCard,
+    borderRadius: 20,
+    padding: 16,
+    ...Theme.shadowSm,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    color: Theme.textPrimary,
+  },
+  tableHeader: {
+    flexDirection: "row",
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.border,
+    marginBottom: 8,
+  },
+  tableHeaderText: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: Theme.textSecondary,
+    textTransform: "uppercase",
+  },
+  tableRow: {
+    flexDirection: "row",
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Theme.border,
+  },
+  tableCellText: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    color: Theme.textPrimary,
+  },
+  tableFooter: {
+    flexDirection: "row",
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 2,
+    borderTopColor: Theme.border,
+  },
+  footerText: {
+    fontSize: 14,
+    fontFamily: Fonts.black,
+    color: Theme.textPrimary,
+  },
+  analysisRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Theme.border,
+  },
+  analysisLabel: {
+    fontSize: 14,
+    fontFamily: Fonts.medium,
+    color: Theme.textSecondary,
+  },
+  analysisValue: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
     color: Theme.textPrimary,
   },
   actionBtn: {
@@ -206,21 +307,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    height: 60,
+    height: 56,
     borderRadius: 16,
+    marginTop: 10,
     ...Theme.shadowMd,
   },
   actionBtnText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: Fonts.black,
   },
   infoText: {
-    marginTop: 20,
     textAlign: "center",
     color: Theme.textMuted,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: Fonts.medium,
-    lineHeight: 20,
+    lineHeight: 18,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  emptyText: {
+    textAlign: "center",
+    paddingVertical: 20,
+    fontFamily: Fonts.medium,
+    color: Theme.textMuted,
+    fontStyle: "italic",
   },
 });
